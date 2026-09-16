@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-tavern-bg text-parchment antialiased;
+    font-family: 'Inter', sans-serif;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #2a2520 #0f0d0a;
+  }
+}
+
+@layer components {
+  .btn-gold {
+    @apply px-6 py-3 bg-gradient-to-b from-gold-light to-gold-dark text-tavern-bg font-display font-bold
+           rounded-lg shadow-lg shadow-gold-dark/30 transition-all duration-200
+           hover:from-gold-light hover:to-gold hover:shadow-gold/40 hover:scale-[1.02]
+           active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100;
+  }
+
+  .btn-outline {
+    @apply px-6 py-3 border border-tavern-border text-gold-muted font-display
+           rounded-lg transition-all duration-200
+           hover:border-gold-dark hover:text-gold hover:bg-tavern-surface
+           active:scale-[0.98];
+  }
+
+  .card-surface {
+    @apply bg-tavern-card border border-tavern-border rounded-xl;
+  }
+
+  .input-field {
+    @apply w-full px-4 py-3 bg-tavern-bg border border-tavern-border rounded-lg
+           text-parchment placeholder-gold-muted/40 font-body
+           focus:outline-none focus:border-gold-dark focus:ring-1 focus:ring-gold-dark/50
+           transition-all duration-200;
+  }
+}

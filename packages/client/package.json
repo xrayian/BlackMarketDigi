@@ -1,0 +1,38 @@
+{
+  "name": "@sheriff/client",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@colyseus/schema": "^5.0.32",
+    "@colyseus/sdk": "^0.18.2",
+    "@react-spring/three": "^9",
+    "@react-three/drei": "^9",
+    "@react-three/fiber": "^8",
+    "@react-three/postprocessing": "^2",
+    "@sheriff/shared": "*",
+    "framer-motion": "^11",
+    "howler": "^2.2",
+    "react": "^18.3",
+    "react-dom": "^18.3",
+    "three": "^0.170",
+    "zustand": "^5"
+  },
+  "devDependencies": {
+    "@types/howler": "^2",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "@types/three": "^0.170",
+    "@vitejs/plugin-react": "^4",
+    "autoprefixer": "^10",
+    "postcss": "^8",
+    "tailwindcss": "^3.4",
+    "typescript": "^5.5",
+    "vite": "^6"
+  }
+}
