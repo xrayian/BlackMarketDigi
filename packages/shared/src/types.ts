@@ -19,3 +19,81 @@ export interface CardDefinition {
   count4PlusPlayer: number;
   fourPlusOnly: boolean;
 }
+
+export interface Card {
+  id: string;
+  name: string;
+  classification: CardClassification;
+  goodType?: GoodType;
+  contrabandType?: ContrabandType;
+  royalGoodType?: RoyalGoodType;
+  baseGood?: GoodType;
+  royalBonusCount?: number;
+  value: number;
+  penalty: number;
+}
+
+export interface PlayerStand {
+  legalGoods: Card[];
+  contraband: Card[];
+  royalGoods: Card[];
+}
+
+export interface SealedBag {
+  playerId: string;
+  cards: Card[];
+  isSnapped: boolean;
+  declaredGood?: GoodType;
+  declaredCount?: number;
+}
+
+export interface EnginePlayerState {
+  id: string;
+  name: string;
+  gold: number;
+  hand: Card[];
+  stand: PlayerStand;
+  sealedBag?: SealedBag;
+}
+
+export interface InspectionResult {
+  isHonest: boolean;
+  declaredGood: GoodType;
+  declaredCount: number;
+  keptCards: Card[];
+  confiscatedCards: Card[];
+  penaltyAmount: number;
+  penaltyDebtor: 'SHERIFF' | 'MERCHANT' | 'NONE';
+  penaltyCreditor: 'SHERIFF' | 'MERCHANT' | 'NONE';
+}
+
+export interface DebtResolutionResult {
+  paidGold: number;
+  transferredLegalCards: Card[];
+  transferredContrabandCards: Card[];
+  forgivenDebt: number;
+  remainingDebt: number;
+  settled: boolean;
+}
+
+export interface BonusAward {
+  goodType: GoodType;
+  title: 'KING' | 'QUEEN' | 'TIED_KING' | 'TIED_QUEEN';
+  points: number;
+}
+
+export interface PlayerScoreBreakdown {
+  playerId: string;
+  name: string;
+  gold: number;
+  goodsValue: number;
+  legalGoodsValue: number;
+  contrabandValue: number;
+  royalGoodsValue: number;
+  bonusPoints: number;
+  bonuses: BonusAward[];
+  totalScore: number;
+  legalGoodsCount: number;
+  contrabandCount: number;
+  rank: number;
+}
