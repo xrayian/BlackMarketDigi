@@ -39,6 +39,7 @@ export interface BribeOfferMessage {
 
 export interface BribeResponseMessage {
   accept: boolean;
+  sequenceNumber?: number;
 }
 
 export interface SelectStartPlayerMessage {
