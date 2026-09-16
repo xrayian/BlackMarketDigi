@@ -1,0 +1,10 @@
+node_modules
+dist
+*.tsbuildinfo
+.env
+*.log
+.DS_Store
+.vscode/*
+!.vscode/settings.json
+coverage
+.pre_initialization/

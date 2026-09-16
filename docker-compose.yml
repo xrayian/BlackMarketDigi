@@ -1,0 +1,26 @@
+services:
+  server:
+    image: node:20-alpine
+    working_dir: /app
+    ports:
+      - "2567:2567"
+    volumes:
+      - .:/app
+    command: npm run dev:server
+    environment:
+      - SERVER_PORT=2567
+      - NODE_ENV=development
+
+  # postgres:
+  #   image: postgres:15
+  #   ports:
+  #     - "5432:5432"
+  #   environment:
+  #     - POSTGRES_USER=postgres
+  #     - POSTGRES_PASSWORD=postgres
+  #     - POSTGRES_DB=sheriff
+  #   volumes:
+  #     - pgdata:/var/lib/postgresql/data
+
+# volumes:
+#   pgdata:
