@@ -13,11 +13,15 @@ import { DeclarationPanel } from '../ui/DeclarationPanel';
 import { ErrorToast } from '../ui/ErrorToast';
 import { ExaminationDesk } from '../ui/ExaminationDesk';
 import { InspectionOutcomeModal } from '../ui/InspectionOutcomeModal';
+import { BlackMarketPanel } from '../ui/BlackMarketPanel';
 
 export function GameScene() {
   const phase = useGameStore((s) => s.phase);
   const round = useGameStore((s) => s.round);
   const sheriffId = useGameStore((s) => s.sheriffId);
+  const deputyIds = useGameStore((s) => s.deputyIds);
+  const enableDeputies = useGameStore((s) => s.enableDeputies);
+  const bootyTile = useGameStore((s) => s.bootyTile);
   const activeMerchantId = useGameStore((s) => s.activeMerchantId);
   const localPlayerId = useGameStore((s) => s.localPlayerId);
   const drawPileCount = useGameStore((s) => s.drawPileCount);
@@ -51,7 +55,9 @@ export function GameScene() {
           ],
           standContrabandCount: 2,
           standContraband: [],
+          standRoyalCount: 0,
           standRoyal: [],
+          hasClaimedBlackMarketThisRound: false,
           sheriffCount: 0,
         },
         {
@@ -71,7 +77,9 @@ export function GameScene() {
           ],
           standContrabandCount: 0,
           standContraband: [],
+          standRoyalCount: 0,
           standRoyal: [],
+          hasClaimedBlackMarketThisRound: false,
           sheriffCount: 0,
         },
         {
@@ -92,7 +100,9 @@ export function GameScene() {
           ],
           standContrabandCount: 1,
           standContraband: [],
+          standRoyalCount: 0,
           standRoyal: [],
+          hasClaimedBlackMarketThisRound: false,
           sheriffCount: 0,
         },
         {
@@ -110,7 +120,9 @@ export function GameScene() {
           standLegal: [],
           standContrabandCount: 0,
           standContraband: [],
+          standRoyalCount: 0,
           standRoyal: [],
+          hasClaimedBlackMarketThisRound: false,
           sheriffCount: 0,
         },
       ];
@@ -165,7 +177,24 @@ export function GameScene() {
           <span className="font-display text-sm text-parchment">
             Round <span className="font-bold text-gold">{round || 1}</span>
           </span>
-          {sheriffPlayer && (
+          {enableDeputies ? (
+            <>
+              <span className="w-1 h-4 bg-tavern-border rounded-full" />
+              <span className="font-display text-xs text-blue-300 flex items-center gap-1.5 bg-blue-500/20 px-2.5 py-1 rounded-md border border-blue-400/30">
+                <span>🛡️ Deputies:</span>
+                <span className="font-bold text-white">
+                  {players.filter((p) => deputyIds.includes(p.id)).map((p) => p.name).join(' & ') || 'Assigned'}
+                </span>
+              </span>
+              {bootyTile && (
+                <span className="font-display text-xs text-gold flex items-center gap-1.5 bg-gold/15 px-2.5 py-1 rounded-md border border-gold/30">
+                  <span>💰 Booty:</span>
+                  <span className="font-bold text-white">{bootyTile.gold}g</span>
+                  {bootyTile.goodsCount > 0 && <span className="text-parchment/60">({bootyTile.goodsCount} goods)</span>}
+                </span>
+              )}
+            </>
+          ) : sheriffPlayer ? (
             <>
               <span className="w-1 h-4 bg-tavern-border rounded-full" />
               <span className="font-display text-xs text-gold flex items-center gap-1.5 bg-gold/15 px-2.5 py-1 rounded-md border border-gold/30">
@@ -173,7 +202,7 @@ export function GameScene() {
                 <span className="font-bold text-white">{sheriffPlayer.name}</span>
               </span>
             </>
-          )}
+          ) : null}
         </div>
 
         {/* Current Phase Banner */}
@@ -210,6 +239,9 @@ export function GameScene() {
       {/* Phase 5: Examination Desk & Inspection Outcomes */}
       <ExaminationDesk />
       <InspectionOutcomeModal />
+
+      {/* Phase 6: Black Market Expansion Panel */}
+      <BlackMarketPanel />
 
       {/* Local Player Quick Stats Bar at Bottom Center */}
       {localPlayer && (

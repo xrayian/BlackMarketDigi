@@ -25,17 +25,22 @@
 - All colors use the custom Tailwind theme (tavern-*, gold-*, parchment, etc.)
 - Font: Cinzel for headings/display, Inter for body text
 
-## Current Phase: Phase 5 Completed (Inspection & Bribe Negotiation — "The Examination Desk")
-- **soundManager.ts**: Procedural Web Audio API sound synthesizer providing cancelable 1.2s tension sound ramp (160Hz→620Hz), mechanical snap, metallic coin drop, wooden gavel strike, and outcome chords (honest fanfare, dishonest discord stinger, pass chime).
-- **CameraRig.tsx**: Smooth `useFrame` camera position & target interpolation between Table View `(0, 5.4, 6.8)` and 1-on-1 Examination Desk angle `(0, 3.4, 4.4)` when `activeMerchantId` is set.
-- **BribeScale.tsx**: Interactive balance scale visualizer whose brass beam tilts dynamically using spring physics based on total bribe weight (coins, stand goods, bag claims).
-- **UnsnapClasp.tsx**: Sheriff's 1.2s sustained hold clasp button with ascending audio tension ramp, release cancellation at <1.1s without state mutation, and snap crack at 1.2s. Includes "Pass Unopened" action.
-- **BribeNegotiationPanel.tsx**: Bribe proposal builder with gold sliders, stand cards selection, promised goods, and 1.5s reaction buffer lock on modified offers.
-- **InspectionOutcomeModal.tsx**: Visual feedback modal for Pass Unopened, Honest, and Dishonest outcomes, plus guided 4-step debt liquidation display (cash → stand legal → stand contraband → wipe).
-- **ExaminationDesk.tsx**: Master Examination Desk orchestrator connecting merchant selection, scale, negotiation, and inspection actions.
-- **colyseus.ts**: Added `inspection_result` listener with audio cues.
-- **gameStore.ts**: Added `lastInspectionResult`, `bribeReactionCooldown`, and 1.5s cooldown timer.
-- Ready for Phase 6: Expansion Modules (Royal Goods, 6-Player Deputies, Black Market).
+## Current Phase: Phase 6 Completed (Expansion Modules)
+- **Phase 5 (The Examination Desk):**
+  - `soundManager.ts`: Procedural Web Audio API sound synthesizer providing cancelable 1.2s tension sound ramp, mechanical snap, metallic coin drop, wooden gavel strike, and outcome chords.
+  - `CameraRig.tsx`: Smooth camera interpolation between Table View and 1-on-1 Examination Desk angle.
+  - `BribeScale.tsx`: Interactive balance scale visualizer whose brass beam tilts dynamically using spring physics based on total bribe weight.
+  - `UnsnapClasp.tsx`: Sheriff's 1.2s sustained hold clasp button with tension audio ramp, release cancellation at <1.1s, and snap crack at 1.2s.
+  - `BribeNegotiationPanel.tsx`: Bribe proposal builder with 1.5s reaction buffer lock on modified offers.
+  - `InspectionOutcomeModal.tsx`: Visual feedback modal for Pass Unopened, Honest, and Dishonest outcomes with guided 4-step debt liquidation.
+  - `ExaminationDesk.tsx`: Master Examination Desk orchestrator.
+- **Phase 6 (Expansion Modules UI & Scene):**
+  - `Lobby.tsx`: Added Caravan Rules & Expansions configuration section. Host controls for player capacity (3–6), Royal Goods, 6-Player Deputies (6p only), and Black Market with dynamic `update_lobby_options` synchronization.
+  - `ExaminationDesk.tsx`: Added 6-player Deputies controls allowing local deputies to execute Joint Pass, Joint Inspect, Solo Pass, and Solo Inspect. Displays communal Booty Tile gold and goods count.
+  - `BlackMarketPanel.tsx`: Collapsible floating HUD panel displaying the 3 black market order piles (Pepper, Mead, Silk), remaining counts, points values, and active "Trade 3" buttons for qualified merchants.
+  - `GameScene.tsx`: Added Deputies badge and Booty Tile counter in the top HUD bar; rendered `BlackMarketPanel`.
+  - `MerchantStand.tsx`: Added Royal Goods 3D card stack and purple crown medallion (`standRoyalCount`), displaying Royal Goods safely isolated on player stands.
+- Ready for Phase 7: Micro-interactions, audio, visual polish.
 
 ## Gotchas & Decisions
 - **Angular Seating Formula**: `angle = ((player.seatIndex - localSeatIndex) / totalSeats) * Math.PI * 2 - Math.PI / 2` ensures the local player is always in the foreground facing the center, while other players arrange clockwise.

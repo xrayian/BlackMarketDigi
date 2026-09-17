@@ -13,6 +13,7 @@ export interface MarketPhaseState {
 export interface InitMarketOptions {
   tableSeats: string[]; // Order of players seated at the table
   sheriffId: string;
+  deputyIds?: string[];
   startingMerchantId?: string;
   maxHandSize?: number;
 }
@@ -38,36 +39,44 @@ export interface ExchangeMarketResult {
 }
 
 /**
- * Calculates clockwise merchant turn order starting from designated merchant, skipping Sheriff.
+ * Calculates clockwise merchant turn order starting from designated merchant, skipping Sheriff and Deputies.
  */
 export function calculateMerchantOrder(
   tableSeats: readonly string[],
   sheriffId: string,
-  startingMerchantId?: string
+  startingMerchantId?: string,
+  deputyIds?: readonly string[]
 ): string[] {
-  const sheriffIndex = tableSeats.indexOf(sheriffId);
-  if (sheriffIndex === -1) {
-    throw new Error(`Sheriff ${sheriffId} is not in table seats`);
+  const authorities = deputyIds && deputyIds.length > 0 ? deputyIds : [sheriffId];
+  const primaryAuthority = sheriffId || (deputyIds ? deputyIds[0] : '');
+  const authorityIndex = tableSeats.indexOf(primaryAuthority);
+  if (authorityIndex === -1) {
+    throw new Error(`Sheriff or Deputy ${primaryAuthority} is not in table seats`);
   }
 
-  const merchants = tableSeats.filter((id) => id !== sheriffId);
+  const merchants = tableSeats.filter((id) => !authorities.includes(id));
   if (merchants.length === 0) {
     throw new Error('No merchants available for market phase');
   }
 
   let startId = startingMerchantId;
-  if (!startId || startId === sheriffId || !merchants.includes(startId)) {
-    // Default to the player immediately clockwise from Sheriff
-    const defaultIndex = (sheriffIndex + 1) % tableSeats.length;
-    startId = tableSeats[defaultIndex];
+  if (!startId || authorities.includes(startId) || !merchants.includes(startId)) {
+    // Default to the first merchant clockwise from primary authority
+    for (let i = 1; i <= tableSeats.length; i++) {
+      const candidate = tableSeats[(authorityIndex + i) % tableSeats.length];
+      if (!authorities.includes(candidate)) {
+        startId = candidate;
+        break;
+      }
+    }
   }
 
-  const startIndex = tableSeats.indexOf(startId);
+  const startIndex = tableSeats.indexOf(startId!);
   const ordered: string[] = [];
 
   for (let i = 0; i < tableSeats.length; i++) {
     const candidate = tableSeats[(startIndex + i) % tableSeats.length];
-    if (candidate !== sheriffId) {
+    if (!authorities.includes(candidate) && !ordered.includes(candidate)) {
       ordered.push(candidate);
     }
   }
@@ -79,8 +88,8 @@ export function calculateMerchantOrder(
  * Initializes the Market Phase.
  */
 export function initMarketPhase(options: InitMarketOptions): MarketPhaseState {
-  const { tableSeats, sheriffId, startingMerchantId, maxHandSize = 6 } = options;
-  const merchantOrder = calculateMerchantOrder(tableSeats, sheriffId, startingMerchantId);
+  const { tableSeats, sheriffId, deputyIds, startingMerchantId, maxHandSize = 6 } = options;
+  const merchantOrder = calculateMerchantOrder(tableSeats, sheriffId, startingMerchantId, deputyIds);
 
   return {
     sheriffId,

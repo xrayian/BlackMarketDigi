@@ -1,0 +1,1 @@
+- The current UI is pretty unintuitive, the game window has 3d elements that float over 2d UI elements in the main game like the coins and snapped views, maybe we can switch to a complete 2d UI for the game.

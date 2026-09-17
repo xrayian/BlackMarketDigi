@@ -67,3 +67,30 @@ export interface InspectionResultMessage {
   liquidatedLegalCount?: number;
   liquidatedContrabandCount?: number;
 }
+
+export interface UpdateLobbyOptionsMessage {
+  enableRoyalGoods?: boolean;
+  enableDeputies?: boolean;
+  enableBlackMarket?: boolean;
+  maxPlayers?: number;
+}
+
+export interface DeputyInspectionMessage {
+  type: 'JOINT_PASS' | 'JOINT_INSPECT' | 'SOLO_PASS' | 'SOLO_INSPECT';
+  deputyId: string;
+  targetPlayerId: string;
+}
+
+export interface ClaimBlackMarketMessage {
+  contrabandType: ContrabandType;
+}
+
+export interface BlackMarketClaimedMessage {
+  playerId: string;
+  playerName: string;
+  orderId: string;
+  orderName: string;
+  contrabandType: ContrabandType;
+  pointsValue: number;
+}
+

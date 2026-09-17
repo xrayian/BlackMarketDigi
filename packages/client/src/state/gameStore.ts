@@ -39,7 +39,9 @@ export interface ClientPlayer {
   standLegal: ClientCard[];
   standContrabandCount: number;
   standContraband: ClientCard[];
+  standRoyalCount: number;
   standRoyal: ClientCard[];
+  hasClaimedBlackMarketThisRound: boolean;
   sealedBag?: ClientSealedBag;
   sheriffCount: number;
 }
@@ -54,6 +56,19 @@ export interface ClientBribeOffer {
   bagCardClaims: string[];
   nonBindingTerms: string;
   status: string;
+}
+
+export interface ClientBlackMarketOrder {
+  id: string;
+  name: string;
+  contrabandType: string;
+  requiredCount: number;
+  pointsValue: number;
+}
+
+export interface ClientBootyTile {
+  gold: number;
+  goodsCount: number;
 }
 
 interface GameStore {
@@ -71,6 +86,16 @@ interface GameStore {
   activeBribe?: ClientBribeOffer;
   winnerId: string | null;
   winningScore: number;
+
+  // Module Expansion State
+  enableRoyalGoods: boolean;
+  enableDeputies: boolean;
+  enableBlackMarket: boolean;
+  maxPlayers: number;
+  bootyTile?: ClientBootyTile;
+  blackMarketPepperPile: ClientBlackMarketOrder[];
+  blackMarketMeadPile: ClientBlackMarketOrder[];
+  blackMarketSilkPile: ClientBlackMarketOrder[];
 
   // Phase 4 UI state
   selectedCardIds: string[];
@@ -111,6 +136,14 @@ const initialState = {
   activeBribe: undefined as ClientBribeOffer | undefined,
   winnerId: null as string | null,
   winningScore: 0,
+  enableRoyalGoods: false,
+  enableDeputies: false,
+  enableBlackMarket: false,
+  maxPlayers: 4,
+  bootyTile: undefined as ClientBootyTile | undefined,
+  blackMarketPepperPile: [] as ClientBlackMarketOrder[],
+  blackMarketMeadPile: [] as ClientBlackMarketOrder[],
+  blackMarketSilkPile: [] as ClientBlackMarketOrder[],
   selectedCardIds: [] as string[],
   errorMessage: null as string | null,
   errorTimestamp: 0,
@@ -179,7 +212,9 @@ export const useGameStore = create<GameStore>((set) => ({
           standLegal,
           standContrabandCount: p.standContrabandCount || 0,
           standContraband,
+          standRoyalCount: p.standRoyalCount || standRoyal.length,
           standRoyal,
+          hasClaimedBlackMarketThisRound: Boolean(p.hasClaimedBlackMarketThisRound),
           sealedBag,
           sheriffCount: p.sheriffCount || 0,
         });
@@ -205,6 +240,32 @@ export const useGameStore = create<GameStore>((set) => ({
       };
     }
 
+    let bootyTile: ClientBootyTile | undefined = undefined;
+    if (state.bootyTile) {
+      bootyTile = {
+        gold: state.bootyTile.gold || 0,
+        goodsCount: state.bootyTile.goods ? state.bootyTile.goods.length : 0,
+      };
+    }
+
+    const mapBMOrder = (o: any): ClientBlackMarketOrder => ({
+      id: o.id,
+      name: o.name,
+      contrabandType: o.contrabandType,
+      requiredCount: o.requiredCount || 3,
+      pointsValue: o.pointsValue || 0,
+    });
+
+    const blackMarketPepperPile: ClientBlackMarketOrder[] = state.blackMarketPepperPile
+      ? Array.from(state.blackMarketPepperPile).map(mapBMOrder)
+      : [];
+    const blackMarketMeadPile: ClientBlackMarketOrder[] = state.blackMarketMeadPile
+      ? Array.from(state.blackMarketMeadPile).map(mapBMOrder)
+      : [];
+    const blackMarketSilkPile: ClientBlackMarketOrder[] = state.blackMarketSilkPile
+      ? Array.from(state.blackMarketSilkPile).map(mapBMOrder)
+      : [];
+
     set({
       phase: state.phase as GamePhase,
       round: state.round || 0,
@@ -217,6 +278,14 @@ export const useGameStore = create<GameStore>((set) => ({
       activeBribe,
       winnerId: state.winnerId || null,
       winningScore: state.winningScore || 0,
+      enableRoyalGoods: Boolean(state.enableRoyalGoods),
+      enableDeputies: Boolean(state.enableDeputies),
+      enableBlackMarket: Boolean(state.enableBlackMarket),
+      maxPlayers: state.maxPlayers || 4,
+      bootyTile,
+      blackMarketPepperPile,
+      blackMarketMeadPile,
+      blackMarketSilkPile,
     });
 
     const prev = useGameStore.getState();

@@ -28,7 +28,7 @@ npm run dev          # starts both server (port 2567) and client (port 5173)
 - **Engine decoupled from networking:** All game logic in `packages/server/src/engine/` is pure functions with zero Colyseus imports, fully unit-testable.
 - **Numbers from specifications only:** Card counts, values, penalties come from `docs/architecture.md` and `docs/consultation-rulebook.md` — never from memory.
 
-## Current Phase: Phase 5 Completed — Ready for Phase 6 (Expansion Modules)
+## Current Phase: Phase 6 Completed — Ready for Phase 7 (Micro-interactions, Audio, Visual Polish)
 - **Phase 0 (Scaffolding):** Monorepo with npm workspaces (`shared`, `server`, `client`), Colyseus 0.18 server, Vite 6 client, lobby UI.
 - **Phase 1 (Rules Engine):** Pure headless TypeScript rules engine in `packages/server/src/engine/`. 100% branch and statement coverage on `debtResolution.ts` and `scoring.ts`. 76 engine unit tests.
 - **Phase 2 (Colyseus Room):** Full engine wired into `NottinghamRoom` with Colyseus 0.18 and Schema 5.0. Zero-knowledge privacy filtering (`.view()`), atomic bribe buffer (`sequenceNumber`), and multi-player integration tests.
@@ -42,7 +42,12 @@ npm run dev          # starts both server (port 2567) and client (port 5173)
   - `BribeNegotiationPanel`: Bribe proposal builder with gold sliders, stand cards selection, promised goods, and 1.5s reaction buffer lock on modified offers.
   - `InspectionOutcomeModal`: Visual feedback for Pass Unopened, Honest, and Dishonest outcomes, plus guided 4-step debt liquidation display.
   - `ExaminationDesk`: Full orchestrator component connecting merchant interrogation, scale, negotiation, and inspection actions.
-  - Server: Added `select_inspect_merchant` and `inspection_result` broadcast in `NottinghamRoom`.
+- **Phase 6 (Expansion Modules):**
+  - **Royal Goods**: 12 royal cards (6 for 3p) filtered/shuffled into deck, treated as contraband through inspection, stored in private `standRoyal`, converted to legal equivalent counts for King/Queen bonus scoring plus face value scored. 3D stand displays purple royal wax seal and crown badge.
+  - **6-Player Deputies**: 2 deputies assigned per round, communal `bootyTile` collecting joint pass bribes and dishonesty fines, joint/solo pass/inspect decisions (`JOINT_PASS`, `JOINT_INSPECT`, `SOLO_PASS`, `SOLO_INSPECT`), equal booty split at round end (odd remainder discarded), game over at 9 rounds or 3 deck depletions.
+  - **Black Market**: 3 order piles (Pepper 14/10, Mead 16/12, Silk 18/14), 3-matching-contraband trade-in per merchant per round via `claim_black_market`, client `BlackMarketPanel` order board.
+  - **Lobby Options**: Togglable expansion settings on room creation and dynamic host controls in lobby (`update_lobby_options`).
+  - **Test Suite**: 84 tests passing across 13 test files covering each module independently and a 6-player end-to-end integration test with all modules enabled.
 
 ## Gotchas & Architecture Decisions
 - **Colyseus 0.18 & Schema 5.0**: Use `schema({ ... })` builder pattern instead of decorators for class fields with default collection factories to avoid ES2022 define property bugs.

@@ -52,6 +52,21 @@ export const PlayerScoreState = schema({
 }, 'PlayerScoreState');
 export type PlayerScoreState = InstanceType<typeof PlayerScoreState>;
 
+export const BootyTileState = schema({
+  gold: t.number().default(0),
+  goods: t.array(CardState),
+}, 'BootyTileState');
+export type BootyTileState = InstanceType<typeof BootyTileState>;
+
+export const BlackMarketOrderState = schema({
+  id: t.string(),
+  name: t.string(),
+  contrabandType: t.string(), // 'PEPPER' | 'MEAD' | 'SILK'
+  requiredCount: t.number().default(3),
+  pointsValue: t.number().default(0),
+}, 'BlackMarketOrderState');
+export type BlackMarketOrderState = InstanceType<typeof BlackMarketOrderState>;
+
 export const PlayerState = schema({
   id: t.string(),
   sessionId: t.string().default(''),
@@ -67,9 +82,11 @@ export const PlayerState = schema({
   standLegal: t.array(CardState), // Public faceup on merchant stand
   standContrabandCount: t.number().default(0), // Public count of contraband
   standContraband: t.array(CardState).view(), // Zero-knowledge: identities hidden until endgame
+  standRoyalCount: t.number().default(0), // Public count of royal goods
   standRoyal: t.array(CardState).view(), // Zero-knowledge: identities hidden until endgame
   sealedBag: t.ref(SealedBagState).optional(),
   sheriffCount: t.number().default(0),
+  hasClaimedBlackMarketThisRound: t.boolean().default(false),
 }, 'PlayerState');
 export type PlayerState = InstanceType<typeof PlayerState>;
 
@@ -84,6 +101,10 @@ export const GameState = schema({
   discardPile: t.array(CardState),
   players: t.map(PlayerState),
   activeBribe: t.ref(BribeOfferState).optional(),
+  bootyTile: t.ref(BootyTileState).optional(),
+  blackMarketPepperPile: t.array(BlackMarketOrderState),
+  blackMarketMeadPile: t.array(BlackMarketOrderState),
+  blackMarketSilkPile: t.array(BlackMarketOrderState),
   leaderboard: t.array(PlayerScoreState),
   winnerId: t.string().default(''),
   winningScore: t.number().default(0),
@@ -93,3 +114,4 @@ export const GameState = schema({
   enableBlackMarket: t.boolean().default(false),
 }, 'GameState');
 export type GameState = InstanceType<typeof GameState>;
+

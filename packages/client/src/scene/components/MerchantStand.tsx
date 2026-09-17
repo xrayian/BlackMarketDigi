@@ -194,6 +194,35 @@ export function MerchantStand({
         )}
       </group>
 
+      {/* Royal Goods Section (Bottom Right of stand) */}
+      {(player.standRoyalCount > 0 || (isLocalPlayer && player.standRoyal.length > 0)) && (
+        <group position={[0.88, 0.08, 0.25]}>
+          {Array.from({ length: Math.min(player.standRoyalCount || player.standRoyal.length, 4) }).map((_, idx) => (
+            <Card3D
+              key={idx}
+              classification="ROYAL"
+              faceUp={false}
+              position={[0, 0.015 + idx * 0.015, -idx * 0.01]}
+              scale={0.42}
+            />
+          ))}
+
+          {/* Purple Royal Seal Medallion */}
+          <mesh position={[0, 0.03 + Math.min(player.standRoyalCount || player.standRoyal.length, 4) * 0.015, 0]} castShadow>
+            <cylinderGeometry args={[0.09, 0.09, 0.02, 16]} />
+            <meshStandardMaterial color="#581c87" roughness={0.3} metalness={0.4} />
+          </mesh>
+
+          {/* Royal Count Tag */}
+          <Html position={[0, 0.28, 0.12]} center distanceFactor={8}>
+            <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-purple-900/90 border border-gold/60 text-gold-light font-display text-[11px] font-bold shadow-lg select-none whitespace-nowrap">
+              <span>👑</span>
+              <span>{player.standRoyalCount || player.standRoyal.length}</span>
+            </div>
+          </Html>
+        </group>
+      )}
+
       {/* Merchant Bag (Pouch) in front of the stand */}
       <MerchantBag3D
         color={getPlayerColor(player.seatIndex)}

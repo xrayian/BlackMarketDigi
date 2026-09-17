@@ -13,6 +13,9 @@ import {
   BribeResponseMessage,
   SelectStartPlayerMessage,
   SelectInspectMerchantMessage,
+  UpdateLobbyOptionsMessage,
+  DeputyInspectionMessage,
+  ClaimBlackMarketMessage,
 } from '@sheriff/shared';
 import {
   GameState,
@@ -21,6 +24,8 @@ import {
   SealedBagState,
   BribeOfferState,
   PlayerScoreState,
+  BootyTileState,
+  BlackMarketOrderState,
 } from '../schema/GameState';
 import {
   buildDeck,
@@ -42,6 +47,16 @@ import {
   resolveDebt,
   calculateScores,
   PlayerStandInput,
+  initDeputiesState,
+  drawDeputiesForRound,
+  distributeBootyTile,
+  DeputiesState,
+  initBlackMarketState,
+  canClaimBlackMarketOrder,
+  claimBlackMarketOrder,
+  resetRoundBlackMarketClaims,
+  BlackMarketState,
+  BlackMarketCard,
 } from '../engine';
 
 function generateRoomCode(): string {
@@ -84,6 +99,27 @@ function stateToCard(s: CardState): Card {
   return card;
 }
 
+function blackMarketCardToState(c: BlackMarketCard): BlackMarketOrderState {
+  return new BlackMarketOrderState({
+    id: c.id,
+    name: c.name,
+    contrabandType: c.contrabandType,
+    requiredCount: c.requiredCount,
+    pointsValue: c.pointsValue,
+  });
+}
+
+function syncBlackMarketPiles(state: GameState, bmState: BlackMarketState) {
+  state.blackMarketPepperPile.clear();
+  for (const c of bmState.pepperPile) state.blackMarketPepperPile.push(blackMarketCardToState(c));
+
+  state.blackMarketMeadPile.clear();
+  for (const c of bmState.meadPile) state.blackMarketMeadPile.push(blackMarketCardToState(c));
+
+  state.blackMarketSilkPile.clear();
+  for (const c of bmState.silkPile) state.blackMarketSilkPile.push(blackMarketCardToState(c));
+}
+
 export class NottinghamRoom extends Room<{ state: GameState }> {
   maxClients = 6;
 
@@ -96,6 +132,8 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
   declarationIndex = 0;
   inspectedMerchantIds = new Set<string>();
   bribeSequenceNumber = 1;
+  deputiesEngineState?: DeputiesState;
+  blackMarketEngineState?: BlackMarketState;
 
   onCreate(options: any) {
     this.roomId = generateRoomCode();
@@ -396,27 +434,161 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
       });
     });
 
-    // 8. Inspection Action (Sheriff only: PASS or INSPECT)
+    // 8. Inspection Action (Sheriff or Deputy: PASS or INSPECT)
     this.onMessage('inspection_action', (client, message: InspectionAction) => {
       if (this.state.phase !== 'INSPECTION') return;
-      if (client.sessionId !== this.state.sheriffId) return;
+      const isAuthority =
+        client.sessionId === this.state.sheriffId ||
+        this.state.deputyIds.includes(client.sessionId);
+      if (!isAuthority) return;
 
       const targetMerchantId = message.targetPlayerId;
       if (this.inspectedMerchantIds.has(targetMerchantId)) return;
 
-      if (message.type === 'PASS') {
-        this.executePassUnopened(targetMerchantId);
+      if (this.state.enableDeputies && this.state.deputyIds.length === 2) {
+        this.executeDeputyInspection(
+          message.type === 'PASS' ? 'JOINT_PASS' : 'JOINT_INSPECT',
+          client.sessionId,
+          targetMerchantId
+        );
       } else {
-        this.executeInspect(targetMerchantId);
+        if (message.type === 'PASS') {
+          this.executePassUnopened(targetMerchantId);
+        } else {
+          this.executeInspect(targetMerchantId);
+        }
       }
     });
 
-    // 9. Select Merchant to Examine (Sheriff sets active merchant for 1-on-1 inspection desk view)
+    // 9. Select Merchant to Examine (Sheriff or Deputy sets active merchant for 1-on-1 inspection desk view)
     this.onMessage('select_inspect_merchant', (client, message: SelectInspectMerchantMessage) => {
       if (this.state.phase !== 'INSPECTION') return;
-      if (client.sessionId !== this.state.sheriffId) return;
+      const isAuthority =
+        client.sessionId === this.state.sheriffId ||
+        this.state.deputyIds.includes(client.sessionId);
+      if (!isAuthority) return;
       if (this.inspectedMerchantIds.has(message.targetPlayerId)) return;
       this.state.activeMerchantId = message.targetPlayerId;
+    });
+
+    // 10. Start Game from Lobby (Host)
+    this.onMessage('startGame', (client) => {
+      if (this.state.phase !== 'LOBBY') return;
+      if (this.tableSeatIds[0] !== client.sessionId) return;
+      if (this.state.players.size < 3) return;
+      let allReady = true;
+      this.state.players.forEach((p) => {
+        if (!p.ready) allReady = false;
+      });
+      if (allReady) {
+        this.startGame();
+      }
+    });
+
+    // 11. Update Lobby Options (Host only)
+    this.onMessage('update_lobby_options', (client, message: UpdateLobbyOptionsMessage) => {
+      if (this.state.phase !== 'LOBBY') return;
+      if (this.tableSeatIds[0] !== client.sessionId) return;
+
+      if (message.enableRoyalGoods !== undefined) {
+        this.state.enableRoyalGoods = message.enableRoyalGoods;
+      }
+      if (message.enableDeputies !== undefined) {
+        this.state.enableDeputies = message.enableDeputies;
+      }
+      if (message.enableBlackMarket !== undefined) {
+        this.state.enableBlackMarket = message.enableBlackMarket;
+      }
+      if (message.maxPlayers !== undefined && message.maxPlayers >= 3 && message.maxPlayers <= 6) {
+        this.state.maxPlayers = message.maxPlayers;
+      }
+    });
+
+    // 12. 6-Player Deputy Inspection Actions
+    this.onMessage('deputy_inspection', (client, message: DeputyInspectionMessage) => {
+      if (this.state.phase !== 'INSPECTION') return;
+      if (!this.state.enableDeputies) return;
+      if (!this.state.deputyIds.includes(client.sessionId)) return;
+      if (this.inspectedMerchantIds.has(message.targetPlayerId)) return;
+
+      this.executeDeputyInspection(message.type, client.sessionId, message.targetPlayerId);
+    });
+
+    // 13. Black Market Order Claim
+    this.onMessage('claim_black_market', (client, message: ClaimBlackMarketMessage) => {
+      if (!this.state.enableBlackMarket || !this.blackMarketEngineState) {
+        client.send('error', { message: 'Black Market expansion is not enabled' });
+        return;
+      }
+      if (this.state.phase !== 'INSPECTION' && this.state.phase !== 'ROUND_END') {
+        client.send('error', { message: 'Can only claim Black Market orders after inspection' });
+        return;
+      }
+
+      const player = this.state.players.get(client.sessionId);
+      if (!player) return;
+
+      const standContrabandCards = player.standContraband.map(stateToCard);
+      const check = canClaimBlackMarketOrder(
+        this.blackMarketEngineState,
+        client.sessionId,
+        message.contrabandType,
+        standContrabandCards
+      );
+
+      if (!check.canClaim || !check.topCard) {
+        client.send('error', { message: check.reason || 'Cannot claim Black Market order' });
+        return;
+      }
+
+      const claimResult = claimBlackMarketOrder(
+        this.blackMarketEngineState,
+        client.sessionId,
+        message.contrabandType,
+        standContrabandCards
+      );
+
+      this.blackMarketEngineState = claimResult.nextState;
+      syncBlackMarketPiles(this.state, this.blackMarketEngineState);
+      player.hasClaimedBlackMarketThisRound = true;
+
+      // Discard 3 traded contraband cards
+      for (const card of claimResult.discardedCards) {
+        this.internalDiscardPile.push(card);
+        this.state.discardPile.push(cardToState(card));
+      }
+
+      // Update standContraband
+      player.standContraband.clear();
+      for (const card of claimResult.updatedStandContraband) {
+        const cs = cardToState(card);
+        player.standContraband.push(cs);
+        if (client.view) client.view.add(cs);
+      }
+
+      // Add claimed Black Market card as high-value contraband
+      const claimedCard: Card = {
+        id: claimResult.claimedCard.id,
+        name: claimResult.claimedCard.name,
+        classification: 'CONTRABAND',
+        contrabandType: claimResult.claimedCard.contrabandType,
+        value: claimResult.claimedCard.pointsValue,
+        penalty: 4,
+      };
+
+      const claimedState = cardToState(claimedCard);
+      player.standContraband.push(claimedState);
+      if (client.view) client.view.add(claimedState);
+      player.standContrabandCount = player.standContraband.length;
+
+      this.broadcast('black_market_claimed', {
+        playerId: player.id,
+        playerName: player.name,
+        orderId: claimResult.claimedCard.id,
+        orderName: claimResult.claimedCard.name,
+        contrabandType: claimResult.claimedCard.contrabandType,
+        pointsValue: claimResult.claimedCard.pointsValue,
+      });
     });
   }
 
@@ -431,9 +603,26 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
     );
     this.internalDiscardPile = [];
 
-    // Assign initial Sheriff (seat 0)
-    const sheriffId = this.tableSeatIds[0];
-    this.state.sheriffId = sheriffId;
+    const is6pDeputies = this.state.enableDeputies && playerCount === 6;
+    let initialSheriffId = this.tableSeatIds[0];
+
+    if (is6pDeputies) {
+      this.deputiesEngineState = initDeputiesState(this.tableSeatIds);
+      this.state.bootyTile = new BootyTileState({ gold: 0 });
+      const drawResult = drawDeputiesForRound(this.deputiesEngineState);
+      this.deputiesEngineState = drawResult.nextState;
+
+      this.state.deputyIds.clear();
+      this.state.deputyIds.push(drawResult.deputies[0], drawResult.deputies[1]);
+      initialSheriffId = drawResult.deputies[0];
+    }
+
+    if (this.state.enableBlackMarket) {
+      this.blackMarketEngineState = initBlackMarketState();
+      syncBlackMarketPiles(this.state, this.blackMarketEngineState);
+    }
+
+    this.state.sheriffId = initialSheriffId;
     this.state.round = 1;
 
     // Deal starting hands
@@ -443,7 +632,13 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
 
     this.tableSeatIds.forEach((id) => {
       const player = this.state.players.get(id)!;
-      player.isSheriff = id === sheriffId;
+      if (is6pDeputies) {
+        player.isDeputy = this.state.deputyIds.includes(id);
+        player.isSheriff = false;
+      } else {
+        player.isSheriff = id === initialSheriffId;
+        player.isDeputy = false;
+      }
       player.hand.clear();
       const client = this.clients.find((c) => c.sessionId === id);
       for (const card of hands[id]) {
@@ -461,9 +656,11 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
 
   private startMarketPhase() {
     this.state.phase = 'MARKET';
+    const is6pDeputies = this.state.enableDeputies && this.tableSeatIds.length === 6;
     this.marketState = initMarketPhase({
       tableSeats: this.tableSeatIds,
       sheriffId: this.state.sheriffId,
+      deputyIds: is6pDeputies ? Array.from(this.state.deputyIds) : undefined,
     });
     this.state.activeMerchantId = getCurrentMarketMerchant(this.marketState) || '';
   }
@@ -475,7 +672,12 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
 
   private startDeclarationPhase() {
     this.state.phase = 'DECLARATION';
-    this.declarationOrder = getDeclarationOrder(this.tableSeatIds, this.state.sheriffId);
+    const is6pDeputies = this.state.enableDeputies && this.tableSeatIds.length === 6;
+    this.declarationOrder = getDeclarationOrder(
+      this.tableSeatIds,
+      this.state.sheriffId,
+      is6pDeputies ? Array.from(this.state.deputyIds) : undefined
+    );
     this.declarationIndex = 0;
     this.state.activeMerchantId = this.declarationOrder[0];
   }
@@ -530,10 +732,18 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
       merchant.standLegal.push(cardToState(card));
     }
 
-    // Move contraband to merchant stand (face down)
+    // Move contraband & royal goods to merchant stand (face down)
     for (const card of result.merchantKeptContrabandCards) {
-      merchant.standContraband.push(cardToState(card));
-      merchant.standContrabandCount++;
+      if (card.classification === 'ROYAL') {
+        const cs = cardToState(card);
+        merchant.standRoyal.push(cs);
+        merchant.standRoyalCount++;
+        const client = this.clients.find((c) => c.sessionId === merchant.id);
+        if (client?.view) client.view.add(cs);
+      } else {
+        merchant.standContraband.push(cardToState(card));
+        merchant.standContrabandCount++;
+      }
     }
 
     this.revealBagToAll(merchant.sealedBag!);
@@ -560,6 +770,261 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
     });
 
     this.checkInspectionCompletion();
+  }
+
+  private executeDeputyInspection(
+    type: 'JOINT_PASS' | 'JOINT_INSPECT' | 'SOLO_PASS' | 'SOLO_INSPECT',
+    actingDeputyId: string,
+    merchantId: string
+  ) {
+    const merchant = this.state.players.get(merchantId)!;
+    const dep1 = this.state.players.get(this.state.deputyIds[0])!;
+    const dep2 = this.state.players.get(this.state.deputyIds[1])!;
+    const actingDeputy = this.state.players.get(actingDeputyId)!;
+
+    const bagCards = merchant.sealedBag!.cards.map(stateToCard);
+    const declaredGood = merchant.sealedBag!.declaredGood as GoodType;
+    const declaredCount = merchant.sealedBag!.declaredCount;
+
+    let bribe: any = undefined;
+    if (this.state.activeBribe && this.state.activeBribe.fromPlayerId === merchantId) {
+      bribe = {
+        gold: this.state.activeBribe.gold,
+        standCardIds: [...this.state.activeBribe.standCardIds],
+        bagGoodsClaims: this.state.activeBribe.bagCardClaims.map((str) => JSON.parse(str)),
+      };
+    }
+
+    if (type === 'JOINT_PASS') {
+      const standCards = merchant.standLegal.map(stateToCard);
+      const result = resolvePassUnopened(bagCards, bribe, standCards);
+
+      if (result.merchantPaidGold > 0) {
+        merchant.gold -= result.merchantPaidGold;
+        if (this.state.bootyTile) {
+          this.state.bootyTile.gold += result.merchantPaidGold;
+        }
+      }
+
+      for (const card of result.merchantTransferredStandCards) {
+        const idx = merchant.standLegal.findIndex((c) => c.id === card.id);
+        if (idx !== -1) merchant.standLegal.splice(idx, 1);
+        if (this.state.bootyTile) {
+          this.state.bootyTile.goods.push(cardToState(card));
+        }
+      }
+
+      for (const card of result.sheriffReceivedBagCards) {
+        if (this.state.bootyTile) {
+          this.state.bootyTile.goods.push(cardToState(card));
+        }
+      }
+
+      for (const card of result.merchantKeptLegalCards) {
+        merchant.standLegal.push(cardToState(card));
+      }
+
+      for (const card of result.merchantKeptContrabandCards) {
+        if (card.classification === 'ROYAL') {
+          const cs = cardToState(card);
+          merchant.standRoyal.push(cs);
+          merchant.standRoyalCount++;
+          const client = this.clients.find((c) => c.sessionId === merchant.id);
+          if (client?.view) client.view.add(cs);
+        } else {
+          merchant.standContraband.push(cardToState(card));
+          merchant.standContrabandCount++;
+        }
+      }
+
+      this.revealBagToAll(merchant.sealedBag!);
+      this.inspectedMerchantIds.add(merchantId);
+      if (this.state.activeMerchantId === merchantId) this.state.activeMerchantId = '';
+
+      this.broadcast('inspection_result', {
+        outcome: 'PASS',
+        targetPlayerId: merchantId,
+        targetPlayerName: merchant.name,
+        sheriffId: dep1.id,
+        sheriffName: `${dep1.name} & ${dep2.name} (Deputies)`,
+        declaredGood: merchant.sealedBag?.declaredGood || '',
+        declaredCount: merchant.sealedBag?.declaredCount || 0,
+        penaltyAmount: 0,
+        keptCardsCount: result.merchantKeptLegalCards.length + result.merchantKeptContrabandCards.length,
+        confiscatedCardsCount: 0,
+        debtSettled: true,
+        debtPaidGold: result.merchantPaidGold,
+        debtForgiven: 0,
+      });
+
+      this.checkInspectionCompletion();
+    } else if (type === 'SOLO_PASS') {
+      const standCards = merchant.standLegal.map(stateToCard);
+      const result = resolvePassUnopened(bagCards, bribe, standCards);
+
+      if (result.merchantPaidGold > 0) {
+        merchant.gold -= result.merchantPaidGold;
+        actingDeputy.gold += result.merchantPaidGold;
+      }
+
+      for (const card of result.merchantTransferredStandCards) {
+        const idx = merchant.standLegal.findIndex((c) => c.id === card.id);
+        if (idx !== -1) merchant.standLegal.splice(idx, 1);
+        actingDeputy.standLegal.push(cardToState(card));
+      }
+
+      for (const card of result.sheriffReceivedBagCards) {
+        actingDeputy.standLegal.push(cardToState(card));
+      }
+
+      for (const card of result.merchantKeptLegalCards) merchant.standLegal.push(cardToState(card));
+      for (const card of result.merchantKeptContrabandCards) {
+        if (card.classification === 'ROYAL') {
+          const cs = cardToState(card);
+          merchant.standRoyal.push(cs);
+          merchant.standRoyalCount++;
+          const client = this.clients.find((c) => c.sessionId === merchant.id);
+          if (client?.view) client.view.add(cs);
+        } else {
+          merchant.standContraband.push(cardToState(card));
+          merchant.standContrabandCount++;
+        }
+      }
+
+      this.revealBagToAll(merchant.sealedBag!);
+      this.inspectedMerchantIds.add(merchantId);
+      if (this.state.activeMerchantId === merchantId) this.state.activeMerchantId = '';
+
+      this.broadcast('inspection_result', {
+        outcome: 'PASS',
+        targetPlayerId: merchantId,
+        targetPlayerName: merchant.name,
+        sheriffId: actingDeputy.id,
+        sheriffName: `${actingDeputy.name} (Solo Deputy)`,
+        declaredGood: merchant.sealedBag?.declaredGood || '',
+        declaredCount: merchant.sealedBag?.declaredCount || 0,
+        penaltyAmount: 0,
+        keptCardsCount: result.merchantKeptLegalCards.length + result.merchantKeptContrabandCards.length,
+        confiscatedCardsCount: 0,
+        debtSettled: true,
+        debtPaidGold: result.merchantPaidGold,
+        debtForgiven: 0,
+      });
+
+      this.checkInspectionCompletion();
+    } else if (type === 'JOINT_INSPECT') {
+      const result = resolveInspection(bagCards, declaredGood, declaredCount);
+      this.revealBagToAll(merchant.sealedBag!);
+
+      if (result.isHonest) {
+        for (const card of result.merchantKeptCards) {
+          merchant.standLegal.push(cardToState(card));
+        }
+
+        const half = Math.floor(result.penaltyAmount / 2);
+        const remainder = result.penaltyAmount % 2;
+        const dep1Penalty = half + remainder;
+        const dep2Penalty = half;
+
+        const debt1 = resolveDebt(
+          { id: dep1.id, gold: dep1.gold, standLegal: dep1.standLegal.map(stateToCard), standContraband: dep1.standContraband.map(stateToCard) },
+          { id: merchant.id, gold: merchant.gold, standLegal: merchant.standLegal.map(stateToCard), standContraband: merchant.standContraband.map(stateToCard) },
+          dep1Penalty
+        );
+        dep1.gold = debt1.debtor.gold;
+        merchant.gold = debt1.creditor.gold;
+
+        const debt2 = resolveDebt(
+          { id: dep2.id, gold: dep2.gold, standLegal: dep2.standLegal.map(stateToCard), standContraband: dep2.standContraband.map(stateToCard) },
+          { id: merchant.id, gold: merchant.gold, standLegal: merchant.standLegal.map(stateToCard), standContraband: merchant.standContraband.map(stateToCard) },
+          dep2Penalty
+        );
+        dep2.gold = debt2.debtor.gold;
+        merchant.gold = debt2.creditor.gold;
+      } else {
+        for (const card of result.merchantKeptCards) {
+          merchant.standLegal.push(cardToState(card));
+        }
+        for (const card of result.confiscatedCards) {
+          this.internalDiscardPile.push(card);
+          this.state.discardPile.push(cardToState(card));
+        }
+        const finePaid = Math.min(merchant.gold, result.penaltyAmount);
+        merchant.gold -= finePaid;
+        if (this.state.bootyTile) {
+          this.state.bootyTile.gold += finePaid;
+        }
+      }
+
+      this.inspectedMerchantIds.add(merchantId);
+      if (this.state.activeMerchantId === merchantId) this.state.activeMerchantId = '';
+
+      this.broadcast('inspection_result', {
+        outcome: result.isHonest ? 'HONEST' : 'DISHONEST',
+        targetPlayerId: merchantId,
+        targetPlayerName: merchant.name,
+        sheriffId: dep1.id,
+        sheriffName: `${dep1.name} & ${dep2.name} (Deputies)`,
+        declaredGood,
+        declaredCount,
+        penaltyAmount: result.penaltyAmount,
+        keptCardsCount: result.merchantKeptCards.length,
+        confiscatedCardsCount: result.confiscatedCards.length,
+        debtSettled: true,
+        debtPaidGold: result.penaltyAmount,
+        debtForgiven: 0,
+      });
+
+      this.checkInspectionCompletion();
+    } else if (type === 'SOLO_INSPECT') {
+      const result = resolveInspection(bagCards, declaredGood, declaredCount);
+      this.revealBagToAll(merchant.sealedBag!);
+
+      if (result.isHonest) {
+        for (const card of result.merchantKeptCards) merchant.standLegal.push(cardToState(card));
+        const debt = resolveDebt(
+          { id: actingDeputy.id, gold: actingDeputy.gold, standLegal: actingDeputy.standLegal.map(stateToCard), standContraband: actingDeputy.standContraband.map(stateToCard) },
+          { id: merchant.id, gold: merchant.gold, standLegal: merchant.standLegal.map(stateToCard), standContraband: merchant.standContraband.map(stateToCard) },
+          result.penaltyAmount
+        );
+        actingDeputy.gold = debt.debtor.gold;
+        merchant.gold = debt.creditor.gold;
+      } else {
+        for (const card of result.merchantKeptCards) merchant.standLegal.push(cardToState(card));
+        for (const card of result.confiscatedCards) {
+          this.internalDiscardPile.push(card);
+          this.state.discardPile.push(cardToState(card));
+        }
+        const debt = resolveDebt(
+          { id: merchant.id, gold: merchant.gold, standLegal: merchant.standLegal.map(stateToCard), standContraband: merchant.standContraband.map(stateToCard) },
+          { id: actingDeputy.id, gold: actingDeputy.gold, standLegal: actingDeputy.standLegal.map(stateToCard), standContraband: actingDeputy.standContraband.map(stateToCard) },
+          result.penaltyAmount
+        );
+        merchant.gold = debt.debtor.gold;
+        actingDeputy.gold = debt.creditor.gold;
+      }
+
+      this.inspectedMerchantIds.add(merchantId);
+      if (this.state.activeMerchantId === merchantId) this.state.activeMerchantId = '';
+
+      this.broadcast('inspection_result', {
+        outcome: result.isHonest ? 'HONEST' : 'DISHONEST',
+        targetPlayerId: merchantId,
+        targetPlayerName: merchant.name,
+        sheriffId: actingDeputy.id,
+        sheriffName: `${actingDeputy.name} (Solo Deputy)`,
+        declaredGood,
+        declaredCount,
+        penaltyAmount: result.penaltyAmount,
+        keptCardsCount: result.merchantKeptCards.length,
+        confiscatedCardsCount: result.confiscatedCards.length,
+        debtSettled: true,
+        debtPaidGold: result.penaltyAmount,
+        debtForgiven: 0,
+      });
+
+      this.checkInspectionCompletion();
+    }
   }
 
   private executeInspect(merchantId: string) {
@@ -671,29 +1136,85 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
   }
 
   private checkInspectionCompletion() {
-    const merchantCount = this.tableSeatIds.length - 1;
+    const is6pDeputies = this.state.enableDeputies && this.tableSeatIds.length === 6;
+    const merchantCount = is6pDeputies ? 4 : this.tableSeatIds.length - 1;
     if (this.inspectedMerchantIds.size >= merchantCount) {
       this.handleRoundEnd();
     }
   }
 
   private handleRoundEnd() {
-    const currentSheriff = this.state.players.get(this.state.sheriffId)!;
-    currentSheriff.sheriffCount++;
+    const is6pDeputies = this.state.enableDeputies && this.tableSeatIds.length === 6;
 
-    const playerCount = this.tableSeatIds.length;
-    const requiredSheriffTurns = SHERIFF_ROUNDS_BY_PLAYER_COUNT[playerCount] || 2;
+    if (is6pDeputies && this.deputiesEngineState) {
+      // Distribute Booty Tile
+      if (this.state.bootyTile) {
+        const dist = distributeBootyTile({
+          gold: this.state.bootyTile.gold,
+          goods: this.state.bootyTile.goods.map(stateToCard),
+        });
 
-    let isGameOver = true;
-    this.state.players.forEach((p) => {
-      if (p.sheriffCount < requiredSheriffTurns) {
-        isGameOver = false;
+        const dep1 = this.state.players.get(this.state.deputyIds[0]);
+        const dep2 = this.state.players.get(this.state.deputyIds[1]);
+        if (dep1 && dep2) {
+          dep1.gold += dist.deputy1Gold;
+          dep2.gold += dist.deputy2Gold;
+          for (const g of dist.deputy1Goods) dep1.standLegal.push(cardToState(g));
+          for (const g of dist.deputy2Goods) dep2.standLegal.push(cardToState(g));
+        }
+
+        for (const g of dist.discardedGoods) {
+          this.internalDiscardPile.push(g);
+          this.state.discardPile.push(cardToState(g));
+        }
+
+        this.state.bootyTile.gold = 0;
+        this.state.bootyTile.goods.clear();
       }
-    });
 
-    if (isGameOver) {
-      this.finishGame();
+      // Check endgame for 6p Deputies: Deputy deck depleted 3 times (9 rounds)
+      const isGameOver = this.state.round >= 9 || this.deputiesEngineState.deckDepletions >= 3;
+
+      if (isGameOver) {
+        this.finishGame();
+        return;
+      }
+
+      // Draw next 2 deputies
+      const drawResult = drawDeputiesForRound(this.deputiesEngineState);
+      this.deputiesEngineState = drawResult.nextState;
+
+      this.state.deputyIds.clear();
+      this.state.deputyIds.push(drawResult.deputies[0], drawResult.deputies[1]);
+      this.state.sheriffId = drawResult.deputies[0];
+
+      this.tableSeatIds.forEach((id) => {
+        const player = this.state.players.get(id)!;
+        player.isDeputy = drawResult.deputies.includes(id);
+        player.isSheriff = false;
+        player.sealedBag = undefined;
+      });
+
+      this.state.round++;
     } else {
+      const currentSheriff = this.state.players.get(this.state.sheriffId)!;
+      currentSheriff.sheriffCount++;
+
+      const playerCount = this.tableSeatIds.length;
+      const requiredSheriffTurns = SHERIFF_ROUNDS_BY_PLAYER_COUNT[playerCount] || 2;
+
+      let isGameOver = true;
+      this.state.players.forEach((p) => {
+        if (p.sheriffCount < requiredSheriffTurns) {
+          isGameOver = false;
+        }
+      });
+
+      if (isGameOver) {
+        this.finishGame();
+        return;
+      }
+
       // Pass Sheriff standee clockwise
       const currentIdx = this.tableSeatIds.indexOf(this.state.sheriffId);
       const nextSheriffId = this.tableSeatIds[(currentIdx + 1) % this.tableSeatIds.length];
@@ -701,37 +1222,48 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
       this.state.sheriffId = nextSheriffId;
       this.state.round++;
 
-      // Refill all players' hands to 6 cards
       this.tableSeatIds.forEach((id) => {
         const player = this.state.players.get(id)!;
         player.isSheriff = id === nextSheriffId;
         player.sealedBag = undefined;
-
-        const needed = Math.max(0, 6 - player.hand.length);
-        if (needed > 0) {
-          const { drawn, drawPile, discardPile } = drawCards(
-            this.internalDrawPile,
-            this.internalDiscardPile,
-            needed
-          );
-          this.internalDrawPile = drawPile;
-          this.internalDiscardPile = discardPile;
-          this.state.drawPileCount = drawPile.length;
-
-          const client = this.clients.find((c) => c.sessionId === id);
-          for (const card of drawn) {
-            const cs = cardToState(card);
-            player.hand.push(cs);
-            if (client?.view) {
-              client.view.add(cs);
-            }
-          }
-          player.handCount = player.hand.length;
-        }
       });
-
-      this.startMarketPhase();
     }
+
+    // Reset Black Market claims for the new round
+    if (this.blackMarketEngineState) {
+      this.blackMarketEngineState = resetRoundBlackMarketClaims(this.blackMarketEngineState);
+      this.state.players.forEach((p) => {
+        p.hasClaimedBlackMarketThisRound = false;
+      });
+    }
+
+    // Refill all players' hands to 6 cards
+    this.tableSeatIds.forEach((id) => {
+      const player = this.state.players.get(id)!;
+      const needed = Math.max(0, 6 - player.hand.length);
+      if (needed > 0) {
+        const { drawn, drawPile, discardPile } = drawCards(
+          this.internalDrawPile,
+          this.internalDiscardPile,
+          needed
+        );
+        this.internalDrawPile = drawPile;
+        this.internalDiscardPile = discardPile;
+        this.state.drawPileCount = drawPile.length;
+
+        const client = this.clients.find((c) => c.sessionId === id);
+        for (const card of drawn) {
+          const cs = cardToState(card);
+          player.hand.push(cs);
+          if (client?.view) {
+            client.view.add(cs);
+          }
+        }
+        player.handCount = player.hand.length;
+      }
+    });
+
+    this.startMarketPhase();
   }
 
   private finishGame() {

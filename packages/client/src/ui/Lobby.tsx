@@ -12,6 +12,12 @@ export function Lobby() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Expansion Module Settings
+  const [maxPlayers, setMaxPlayers] = useState(4);
+  const [enableRoyalGoods, setEnableRoyalGoods] = useState(false);
+  const [enableDeputies, setEnableDeputies] = useState(false);
+  const [enableBlackMarket, setEnableBlackMarket] = useState(false);
+
   const store = useGameStore();
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -21,7 +27,12 @@ export function Lobby() {
     setLoading(true);
     setError('');
     try {
-      await network.createRoom(playerName);
+      await network.createRoom(playerName, {
+        maxPlayers,
+        enableRoyalGoods,
+        enableDeputies: maxPlayers === 6 ? enableDeputies : false,
+        enableBlackMarket,
+      });
       setView('room');
     } catch (err: any) {
       setError(err.message || 'Failed to create room');
@@ -89,6 +100,76 @@ export function Lobby() {
             maxLength={16}
           />
         </div>
+
+        <div>
+          <label className="block text-gold-muted text-sm mb-2 font-display">Caravan Size (Max Players)</label>
+          <div className="grid grid-cols-4 gap-2">
+            {[3, 4, 5, 6].map((num) => (
+              <button
+                key={num}
+                type="button"
+                onClick={() => {
+                  setMaxPlayers(num);
+                  if (num !== 6) setEnableDeputies(false);
+                }}
+                className={`py-2 rounded-lg border font-display font-bold text-sm transition-all ${
+                  maxPlayers === num
+                    ? 'border-gold bg-gold/25 text-white'
+                    : 'border-tavern-border bg-tavern-surface text-parchment/60 hover:text-white'
+                }`}
+              >
+                {num}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-3 border-t border-tavern-border pt-4">
+          <label className="block text-gold-muted text-sm font-display">Expansion Modules</label>
+          
+          <label className="flex items-center gap-3 cursor-pointer p-2.5 rounded-lg bg-tavern-surface border border-tavern-border hover:border-gold/40 transition-colors">
+            <input
+              type="checkbox"
+              checked={enableRoyalGoods}
+              onChange={(e) => setEnableRoyalGoods(e.target.checked)}
+              className="accent-gold h-4 w-4 rounded"
+            />
+            <div>
+              <div className="font-bold text-sm text-gold-light">👑 Royal Goods</div>
+              <div className="text-xs text-parchment/60">Adds 12 high-value royal goods converted to legal bonus points</div>
+            </div>
+          </label>
+
+          <label className={`flex items-center gap-3 p-2.5 rounded-lg bg-tavern-surface border border-tavern-border transition-colors ${
+            maxPlayers === 6 ? 'cursor-pointer hover:border-gold/40' : 'opacity-40 cursor-not-allowed'
+          }`}>
+            <input
+              type="checkbox"
+              disabled={maxPlayers !== 6}
+              checked={maxPlayers === 6 && enableDeputies}
+              onChange={(e) => setEnableDeputies(e.target.checked)}
+              className="accent-gold h-4 w-4 rounded"
+            />
+            <div>
+              <div className="font-bold text-sm text-gold-light">🛡️ 6-Player Deputies</div>
+              <div className="text-xs text-parchment/60">2 deputies inspect with Booty Tile (requires 6 players)</div>
+            </div>
+          </label>
+
+          <label className="flex items-center gap-3 cursor-pointer p-2.5 rounded-lg bg-tavern-surface border border-tavern-border hover:border-gold/40 transition-colors">
+            <input
+              type="checkbox"
+              checked={enableBlackMarket}
+              onChange={(e) => setEnableBlackMarket(e.target.checked)}
+              className="accent-gold h-4 w-4 rounded"
+            />
+            <div>
+              <div className="font-bold text-sm text-gold-light">🗡️ Black Market</div>
+              <div className="text-xs text-parchment/60">Trade in 3 matching contraband for high-value orders</div>
+            </div>
+          </label>
+        </div>
+
         {error && <div className="text-crimson text-sm">{error}</div>}
         <div className="flex gap-4 mt-4">
           <button type="button" onClick={() => setView('menu')} className="btn-outline flex-1">
@@ -173,7 +254,7 @@ export function Lobby() {
           </div>
         </div>
 
-        <div className="space-y-3 mb-8">
+        <div className="space-y-3 mb-6">
           {players.map((p) => (
             <div key={p.id} className="flex items-center justify-between p-4 rounded-lg bg-tavern-bg border border-tavern-border">
               <span className="font-display text-lg text-parchment">
@@ -185,6 +266,141 @@ export function Lobby() {
             </div>
           ))}
           {players.length === 0 && <div className="text-center text-gold-muted">Waiting for merchants...</div>}
+        </div>
+
+        {/* Caravan & Expansion Settings */}
+        <div className="mb-8 p-4 rounded-xl bg-tavern-bg/80 border border-tavern-border">
+          <div className="flex items-center justify-between mb-3">
+            <span className="font-display text-sm text-gold tracking-wide uppercase font-bold">
+              Caravan Rules & Expansions
+            </span>
+            {isHost && (
+              <span className="text-[11px] text-gold-muted uppercase tracking-wider bg-gold/10 px-2 py-0.5 rounded border border-gold/20">
+                Host Controls
+              </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="p-2 rounded bg-tavern-surface/80 border border-tavern-border text-center">
+              <span className="block text-[11px] text-gold-muted font-display uppercase">Max Players</span>
+              {isHost ? (
+                <div className="flex items-center justify-center gap-1 mt-1">
+                  {[3, 4, 5, 6].map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() =>
+                        network.send('update_lobby_options', {
+                          maxPlayers: n,
+                          enableDeputies: n === 6 ? store.enableDeputies : false,
+                        })
+                      }
+                      className={`text-xs px-2 py-0.5 rounded font-bold transition-colors ${
+                        store.maxPlayers === n
+                          ? 'bg-gold text-tavern-bg'
+                          : 'bg-tavern-bg text-parchment/70 hover:text-white'
+                      }`}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <span className="font-display font-bold text-sm text-parchment">{store.maxPlayers}</span>
+              )}
+            </div>
+
+            <div className="p-2 rounded bg-tavern-surface/80 border border-tavern-border text-center flex flex-col justify-center">
+              <span className="block text-[11px] text-gold-muted font-display uppercase">👑 Royal Goods</span>
+              {isHost ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    network.send('update_lobby_options', {
+                      enableRoyalGoods: !store.enableRoyalGoods,
+                    })
+                  }
+                  className={`mt-1 text-xs px-2 py-0.5 rounded font-bold transition-colors ${
+                    store.enableRoyalGoods
+                      ? 'bg-emerald/30 text-emerald border border-emerald/50'
+                      : 'bg-tavern-bg text-parchment/40'
+                  }`}
+                >
+                  {store.enableRoyalGoods ? 'Active' : 'Off'}
+                </button>
+              ) : (
+                <span
+                  className={`mt-1 text-xs font-bold ${
+                    store.enableRoyalGoods ? 'text-emerald' : 'text-parchment/40'
+                  }`}
+                >
+                  {store.enableRoyalGoods ? 'Active' : 'Off'}
+                </span>
+              )}
+            </div>
+
+            <div className="p-2 rounded bg-tavern-surface/80 border border-tavern-border text-center flex flex-col justify-center">
+              <span className="block text-[11px] text-gold-muted font-display uppercase">🛡️ Deputies</span>
+              {isHost ? (
+                <button
+                  type="button"
+                  disabled={store.maxPlayers !== 6}
+                  onClick={() =>
+                    network.send('update_lobby_options', {
+                      enableDeputies: !store.enableDeputies,
+                    })
+                  }
+                  className={`mt-1 text-xs px-2 py-0.5 rounded font-bold transition-colors ${
+                    store.maxPlayers !== 6
+                      ? 'opacity-30 cursor-not-allowed bg-tavern-bg text-parchment/30'
+                      : store.enableDeputies
+                      ? 'bg-emerald/30 text-emerald border border-emerald/50'
+                      : 'bg-tavern-bg text-parchment/40'
+                  }`}
+                >
+                  {store.maxPlayers !== 6 ? '6p only' : store.enableDeputies ? 'Active' : 'Off'}
+                </button>
+              ) : (
+                <span
+                  className={`mt-1 text-xs font-bold ${
+                    store.enableDeputies ? 'text-emerald' : 'text-parchment/40'
+                  }`}
+                >
+                  {store.enableDeputies ? 'Active' : 'Off'}
+                </span>
+              )}
+            </div>
+
+            <div className="p-2 rounded bg-tavern-surface/80 border border-tavern-border text-center flex flex-col justify-center">
+              <span className="block text-[11px] text-gold-muted font-display uppercase">🗡️ Black Market</span>
+              {isHost ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    network.send('update_lobby_options', {
+                      enableBlackMarket: !store.enableBlackMarket,
+                    })
+                  }
+                  className={`mt-1 text-xs px-2 py-0.5 rounded font-bold transition-colors ${
+                    store.enableBlackMarket
+                      ? 'bg-emerald/30 text-emerald border border-emerald/50'
+                      : 'bg-tavern-bg text-parchment/40'
+                  }`}
+                >
+                  {store.enableBlackMarket ? 'Active' : 'Off'}
+                </button>
+              ) : (
+                <span
+                  className={`mt-1 text-xs font-bold ${
+                    store.enableBlackMarket ? 'text-emerald' : 'text-parchment/40'
+                  }`}
+                >
+                  {store.enableBlackMarket ? 'Active' : 'Off'}
+                </span>
+              )}
+            </div>
+          </div>
         </div>
 
         <div className="flex justify-center gap-4 flex-wrap">

@@ -9,6 +9,9 @@ export function ExaminationDesk() {
   const phase = useGameStore((s) => s.phase);
   const localPlayerId = useGameStore((s) => s.localPlayerId);
   const sheriffId = useGameStore((s) => s.sheriffId);
+  const deputyIds = useGameStore((s) => s.deputyIds);
+  const enableDeputies = useGameStore((s) => s.enableDeputies);
+  const bootyTile = useGameStore((s) => s.bootyTile);
   const activeMerchantId = useGameStore((s) => s.activeMerchantId);
   const playersMap = useGameStore((s) => s.players);
   const activeBribe = useGameStore((s) => s.activeBribe);
@@ -22,12 +25,18 @@ export function ExaminationDesk() {
 
   if (!sheriffPlayer) return null;
 
-  // Uninspected merchants
-  const uninspectedMerchants = players.filter(
-    (p) => !p.isSheriff && p.id !== sheriffPlayer.id && !p.sealedBag?.isRevealed
-  );
-
+  const deputyPlayers = players.filter((p) => deputyIds.includes(p.id));
   const isLocalSheriff = localPlayer?.id === sheriffPlayer.id;
+  const isLocalDeputy = deputyIds.includes(localPlayerId || '');
+  const canInspect = enableDeputies ? isLocalDeputy : isLocalSheriff;
+
+  // Uninspected merchants
+  const uninspectedMerchants = players.filter((p) => {
+    if (enableDeputies) {
+      return !deputyIds.includes(p.id) && !p.sealedBag?.isRevealed;
+    }
+    return !p.isSheriff && p.id !== sheriffPlayer.id && !p.sealedBag?.isRevealed;
+  });
 
   const handleSelectMerchant = (targetPlayerId: string) => {
     network.send('select_inspect_merchant', { targetPlayerId });
@@ -39,6 +48,18 @@ export function ExaminationDesk() {
 
   const handlePass = (targetPlayerId: string) => {
     network.send('inspection_action', { type: 'PASS', targetPlayerId });
+  };
+
+  const handleDeputyAction = (
+    type: 'JOINT_PASS' | 'JOINT_INSPECT' | 'SOLO_PASS' | 'SOLO_INSPECT',
+    targetPlayerId: string
+  ) => {
+    if (!localPlayerId) return;
+    network.send('deputy_inspection', {
+      type,
+      deputyId: localPlayerId,
+      targetPlayerId,
+    });
   };
 
   return (
@@ -54,13 +75,28 @@ export function ExaminationDesk() {
         >
           {/* Header Banner */}
           <div className="flex items-center justify-between border-b border-tavern-border pb-3">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <span className="font-display font-black text-gold text-lg tracking-wider">
                 ⚖️ THE EXAMINATION DESK
               </span>
-              <span className="text-xs text-parchment/60 font-body">
-                Sheriff: <span className="font-bold text-white">{sheriffPlayer.name}</span>
-              </span>
+              {enableDeputies ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-parchment/60 font-body">
+                    Deputies: <span className="font-bold text-white">{deputyPlayers.map((d) => d.name).join(' & ')}</span>
+                  </span>
+                  {bootyTile && (
+                    <span className="flex items-center gap-1.5 bg-tavern-card px-2.5 py-0.5 rounded-md border border-gold/40 text-xs text-gold">
+                      <span>💰 Booty:</span>
+                      <span className="font-bold text-white">{bootyTile.gold}g</span>
+                      {bootyTile.goodsCount > 0 && <span>({bootyTile.goodsCount} goods)</span>}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <span className="text-xs text-parchment/60 font-body">
+                  Sheriff: <span className="font-bold text-white">{sheriffPlayer.name}</span>
+                </span>
+              )}
             </div>
 
             {activeMerchant && (
@@ -77,7 +113,7 @@ export function ExaminationDesk() {
           {/* State 1: No Merchant Selected Yet */}
           {!activeMerchant ? (
             <div className="flex flex-col items-center py-6 gap-4 text-center">
-              {isLocalSheriff ? (
+              {canInspect ? (
                 <>
                   <h3 className="font-display text-xl text-gold font-bold">
                     Select a Merchant to Call to the Examination Desk
@@ -106,10 +142,10 @@ export function ExaminationDesk() {
               ) : (
                 <div className="space-y-2">
                   <h3 className="font-display text-lg text-gold font-bold">
-                    Waiting for Sheriff {sheriffPlayer.name}...
+                    Waiting for {enableDeputies ? 'Deputies' : `Sheriff ${sheriffPlayer.name}`}...
                   </h3>
                   <p className="text-xs text-parchment/70">
-                    The Sheriff is inspecting declarations and selecting the next merchant to interrogate.
+                    The inspection team is reviewing declarations and selecting the next merchant to interrogate.
                   </p>
                 </div>
               )}
@@ -132,8 +168,75 @@ export function ExaminationDesk() {
               <div className="flex flex-col gap-4 items-center">
                 <BribeNegotiationPanel sheriff={sheriffPlayer} merchant={activeMerchant} />
 
-                {/* Sheriff Actions: Unsnap Clasp & Pass Unopened */}
-                {isLocalSheriff ? (
+                {/* Actions */}
+                {enableDeputies ? (
+                  isLocalDeputy ? (
+                    <div className="w-full flex flex-col gap-2 pt-2">
+                      <div className="text-xs text-center text-gold-muted font-display uppercase tracking-wider mb-0.5">
+                        Deputy Decisions
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 w-full">
+                        <button
+                          type="button"
+                          onClick={() => handleDeputyAction('JOINT_PASS', activeMerchant.id)}
+                          className="p-2.5 rounded-xl bg-emerald/20 border border-emerald/60 hover:bg-emerald/30 text-emerald-200 text-left transition-all group"
+                        >
+                          <div className="font-display font-bold text-xs flex items-center gap-1.5 text-emerald-300">
+                            🤝 Joint Pass
+                          </div>
+                          <div className="text-[10px] text-parchment/70 mt-0.5 leading-tight">
+                            Pass unopened; bribes go to communal Booty Tile
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDeputyAction('JOINT_INSPECT', activeMerchant.id)}
+                          className="p-2.5 rounded-xl bg-crimson/20 border border-crimson/60 hover:bg-crimson/30 text-red-200 text-left transition-all group"
+                        >
+                          <div className="font-display font-bold text-xs flex items-center gap-1.5 text-red-300">
+                            🔍 Joint Inspect
+                          </div>
+                          <div className="text-[10px] text-parchment/70 mt-0.5 leading-tight">
+                            Inspect together; split penalty / fine to Booty
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDeputyAction('SOLO_PASS', activeMerchant.id)}
+                          className="p-2.5 rounded-xl bg-tavern-surface border border-gold/40 hover:border-gold hover:bg-gold/15 text-gold-light text-left transition-all group"
+                        >
+                          <div className="font-display font-bold text-xs flex items-center gap-1.5 text-gold">
+                            🤫 Solo Pass
+                          </div>
+                          <div className="text-[10px] text-parchment/70 mt-0.5 leading-tight">
+                            Pass alone; collect bribe into personal purse
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDeputyAction('SOLO_INSPECT', activeMerchant.id)}
+                          className="p-2.5 rounded-xl bg-tavern-surface border border-gold/40 hover:border-gold hover:bg-gold/15 text-gold-light text-left transition-all group"
+                        >
+                          <div className="font-display font-bold text-xs flex items-center gap-1.5 text-gold">
+                            ⚡ Solo Inspect
+                          </div>
+                          <div className="text-[10px] text-parchment/70 mt-0.5 leading-tight">
+                            Inspect alone; take full penalty risk & reward
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center text-xs text-gold-muted italic py-2">
+                      {localPlayer?.id === activeMerchant.id
+                        ? 'You are at the Examination Desk. Bluff, negotiate, or let the Deputies decide!'
+                        : `${activeMerchant.name} is negotiating with the Deputies...`}
+                    </div>
+                  )
+                ) : isLocalSheriff ? (
                   <div className="w-full flex justify-center pt-2">
                     <UnsnapClasp
                       onInspect={() => handleInspect(activeMerchant.id)}

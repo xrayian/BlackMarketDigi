@@ -97,3 +97,17 @@ export interface PlayerScoreBreakdown {
   contrabandCount: number;
   rank: number;
 }
+
+export interface BlackMarketOrder {
+  id: string;
+  name: string;
+  contrabandType: ContrabandType;
+  requiredCount: number;
+  pointsValue: number;
+}
+
+export interface BootyTileData {
+  gold: number;
+  goods: Card[];
+}
+

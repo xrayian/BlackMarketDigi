@@ -1,18 +1,24 @@
 import { Card, GoodType, LEGAL_GOODS, MIN_BAG_CARDS, MAX_BAG_CARDS, SealedBag } from '@sheriff/shared';
 
 /**
- * Calculates declaration order: starting from player immediately to Sheriff's left (clockwise), skipping Sheriff.
+ * Calculates declaration order: starting from player immediately to Sheriff's left (clockwise), skipping Sheriff and Deputies.
  */
-export function getDeclarationOrder(tableSeats: readonly string[], sheriffId: string): string[] {
-  const sheriffIndex = tableSeats.indexOf(sheriffId);
-  if (sheriffIndex === -1) {
-    throw new Error(`Sheriff ${sheriffId} not found in table seats`);
+export function getDeclarationOrder(
+  tableSeats: readonly string[],
+  sheriffId: string,
+  deputyIds?: readonly string[]
+): string[] {
+  const authorities = deputyIds && deputyIds.length > 0 ? deputyIds : [sheriffId];
+  const primaryAuthority = sheriffId || (deputyIds ? deputyIds[0] : '');
+  const authorityIndex = tableSeats.indexOf(primaryAuthority);
+  if (authorityIndex === -1) {
+    throw new Error(`Authority ${primaryAuthority} not found in table seats`);
   }
 
   const order: string[] = [];
-  for (let i = 1; i < tableSeats.length; i++) {
-    const nextPlayer = tableSeats[(sheriffIndex + i) % tableSeats.length];
-    if (nextPlayer !== sheriffId) {
+  for (let i = 1; i <= tableSeats.length; i++) {
+    const nextPlayer = tableSeats[(authorityIndex + i) % tableSeats.length];
+    if (!authorities.includes(nextPlayer) && !order.includes(nextPlayer)) {
       order.push(nextPlayer);
     }
   }
