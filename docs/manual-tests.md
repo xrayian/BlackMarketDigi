@@ -33,3 +33,33 @@
   - `Colyseus room.onStateChange` -> `useGameStore.getState().updateGameState(state)` -> `Table` and `MerchantStand` props.
   - Verify: Changes in player gold, stand cards, or bag status immediately reflect on the 3D table without requiring manual re-renders.
 
+## Phase 4: Core Loop UI — Market → Load Bag → Declaration
+- [ ] Full 4-client Market → Load Bag → Declaration cycle:
+  - Open 4 browser tabs. Create room in tab 1, join with tabs 2–4. Toggle all ready, start game.
+  - **MARKET Phase:**
+    - Verify: Sheriff sees "Select Starting Merchant" with buttons for each non-sheriff player.
+    - Verify: Non-sheriff players see "Waiting for Sheriff to select starting player..."
+    - Sheriff clicks a merchant. That merchant's tab shows the hand tray with selectable cards.
+    - Active merchant selects 0–5 cards, clicks "Confirm Exchange". Hand refreshes with new cards from draw pile.
+    - Verify: Turn advances clockwise to the next merchant automatically.
+    - Verify: Sheriff tab shows "Observing market exchanges... Watch for clues!" with current merchant's name.
+    - Verify: Other merchants see "Waiting for [name]'s turn..."
+    - After all merchants exchange → phase transitions to LOAD_BAG.
+  - **LOAD BAG Phase:**
+    - Verify: Sheriff sees "Merchants are loading their bags..." with status for each merchant.
+    - Verify: Each merchant sees hand tray with selectable cards and "Snap Bag Shut! 🔒" button.
+    - Verify: "Snap Bag Shut!" is disabled until 1–5 cards are selected.
+    - Merchant selects 3 cards, clicks snap. Tab shows "🔒 Bag Sealed!" with card count and other merchants' status.
+    - Verify: Attempting to select >5 cards is prevented.
+    - After all merchants snap → phase transitions to DECLARATION.
+  - **DECLARATION Phase:**
+    - Verify: Declaration order starts from player to Sheriff's left, proceeding clockwise.
+    - Active merchant sees 4 good-type buttons (🍎 Apples, 🧀 Cheese, 🍞 Bread, 🐔 Chickens) and bag card count.
+    - Verify: "Declare!" button is disabled until a good type is selected.
+    - Merchant selects a good and clicks "Declare!". Tab shows "You declared: X [Good]".
+    - Verify: Sheriff sees each merchant's declaration status updating live.
+    - Verify: Other merchants see "[Name] is declaring..." and previous declarations.
+    - After all merchants declare → phase transitions to INSPECTION.
+  - **Server Validation Errors:**
+    - Attempt invalid declaration (e.g., modify client to send contraband type) → verify crimson error toast appears with server rejection message.
+    - Error toast auto-dismisses after 5 seconds or can be manually closed with ✕.

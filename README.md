@@ -114,8 +114,8 @@ npm run build
   * Authoritative Colyseus 0.18 state transitions, zero-knowledge client views (`.view()`), atomic bribe negotiation protocol with sequence number buffer, 4-player integration tests.
 * [x] **Phase 3: 3D Table & Scene**
   * React Three Fiber circular banquet table seating 3–6 players without overlap, dynamic camera rig oriented for local seat, MerchantStand with instanced coin piles, 4 legal goods compartments, facedown contraband vault with seal medallion and count badge, 3D merchant bag with clasp, candle flicker, bloom and vignette post-processing, reactive state sync.
-* [ ] **Phase 4: Core Loop UI: Market → Load Bag → Declaration**
-  * Hand tray with drag-and-drop market discard/redraw, 3D bag loading with spring animation and locking snap clasp, declaration picker, authoritative validation error feedback.
+* [x] **Phase 4: Core Loop UI: Market → Load Bag → Declaration**
+  * Market panel with sheriff starting player selection, merchant discard/redraw with card selection UI, and clockwise turn advancement. Bag loading with 1–5 card selection and immutable snap. Declaration modal with legal good type picker and auto-count. Server validation errors surfaced as auto-dismissing error toasts.
 * [ ] **Phase 5: Inspection & Bribe Negotiation ("The Examination Desk")**
   * 1-on-1 examination camera transition, bribe balance scale, press-and-hold unsnap bag clasp, guided debt liquidation UI.
 * [ ] **Phase 6: Audio & Visual Polish**
