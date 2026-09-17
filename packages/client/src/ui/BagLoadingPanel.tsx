@@ -28,6 +28,7 @@ export function BagLoadingPanel() {
   const removeCardFromSelection = useGameStore((s) => s.removeCardFromSelection);
 
   const [activeCard, setActiveCard] = useState<ClientCard | null>(null);
+  const [isMinimized, setIsMinimized] = useState(false);
 
   // Setup dnd-kit sensors: mouse/touch + keyboard for full accessibility
   const sensors = useSensors(
@@ -119,6 +120,32 @@ export function BagLoadingPanel() {
     );
   };
 
+  if (isMinimized) {
+    return (
+      <motion.div
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="fixed bottom-3 right-6 z-40 bg-walnut-bg/95 border-2 border-gold/60 rounded-2xl px-5 py-2.5 shadow-2xl backdrop-blur-md flex items-center gap-3 cursor-pointer select-none hover:bg-gold/10"
+        onClick={() => setIsMinimized(false)}
+      >
+        <span className="text-lg">💼</span>
+        <span className="text-xs font-display font-bold text-gold">
+          {isSheriff ? 'Watching Merchants' : isSnapped ? 'Bag Sealed' : `Bag: ${selectedCardIds.length}/5 cards`}
+        </span>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsMinimized(false);
+          }}
+          className="ml-2 text-xs text-gold-light bg-gold/20 hover:bg-gold/30 px-2.5 py-1 rounded-lg font-bold cursor-pointer"
+        >
+          Expand ▲
+        </button>
+      </motion.div>
+    );
+  }
+
   return (
     <DndContext
       sensors={sensors}
@@ -134,6 +161,17 @@ export function BagLoadingPanel() {
           transition={{ type: 'spring', damping: 26, stiffness: 220 }}
           className="fixed inset-x-0 bottom-0 z-40 bg-walnut-bg/95 border-t-2 border-gold/50 backdrop-blur-md px-6 py-5 shadow-[0_-15px_50px_rgba(0,0,0,0.7)] flex flex-col items-center"
         >
+          {/* Minimize Button */}
+          <button
+            type="button"
+            onClick={() => setIsMinimized(true)}
+            className="absolute top-3 right-6 text-xs text-gold-muted hover:text-gold bg-walnut-surface hover:bg-gold/10 border border-gold/30 px-3 py-1 rounded-xl font-display font-bold cursor-pointer flex items-center gap-1 transition-all"
+            title="Minimize tray to view your stand and table"
+          >
+            <span>Minimize</span>
+            <span>▼</span>
+          </button>
+
           {isSheriff ? (
             /* Sheriff View: Waiting for merchants */
             <div className="flex flex-col items-center gap-4 py-3 text-center">

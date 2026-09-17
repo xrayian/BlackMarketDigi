@@ -156,25 +156,25 @@ export function UnsnapClasp({ onInspect, onPass, disabled = false }: UnsnapClasp
           <motion.div
             animate={
               isSnapping
-                ? { scale: [1, 1.3, 0.9, 1] }
+                ? { scale: [1, 1.25, 0.92, 1] }
                 : isHolding
-                ? { scale: [1, 1.05, 1] }
+                ? { scale: [1, 1.06, 1] }
                 : { scale: 1 }
             }
             transition={isHolding ? { repeat: Infinity, duration: 0.3 } : undefined}
             className={`
-              w-18 h-18 rounded-full border-2 flex flex-col items-center justify-center text-center z-10
+              w-[76px] h-[76px] rounded-full border-2 flex flex-col items-center justify-center text-center z-10 shadow-lg
               ${
                 isSnapping
                   ? 'bg-red-700 border-white text-white shadow-[0_0_30px_rgba(255,255,255,0.9)]'
                   : isHolding
-                  ? 'bg-crimson border-red-300 text-white shadow-[0_0_25px_rgba(239,68,68,0.8)]'
-                  : 'bg-gradient-to-b from-crimson to-walnut-card border-gold text-parchment hover:border-gold-light'
+                  ? 'bg-gradient-to-b from-red-600 to-red-800 border-amber-300 text-white shadow-[0_0_25px_rgba(239,68,68,0.8)] ring-2 ring-red-400'
+                  : 'bg-gradient-to-b from-amber-700/90 via-red-900 to-walnut-bg border-gold text-gold-light hover:border-gold-light hover:text-white shadow-[0_4px_15px_rgba(0,0,0,0.6)]'
               }
             `}
           >
-            <span className="text-2xl leading-none">
-              {isSnapping ? '💥' : isHolding ? '⚠️' : '🔓'}
+            <span className="text-2xl leading-none filter drop-shadow">
+              {isSnapping ? '💥' : isHolding ? '⚡' : '🔓'}
             </span>
             <span className="text-[10px] font-display font-black tracking-widest uppercase mt-0.5 leading-none">
               {isSnapping ? 'SNAP!' : isHolding ? 'HOLD' : 'UNSNAP'}

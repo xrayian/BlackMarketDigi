@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore } from '../state/gameStore';
 import type { ClientCard } from '../state/gameStore';
@@ -6,6 +7,7 @@ import { soundManager } from '../audio/soundManager';
 import { HandCardFan } from './table2d/HandCardFan';
 
 export function MarketPanel() {
+  const [isMinimized, setIsMinimized] = useState(false);
   const phase = useGameStore((s) => s.phase);
   const localPlayerId = useGameStore((s) => s.localPlayerId);
   const activeMerchantId = useGameStore((s) => s.activeMerchantId);
@@ -152,6 +154,32 @@ export function MarketPanel() {
     );
   }
 
+  if (isMinimized) {
+    return (
+      <motion.div
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="fixed bottom-3 right-6 z-40 bg-walnut-bg/95 border-2 border-gold/60 rounded-2xl px-5 py-2.5 shadow-2xl backdrop-blur-md flex items-center gap-3 cursor-pointer select-none hover:bg-gold/10"
+        onClick={() => setIsMinimized(false)}
+      >
+        <span className="text-lg">🏪</span>
+        <span className="text-xs font-display font-bold text-gold">
+          {activeMerchantId === localPlayerId ? 'Your Market Turn' : `${activeMerchantName}'s Turn`}
+        </span>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsMinimized(false);
+          }}
+          className="ml-2 text-xs text-gold-light bg-gold/20 hover:bg-gold/30 px-2.5 py-1 rounded-lg font-bold cursor-pointer"
+        >
+          Expand ▲
+        </button>
+      </motion.div>
+    );
+  }
+
   return (
     <AnimatePresence>
       <motion.div
@@ -172,6 +200,17 @@ export function MarketPanel() {
             <span className="font-bold text-gold">{discardPile.length}</span>
           </div>
         </div>
+
+        {/* Minimize Button */}
+        <button
+          type="button"
+          onClick={() => setIsMinimized(true)}
+          className="absolute top-3 right-6 text-xs text-gold-muted hover:text-gold bg-walnut-surface hover:bg-gold/10 border border-gold/30 px-3 py-1 rounded-xl font-display font-bold cursor-pointer flex items-center gap-1 transition-all"
+          title="Minimize tray to view your stand and table"
+        >
+          <span>Minimize</span>
+          <span>▼</span>
+        </button>
 
         <div className="w-full max-w-5xl flex flex-col items-center">{content}</div>
       </motion.div>

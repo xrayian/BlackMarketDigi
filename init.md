@@ -434,7 +434,7 @@ audio toggles, Reduced Motion mode, and color-independent card classification gu
 
 ## 12. Phase 8 — Anti-Cheat Hardening & Testing
 
-**Status:** 🔜 Unchanged by the 2D pivot.
+**Status:** ✅ Done. Comprehensive adversarial fuzzing and anti-cheat test suite in `packages/server/test/rooms/AntiCheatFuzzing.test.ts` (88 tests passing across 14 test files), complete server-side action validation with descriptive `{ message }` errors, zero-knowledge isolation and reconnection state restoration, clean room disposal, and resolution of all issues tracked in `Issues.md`.
 
 Reference `docs/architecture.md` §6.
 

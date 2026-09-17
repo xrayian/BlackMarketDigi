@@ -85,6 +85,7 @@ interface GameStore {
   discardPile: ClientCard[];
   connected: boolean;
   activeBribe?: ClientBribeOffer;
+  bribeOffers: ClientBribeOffer[];
   winnerId: string | null;
   winningScore: number;
 
@@ -145,6 +146,7 @@ const initialState = {
   discardPile: [] as ClientCard[],
   connected: false,
   activeBribe: undefined as ClientBribeOffer | undefined,
+  bribeOffers: [] as ClientBribeOffer[],
   winnerId: null as string | null,
   winningScore: 0,
   enableRoyalGoods: false,
@@ -239,20 +241,26 @@ export const useGameStore = create<GameStore>((set) => ({
       ? Array.from(state.discardPile).map(mapCard)
       : [];
 
+    const mapBribe = (b: any): ClientBribeOffer => ({
+      id: b.id,
+      sequenceNumber: b.sequenceNumber || 1,
+      fromPlayerId: b.fromPlayerId,
+      toPlayerId: b.toPlayerId,
+      gold: b.gold || 0,
+      standCardIds: b.standCardIds ? Array.from(b.standCardIds) : [],
+      bagCardClaims: b.bagCardClaims ? Array.from(b.bagCardClaims) : [],
+      nonBindingTerms: b.nonBindingTerms || '',
+      status: b.status || 'PROPOSED',
+    });
+
     let activeBribe: ClientBribeOffer | undefined = undefined;
     if (state.activeBribe) {
-      activeBribe = {
-        id: state.activeBribe.id,
-        sequenceNumber: state.activeBribe.sequenceNumber || 1,
-        fromPlayerId: state.activeBribe.fromPlayerId,
-        toPlayerId: state.activeBribe.toPlayerId,
-        gold: state.activeBribe.gold || 0,
-        standCardIds: state.activeBribe.standCardIds ? Array.from(state.activeBribe.standCardIds) : [],
-        bagCardClaims: state.activeBribe.bagCardClaims ? Array.from(state.activeBribe.bagCardClaims) : [],
-        nonBindingTerms: state.activeBribe.nonBindingTerms || '',
-        status: state.activeBribe.status || 'PROPOSED',
-      };
+      activeBribe = mapBribe(state.activeBribe);
     }
+
+    const bribeOffers: ClientBribeOffer[] = state.bribeOffers
+      ? Array.from(state.bribeOffers).map(mapBribe)
+      : [];
 
     let bootyTile: ClientBootyTile | undefined = undefined;
     if (state.bootyTile) {
@@ -280,6 +288,15 @@ export const useGameStore = create<GameStore>((set) => ({
       ? Array.from(state.blackMarketSilkPile).map(mapBMOrder)
       : [];
 
+    const prev = useGameStore.getState();
+    const phaseChanged = prev.phase !== state.phase;
+    const merchantChanged = prev.activeMerchantId !== state.activeMerchantId;
+    const bribeUpdated = Boolean(
+      activeBribe &&
+      prev.activeBribe &&
+      activeBribe.sequenceNumber !== prev.activeBribe.sequenceNumber
+    );
+
     set({
       phase: state.phase as GamePhase,
       round: state.round || 0,
@@ -290,6 +307,7 @@ export const useGameStore = create<GameStore>((set) => ({
       discardPile,
       players,
       activeBribe,
+      bribeOffers,
       winnerId: state.winnerId || null,
       winningScore: state.winningScore || 0,
       enableRoyalGoods: Boolean(state.enableRoyalGoods),
@@ -300,20 +318,11 @@ export const useGameStore = create<GameStore>((set) => ({
       blackMarketPepperPile,
       blackMarketMeadPile,
       blackMarketSilkPile,
+      selectedCardIds: (phaseChanged || merchantChanged) ? [] : prev.selectedCardIds,
     });
 
-    const prev = useGameStore.getState();
-    // Auto-clear card selection when the phase changes
-    if (prev.phase !== state.phase) {
-      set({ selectedCardIds: [] });
-    }
-
     // Trigger 1.5s reaction buffer lock if active bribe offer terms updated (docs/architecture.md §6.2)
-    if (
-      activeBribe &&
-      prev.activeBribe &&
-      activeBribe.sequenceNumber !== prev.activeBribe.sequenceNumber
-    ) {
+    if (bribeUpdated) {
       set({ bribeReactionCooldown: true });
       setTimeout(() => {
         set({ bribeReactionCooldown: false });

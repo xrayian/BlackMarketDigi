@@ -190,10 +190,20 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
         // Allow reconnection buffer (GDD §6.2)
         await this.allowReconnection(client, 30);
         player.connected = true;
-        // Re-grant client view permissions on reconnect
+        // Re-grant client view permissions on reconnect with complete zero-knowledge isolation
         if (client.view) {
           client.view.add(player);
-          if (player.sealedBag) client.view.add(player.sealedBag);
+          client.view.subscribe(player.hand);
+          client.view.subscribe(player.standContraband);
+          client.view.subscribe(player.standRoyal);
+          for (const card of player.hand) client.view.add(card);
+          for (const card of player.standContraband) client.view.add(card);
+          for (const card of player.standRoyal) client.view.add(card);
+          if (player.sealedBag) {
+            client.view.add(player.sealedBag);
+            client.view.subscribe(player.sealedBag.cards);
+            for (const card of player.sealedBag.cards) client.view.add(card);
+          }
         }
       } catch {
         player.connected = false;
@@ -201,9 +211,26 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
     }
   }
 
+  onDispose() {
+    this.internalDrawPile = [];
+    this.internalDiscardPile = [];
+    this.tableSeatIds = [];
+    this.declarationOrder = [];
+    this.declarationIndex = 0;
+    this.inspectedMerchantIds.clear();
+    this.bribeSequenceNumber = 1;
+    this.marketState = undefined;
+    this.deputiesEngineState = undefined;
+    this.blackMarketEngineState = undefined;
+  }
+
   private setupMessageHandlers() {
     // 1. Ready toggle in Lobby
     this.onMessage('ready', (client) => {
+      if (this.state.phase !== 'LOBBY') {
+        client.send('error', { message: 'Cannot change ready state after game has started' });
+        return;
+      }
       const player = this.state.players.get(client.sessionId);
       if (!player) return;
 
@@ -224,10 +251,20 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
 
     // 2. Select starting player for Market Phase (Sheriff only)
     this.onMessage('select_start_player', (client, message: SelectStartPlayerMessage) => {
-      if (this.state.phase !== 'MARKET' || client.sessionId !== this.state.sheriffId) return;
+      if (this.state.phase !== 'MARKET') {
+        client.send('error', { message: 'Can only select start player during MARKET phase' });
+        return;
+      }
+      if (client.sessionId !== this.state.sheriffId) {
+        client.send('error', { message: 'Only the Sheriff can select the starting merchant' });
+        return;
+      }
 
       const targetId = message.playerId;
-      if (!this.state.players.has(targetId) || targetId === this.state.sheriffId) return;
+      if (!this.state.players.has(targetId) || targetId === this.state.sheriffId) {
+        client.send('error', { message: 'Must select a valid merchant' });
+        return;
+      }
 
       this.marketState = initMarketPhase({
         tableSeats: this.tableSeatIds,
@@ -240,10 +277,29 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
 
     // 3. Market discard & redraw exchange
     this.onMessage('market_exchange', (client, message: MarketDiscardMessage) => {
-      if (this.state.phase !== 'MARKET' || !this.marketState) return;
-      if (client.sessionId !== this.state.activeMerchantId) return;
+      if (this.state.phase !== 'MARKET' || !this.marketState) {
+        client.send('error', { message: 'Market exchange is only allowed during MARKET phase' });
+        return;
+      }
+      if (client.sessionId !== this.state.activeMerchantId) {
+        client.send('error', { message: 'It is not your market turn' });
+        return;
+      }
 
       const player = this.state.players.get(client.sessionId)!;
+      if (message.cardIds && message.cardIds.length > 5) {
+        client.send('error', { message: 'Cannot discard more than 5 cards' });
+        return;
+      }
+
+      const handCardIds = new Set(player.hand.map((c) => c.id));
+      for (const id of message.cardIds || []) {
+        if (!handCardIds.has(id)) {
+          client.send('error', { message: `Card ${id} is not present in player hand` });
+          return;
+        }
+      }
+
       const handCards = player.hand.map(stateToCard);
 
       const result = exchangeMarketCards({
@@ -289,18 +345,35 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
 
     // 4. Load Merchant Bag
     this.onMessage('load_bag', (client, message: LoadBagMessage) => {
-      if (this.state.phase !== 'LOAD_BAG') return;
-      if (client.sessionId === this.state.sheriffId) return;
+      if (this.state.phase !== 'LOAD_BAG') {
+        client.send('error', { message: 'Can only load bag during LOAD_BAG phase' });
+        return;
+      }
+      if (client.sessionId === this.state.sheriffId) {
+        client.send('error', { message: 'Sheriff does not pack a merchant bag' });
+        return;
+      }
 
       const player = this.state.players.get(client.sessionId)!;
-      if (player.sealedBag?.isSnapped) return; // Cannot modify snapped bag
+      if (player.sealedBag?.isSnapped) {
+        client.send('error', { message: 'Bag is already sealed shut' });
+        return;
+      }
 
       const handCards = player.hand.map(stateToCard);
-      const { sealedBag, remainingHand } = loadAndSnapBag({
-        playerId: client.sessionId,
-        hand: handCards,
-        cardIdsToLoad: message.cardIds,
-      });
+      let loadResult;
+      try {
+        loadResult = loadAndSnapBag({
+          playerId: client.sessionId,
+          hand: handCards,
+          cardIdsToLoad: message.cardIds,
+        });
+      } catch (err: any) {
+        client.send('error', { message: err.message || 'Invalid card selection for bag' });
+        return;
+      }
+
+      const { sealedBag, remainingHand } = loadResult;
 
       // Update hand
       player.hand.clear();
@@ -352,11 +425,21 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
 
     // 5. Declaration
     this.onMessage('declaration', (client, message: DeclarationMessage) => {
-      if (this.state.phase !== 'DECLARATION') return;
-      if (client.sessionId !== this.state.activeMerchantId) return;
+      if (this.state.phase !== 'DECLARATION') {
+        client.send('error', { message: 'Can only make declarations during DECLARATION phase' });
+        return;
+      }
+      if (client.sessionId !== this.state.activeMerchantId) {
+        client.send('error', { message: 'It is not your turn to declare' });
+        return;
+      }
 
-      const player = this.state.players.get(client.sessionId)!;
-      const bagCards = player.sealedBag!.cards.map(stateToCard);
+      const player = this.state.players.get(client.sessionId);
+      if (!player || !player.sealedBag) {
+        client.send('error', { message: 'Merchant bag not found' });
+        return;
+      }
+      const bagCards = player.sealedBag.cards.map(stateToCard);
 
       const validation = validateDeclaration(bagCards, message.declaredCount, message.declaredGood);
       if (!validation.valid) {
@@ -364,8 +447,8 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
         return;
       }
 
-      player.sealedBag!.declaredGood = message.declaredGood;
-      player.sealedBag!.declaredCount = message.declaredCount;
+      player.sealedBag.declaredGood = message.declaredGood;
+      player.sealedBag.declaredCount = message.declaredCount;
 
       this.declarationIndex++;
       if (this.declarationIndex >= this.declarationOrder.length) {
@@ -377,20 +460,52 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
 
     // 6. Propose Bribe
     this.onMessage('bribe_propose', (client, message: BribeOfferMessage) => {
-      if (this.state.phase !== 'INSPECTION') return;
+      if (this.state.phase !== 'INSPECTION') {
+        client.send('error', { message: 'Can only propose bribes during INSPECTION phase' });
+        return;
+      }
 
       const player = this.state.players.get(client.sessionId);
       if (!player) return;
 
-      if (message.gold > player.gold) {
-        client.send('error', { message: 'Cannot offer more gold than you currently hold' });
+      if (message.gold !== undefined && (message.gold < 0 || !Number.isInteger(message.gold))) {
+        client.send('error', { message: 'Bribe gold must be a non-negative integer' });
         return;
       }
 
-      this.bribeSequenceNumber++;
-      const toPlayerId = client.sessionId === this.state.sheriffId ? '' : this.state.sheriffId;
+      const isSheriff = client.sessionId === this.state.sheriffId;
+      const targetMerchantId = isSheriff ? this.state.activeMerchantId : '';
 
-      this.state.activeBribe = new BribeOfferState({
+      if (isSheriff) {
+        if (!targetMerchantId || !this.state.players.has(targetMerchantId)) {
+          client.send('error', { message: 'Must select an active merchant before proposing terms' });
+          return;
+        }
+        const targetMerchant = this.state.players.get(targetMerchantId)!;
+        if ((message.gold || 0) > targetMerchant.gold) {
+          client.send('error', { message: 'Cannot demand more gold than the merchant holds' });
+          return;
+        }
+      } else {
+        if ((message.gold || 0) > player.gold) {
+          client.send('error', { message: 'Cannot offer more gold than you currently hold' });
+          return;
+        }
+        if (message.standCardIds && message.standCardIds.length > 0) {
+          const standLegalIds = new Set(player.standLegal.map((c) => c.id));
+          for (const cardId of message.standCardIds) {
+            if (!standLegalIds.has(cardId)) {
+              client.send('error', { message: `Card ${cardId} is not on your legal stand` });
+              return;
+            }
+          }
+        }
+      }
+
+      this.bribeSequenceNumber++;
+      const toPlayerId = isSheriff ? targetMerchantId : this.state.sheriffId;
+
+      const bribeState = new BribeOfferState({
         id: `bribe_${this.bribeSequenceNumber}`,
         sequenceNumber: this.bribeSequenceNumber,
         fromPlayerId: client.sessionId,
@@ -402,11 +517,48 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
         status: 'PROPOSED',
         createdAt: Date.now(),
       });
+
+      this.state.activeBribe = bribeState;
+
+      // Track offer in bribeOffers array for multi-merchant visibility
+      const merchantKey = isSheriff ? targetMerchantId : client.sessionId;
+      const existingIdx = this.state.bribeOffers.findIndex(
+        (b) => b.fromPlayerId === merchantKey || b.toPlayerId === merchantKey
+      );
+      if (existingIdx !== -1) {
+        this.state.bribeOffers[existingIdx] = bribeState;
+      } else {
+        this.state.bribeOffers.push(bribeState);
+      }
     });
 
     // 7. Respond to Bribe (atomic sequence check)
     this.onMessage('bribe_respond', (client, message: BribeResponseMessage) => {
-      if (this.state.phase !== 'INSPECTION' || !this.state.activeBribe) return;
+      if (this.state.phase !== 'INSPECTION') {
+        client.send('error', { message: 'Can only respond to bribes during INSPECTION phase' });
+        return;
+      }
+      if (!this.state.activeBribe || this.state.activeBribe.status !== 'PROPOSED') {
+        client.send('error', { message: 'No active bribe offer to respond to' });
+        return;
+      }
+
+      if (this.state.activeBribe.fromPlayerId === client.sessionId) {
+        client.send('error', { message: 'Cannot respond to your own bribe offer' });
+        return;
+      }
+
+      const isAuthority =
+        client.sessionId === this.state.sheriffId ||
+        this.state.deputyIds.includes(client.sessionId);
+      const isRecipient =
+        !this.state.activeBribe.toPlayerId ||
+        this.state.activeBribe.toPlayerId === client.sessionId;
+
+      if (!isRecipient && !isAuthority) {
+        client.send('error', { message: 'You are not authorized to respond to this bribe' });
+        return;
+      }
 
       // Reject stale acceptance if sequence number doesn't match current active bribe (GDD §6.2)
       if (
@@ -424,7 +576,15 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
 
       // Accepted bribe
       this.state.activeBribe.status = 'ACCEPTED';
-      const merchantId = this.state.activeBribe.fromPlayerId;
+      const isSheriffOffer = this.state.activeBribe.fromPlayerId === this.state.sheriffId;
+      const merchantId = isSheriffOffer
+        ? (this.state.activeBribe.toPlayerId || this.state.activeMerchantId)
+        : this.state.activeBribe.fromPlayerId;
+
+      if (!merchantId || !this.state.players.has(merchantId)) {
+        client.send('error', { message: 'Target merchant not found' });
+        return;
+      }
 
       // Execute pass-unopened with accepted bribe
       this.executePassUnopened(merchantId, {
@@ -436,14 +596,27 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
 
     // 8. Inspection Action (Sheriff or Deputy: PASS or INSPECT)
     this.onMessage('inspection_action', (client, message: InspectionAction) => {
-      if (this.state.phase !== 'INSPECTION') return;
+      if (this.state.phase !== 'INSPECTION') {
+        client.send('error', { message: 'Can only inspect during INSPECTION phase' });
+        return;
+      }
       const isAuthority =
         client.sessionId === this.state.sheriffId ||
         this.state.deputyIds.includes(client.sessionId);
-      if (!isAuthority) return;
+      if (!isAuthority) {
+        client.send('error', { message: 'Only the Sheriff or Deputy can inspect merchant bags' });
+        return;
+      }
 
       const targetMerchantId = message.targetPlayerId;
-      if (this.inspectedMerchantIds.has(targetMerchantId)) return;
+      if (!this.state.players.has(targetMerchantId) || targetMerchantId === client.sessionId) {
+        client.send('error', { message: 'Invalid target merchant for inspection' });
+        return;
+      }
+      if (this.inspectedMerchantIds.has(targetMerchantId)) {
+        client.send('error', { message: 'Merchant has already been inspected this round' });
+        return;
+      }
 
       if (this.state.enableDeputies && this.state.deputyIds.length === 2) {
         this.executeDeputyInspection(
@@ -462,33 +635,67 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
 
     // 9. Select Merchant to Examine (Sheriff or Deputy sets active merchant for 1-on-1 inspection desk view)
     this.onMessage('select_inspect_merchant', (client, message: SelectInspectMerchantMessage) => {
-      if (this.state.phase !== 'INSPECTION') return;
+      if (this.state.phase !== 'INSPECTION') {
+        client.send('error', { message: 'Can only select merchant during INSPECTION phase' });
+        return;
+      }
       const isAuthority =
         client.sessionId === this.state.sheriffId ||
         this.state.deputyIds.includes(client.sessionId);
-      if (!isAuthority) return;
-      if (this.inspectedMerchantIds.has(message.targetPlayerId)) return;
+      if (!isAuthority) {
+        client.send('error', { message: 'Only the Sheriff or Deputy can select merchants for examination' });
+        return;
+      }
+      if (!this.state.players.has(message.targetPlayerId) || message.targetPlayerId === client.sessionId) {
+        client.send('error', { message: 'Invalid target merchant' });
+        return;
+      }
+      if (this.inspectedMerchantIds.has(message.targetPlayerId)) {
+        client.send('error', { message: 'Merchant has already been inspected this round' });
+        return;
+      }
       this.state.activeMerchantId = message.targetPlayerId;
+      const merchantOffer = this.state.bribeOffers.find(
+        (b) => b.fromPlayerId === message.targetPlayerId || b.toPlayerId === message.targetPlayerId
+      );
+      this.state.activeBribe = merchantOffer || undefined;
     });
 
     // 10. Start Game from Lobby (Host)
     this.onMessage('startGame', (client) => {
-      if (this.state.phase !== 'LOBBY') return;
-      if (this.tableSeatIds[0] !== client.sessionId) return;
-      if (this.state.players.size < 3) return;
+      if (this.state.phase !== 'LOBBY') {
+        client.send('error', { message: 'Game has already started' });
+        return;
+      }
+      if (this.tableSeatIds[0] !== client.sessionId) {
+        client.send('error', { message: 'Only the lobby host can start the game' });
+        return;
+      }
+      if (this.state.players.size < 3) {
+        client.send('error', { message: 'At least 3 players are required to start' });
+        return;
+      }
       let allReady = true;
       this.state.players.forEach((p) => {
         if (!p.ready) allReady = false;
       });
-      if (allReady) {
-        this.startGame();
+      if (!allReady) {
+        client.send('error', { message: 'All players must be ready to start' });
+        return;
       }
+      this.startGame();
     });
 
     // 11. Update Lobby Options (Host only)
     this.onMessage('update_lobby_options', (client, message: UpdateLobbyOptionsMessage) => {
-      if (this.state.phase !== 'LOBBY') return;
-      if (this.tableSeatIds[0] !== client.sessionId) return;
+      if (this.state.phase !== 'LOBBY') {
+        client.send('error', { message: 'Cannot change lobby options after game has started' });
+        return;
+      }
+      if (this.tableSeatIds[0] !== client.sessionId) {
+        client.send('error', { message: 'Only the lobby host can change settings' });
+        return;
+      }
 
       if (message.enableRoyalGoods !== undefined) {
         this.state.enableRoyalGoods = message.enableRoyalGoods;
@@ -499,17 +706,38 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
       if (message.enableBlackMarket !== undefined) {
         this.state.enableBlackMarket = message.enableBlackMarket;
       }
-      if (message.maxPlayers !== undefined && message.maxPlayers >= 3 && message.maxPlayers <= 6) {
-        this.state.maxPlayers = message.maxPlayers;
+      if (message.maxPlayers !== undefined) {
+        if (message.maxPlayers >= 3 && message.maxPlayers <= 6) {
+          this.state.maxPlayers = message.maxPlayers;
+        } else {
+          client.send('error', { message: 'maxPlayers must be between 3 and 6' });
+          return;
+        }
       }
     });
 
     // 12. 6-Player Deputy Inspection Actions
     this.onMessage('deputy_inspection', (client, message: DeputyInspectionMessage) => {
-      if (this.state.phase !== 'INSPECTION') return;
-      if (!this.state.enableDeputies) return;
-      if (!this.state.deputyIds.includes(client.sessionId)) return;
-      if (this.inspectedMerchantIds.has(message.targetPlayerId)) return;
+      if (this.state.phase !== 'INSPECTION') {
+        client.send('error', { message: 'Can only take deputy actions during INSPECTION phase' });
+        return;
+      }
+      if (!this.state.enableDeputies) {
+        client.send('error', { message: 'Deputies expansion is not enabled' });
+        return;
+      }
+      if (!this.state.deputyIds.includes(client.sessionId)) {
+        client.send('error', { message: 'Only designated deputies can take deputy inspection actions' });
+        return;
+      }
+      if (!this.state.players.has(message.targetPlayerId) || message.targetPlayerId === client.sessionId) {
+        client.send('error', { message: 'Invalid target merchant' });
+        return;
+      }
+      if (this.inspectedMerchantIds.has(message.targetPlayerId)) {
+        client.send('error', { message: 'Merchant has already been inspected this round' });
+        return;
+      }
 
       this.executeDeputyInspection(message.type, client.sessionId, message.targetPlayerId);
     });
@@ -687,6 +915,7 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
     this.state.activeMerchantId = '';
     this.inspectedMerchantIds.clear();
     this.state.activeBribe = undefined;
+    this.state.bribeOffers.clear();
   }
 
   private revealBagToAll(bag: SealedBagState) {
@@ -741,8 +970,11 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
         const client = this.clients.find((c) => c.sessionId === merchant.id);
         if (client?.view) client.view.add(cs);
       } else {
-        merchant.standContraband.push(cardToState(card));
+        const cs = cardToState(card);
+        merchant.standContraband.push(cs);
         merchant.standContrabandCount++;
+        const client = this.clients.find((c) => c.sessionId === merchant.id);
+        if (client?.view) client.view.add(cs);
       }
     }
 
@@ -751,6 +983,15 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
 
     if (this.state.activeMerchantId === merchantId) {
       this.state.activeMerchantId = '';
+    }
+    const offerIdx = this.state.bribeOffers.findIndex(
+      (b) => b.fromPlayerId === merchantId || b.toPlayerId === merchantId
+    );
+    if (offerIdx !== -1) {
+      this.state.bribeOffers.splice(offerIdx, 1);
+    }
+    if (this.state.activeBribe?.fromPlayerId === merchantId || this.state.activeBribe?.toPlayerId === merchantId) {
+      this.state.activeBribe = undefined;
     }
 
     this.broadcast('inspection_result', {
@@ -833,8 +1074,11 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
           const client = this.clients.find((c) => c.sessionId === merchant.id);
           if (client?.view) client.view.add(cs);
         } else {
-          merchant.standContraband.push(cardToState(card));
+          const cs = cardToState(card);
+          merchant.standContraband.push(cs);
           merchant.standContrabandCount++;
+          const client = this.clients.find((c) => c.sessionId === merchant.id);
+          if (client?.view) client.view.add(cs);
         }
       }
 
@@ -888,8 +1132,11 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
           const client = this.clients.find((c) => c.sessionId === merchant.id);
           if (client?.view) client.view.add(cs);
         } else {
-          merchant.standContraband.push(cardToState(card));
+          const cs = cardToState(card);
+          merchant.standContraband.push(cs);
           merchant.standContrabandCount++;
+          const client = this.clients.find((c) => c.sessionId === merchant.id);
+          if (client?.view) client.view.add(cs);
         }
       }
 
@@ -1076,6 +1323,24 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
       debtForgiven = debtRes.forgivenDebt;
       liquidatedLegal = debtRes.transferredLegalCards.length;
       liquidatedContraband = debtRes.transferredContrabandCards.length;
+
+      for (const card of debtRes.transferredLegalCards) {
+        const idx = sheriff.standLegal.findIndex((c) => c.id === card.id);
+        if (idx !== -1) sheriff.standLegal.splice(idx, 1);
+        merchant.standLegal.push(cardToState(card));
+      }
+      for (const card of debtRes.transferredContrabandCards) {
+        const idx = sheriff.standContraband.findIndex((c) => c.id === card.id);
+        if (idx !== -1) {
+          sheriff.standContraband.splice(idx, 1);
+          sheriff.standContrabandCount = sheriff.standContraband.length;
+        }
+        const cs = cardToState(card);
+        merchant.standContraband.push(cs);
+        merchant.standContrabandCount = merchant.standContraband.length;
+        const credClient = this.clients.find((c) => c.sessionId === merchant.id);
+        if (credClient?.view) credClient.view.add(cs);
+      }
     } else {
       // Dishonest: Merchant keeps only truthful legal cards
       for (const card of result.merchantKeptCards) {
@@ -1111,12 +1376,39 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
       debtForgiven = debtRes.forgivenDebt;
       liquidatedLegal = debtRes.transferredLegalCards.length;
       liquidatedContraband = debtRes.transferredContrabandCards.length;
+
+      for (const card of debtRes.transferredLegalCards) {
+        const idx = merchant.standLegal.findIndex((c) => c.id === card.id);
+        if (idx !== -1) merchant.standLegal.splice(idx, 1);
+        sheriff.standLegal.push(cardToState(card));
+      }
+      for (const card of debtRes.transferredContrabandCards) {
+        const idx = merchant.standContraband.findIndex((c) => c.id === card.id);
+        if (idx !== -1) {
+          merchant.standContraband.splice(idx, 1);
+          merchant.standContrabandCount = merchant.standContraband.length;
+        }
+        const cs = cardToState(card);
+        sheriff.standContraband.push(cs);
+        sheriff.standContrabandCount = sheriff.standContraband.length;
+        const credClient = this.clients.find((c) => c.sessionId === sheriff.id);
+        if (credClient?.view) credClient.view.add(cs);
+      }
     }
 
     this.inspectedMerchantIds.add(merchantId);
 
     if (this.state.activeMerchantId === merchantId) {
       this.state.activeMerchantId = '';
+    }
+    const offerIdx = this.state.bribeOffers.findIndex(
+      (b) => b.fromPlayerId === merchantId || b.toPlayerId === merchantId
+    );
+    if (offerIdx !== -1) {
+      this.state.bribeOffers.splice(offerIdx, 1);
+    }
+    if (this.state.activeBribe?.fromPlayerId === merchantId || this.state.activeBribe?.toPlayerId === merchantId) {
+      this.state.activeBribe = undefined;
     }
 
     this.broadcast('inspection_result', {
@@ -1324,6 +1616,4 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
       this.state.winningScore = breakdowns[0].totalScore;
     }
   }
-
-  onDispose() {}
 }

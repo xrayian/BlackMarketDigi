@@ -18,6 +18,7 @@ export function ExaminationDesk() {
   const playersMap = useGameStore((s) => s.players);
   const activeBribe = useGameStore((s) => s.activeBribe);
   const reducedMotion = useGameStore((s) => s.reducedMotion);
+  const bribeOffers = useGameStore((s) => s.bribeOffers);
 
   if (phase !== 'INSPECTION') return null;
 
@@ -125,6 +126,40 @@ export function ExaminationDesk() {
               )}
             </div>
           )}
+
+          {/* Authority Queue: Switch between merchants & see all bribe offers in real time */}
+          {canInspect && uninspectedMerchants.length > 0 && (
+            <div className="flex items-center gap-2 overflow-x-auto py-1 px-3 bg-walnut-bg/90 border border-gold/40 rounded-2xl max-w-full">
+              <span className="text-[10px] font-display uppercase tracking-widest text-gold-muted whitespace-nowrap">
+                Merchants:
+              </span>
+              {uninspectedMerchants.map((m) => {
+                const offer = bribeOffers.find((b) => b.fromPlayerId === m.id || b.toPlayerId === m.id);
+                const isSelected = activeMerchant?.id === m.id;
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => handleSelectMerchant(m.id)}
+                    className={`px-3 py-1 rounded-xl text-xs font-display flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap border ${
+                      isSelected
+                        ? 'bg-gold text-walnut-bg border-gold font-bold shadow-md'
+                        : 'bg-walnut-card text-parchment hover:bg-gold/10 border-tavern-border'
+                    }`}
+                  >
+                    <span>💼 {m.name}</span>
+                    {offer ? (
+                      <span className={`px-1.5 py-0.5 rounded font-bold text-[10px] ${isSelected ? 'bg-walnut-bg text-gold' : 'bg-gold/20 text-gold-light'}`}>
+                        🪙 {offer.gold}g
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-parchment/40 italic">no bribe</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* State 1: No Merchant Selected Yet */}
@@ -145,22 +180,30 @@ export function ExaminationDesk() {
                 </div>
 
                 <div className="flex flex-wrap justify-center gap-3 mt-2 w-full">
-                  {uninspectedMerchants.map((m) => (
-                    <motion.button
-                      key={m.id}
-                      type="button"
-                      whileHover={{ scale: 1.04 }}
-                      whileTap={{ scale: 0.96 }}
-                      onClick={() => handleSelectMerchant(m.id)}
-                      className="px-5 py-3 rounded-2xl bg-walnut-card hover:bg-gold/20 border-2 border-gold/40 hover:border-gold text-gold-light font-display text-sm tracking-wider font-bold transition-all shadow-xl cursor-pointer flex items-center gap-2.5"
-                    >
-                      <span>💼</span>
-                      <span>{m.name}</span>
-                      <span className="text-xs text-parchment/70 font-normal">
-                        ({m.sealedBag?.declaredCount} {m.sealedBag?.declaredGood})
-                      </span>
-                    </motion.button>
-                  ))}
+                  {uninspectedMerchants.map((m) => {
+                    const offer = bribeOffers.find((b) => b.fromPlayerId === m.id || b.toPlayerId === m.id);
+                    return (
+                      <motion.button
+                        key={m.id}
+                        type="button"
+                        whileHover={{ scale: 1.04 }}
+                        whileTap={{ scale: 0.96 }}
+                        onClick={() => handleSelectMerchant(m.id)}
+                        className="px-5 py-3 rounded-2xl bg-walnut-card hover:bg-gold/20 border-2 border-gold/40 hover:border-gold text-gold-light font-display text-sm tracking-wider font-bold transition-all shadow-xl cursor-pointer flex items-center gap-2.5"
+                      >
+                        <span>💼</span>
+                        <span>{m.name}</span>
+                        <span className="text-xs text-parchment/70 font-normal">
+                          ({m.sealedBag?.declaredCount} {m.sealedBag?.declaredGood})
+                        </span>
+                        {offer && (
+                          <span className="px-2 py-0.5 rounded-full bg-gold/20 text-gold text-xs font-bold border border-gold/40">
+                            🪙 {offer.gold}g Offered
+                          </span>
+                        )}
+                      </motion.button>
+                    );
+                  })}
 
                   {uninspectedMerchants.length === 0 && (
                     <div className="text-sm font-display text-gold-muted italic py-4">

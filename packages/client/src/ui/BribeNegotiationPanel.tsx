@@ -25,8 +25,8 @@ export function BribeNegotiationPanel({ sheriff, merchant }: BribeNegotiationPan
   const [nonBindingTerms, setNonBindingTerms] = useState<string>('');
   const [isComposing, setIsComposing] = useState(false);
 
-  const maxGold = isLocalMerchant ? merchant.gold : sheriff.gold;
-  const availableStandCards: ClientCard[] = isLocalMerchant ? merchant.standLegal : sheriff.standLegal;
+  const maxGold = merchant.gold;
+  const availableStandCards: ClientCard[] = merchant.standLegal;
 
   const handleToggleStandCard = (cardId: string) => {
     setSelectedStandCardIds((prev) =>
@@ -108,26 +108,30 @@ export function BribeNegotiationPanel({ sheriff, merchant }: BribeNegotiationPan
               </div>
             )}
 
-            {/* Sheriff Acceptance / Rejection Controls */}
-            {isLocalSheriff && (
+            {/* Acceptance / Rejection Controls (Only visible to the recipient of the bribe) */}
+            {activeBribe.fromPlayerId !== localPlayerId && (isLocalSheriff || isLocalMerchant) ? (
               <div className="flex items-center gap-2 mt-1">
                 <button
                   type="button"
                   disabled={bribeReactionCooldown}
                   onClick={handleAcceptBribe}
-                  className="flex-1 py-1.5 rounded-lg bg-emerald/30 border border-emerald/60 text-emerald-300 hover:bg-emerald/40 font-display text-xs font-bold uppercase transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="flex-1 py-1.5 rounded-lg bg-emerald/30 border border-emerald/60 text-emerald-300 hover:bg-emerald/40 font-display text-xs font-bold uppercase transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                 >
                   Accept Bribe
                 </button>
                 <button
                   type="button"
                   onClick={handleRejectBribe}
-                  className="flex-1 py-1.5 rounded-lg bg-crimson/30 border border-crimson/60 text-red-300 hover:bg-crimson/40 font-display text-xs font-bold uppercase transition-all"
+                  className="flex-1 py-1.5 rounded-lg bg-crimson/30 border border-crimson/60 text-red-300 hover:bg-crimson/40 font-display text-xs font-bold uppercase transition-all cursor-pointer"
                 >
                   Reject Bribe
                 </button>
               </div>
-            )}
+            ) : activeBribe.fromPlayerId === localPlayerId ? (
+              <div className="text-center text-xs text-amber-300/80 italic py-1 font-body">
+                Proposal submitted. Awaiting response from {activeBribe.fromPlayerId === merchant.id ? sheriff.name : merchant.name}...
+              </div>
+            ) : null}
           </motion.div>
         )}
       </AnimatePresence>
@@ -135,13 +139,31 @@ export function BribeNegotiationPanel({ sheriff, merchant }: BribeNegotiationPan
       {/* Bribe Proposal Composition */}
       {!isComposing ? (
         <div className="flex justify-center">
-          <button
-            type="button"
-            onClick={() => setIsComposing(true)}
-            className="px-4 py-2 rounded-lg bg-tavern-card border border-gold/30 hover:border-gold text-gold-light hover:text-white font-display text-xs tracking-wider uppercase transition-all shadow-md"
-          >
-            {activeBribe ? 'Counter-Offer Bribe 🪙' : isLocalMerchant ? 'Offer Bribe to Sheriff 🪙' : 'Demand Bribe 🪙'}
-          </button>
+          {activeBribe ? (
+            <button
+              type="button"
+              onClick={() => setIsComposing(true)}
+              className="px-4 py-2 rounded-lg bg-tavern-card border border-gold/30 hover:border-gold text-gold-light hover:text-white font-display text-xs tracking-wider uppercase transition-all shadow-md cursor-pointer"
+            >
+              Counter-Offer Bribe 🪙
+            </button>
+          ) : isLocalMerchant ? (
+            <button
+              type="button"
+              onClick={() => setIsComposing(true)}
+              className="px-4 py-2 rounded-lg bg-tavern-card border border-gold/30 hover:border-gold text-gold-light hover:text-white font-display text-xs tracking-wider uppercase transition-all shadow-md cursor-pointer"
+            >
+              Offer Bribe to Sheriff 🪙
+            </button>
+          ) : isLocalSheriff ? (
+            <button
+              type="button"
+              onClick={() => setIsComposing(true)}
+              className="px-4 py-2 rounded-lg bg-tavern-card border border-gold/30 hover:border-gold text-gold-light hover:text-white font-display text-xs tracking-wider uppercase transition-all shadow-md cursor-pointer"
+            >
+              Demand Tribute 🪙
+            </button>
+          ) : null}
         </div>
       ) : (
         <div className="flex flex-col gap-3 pt-2 border-t border-tavern-border">

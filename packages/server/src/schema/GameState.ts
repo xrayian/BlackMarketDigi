@@ -101,6 +101,7 @@ export const GameState = schema({
   discardPile: t.array(CardState),
   players: t.map(PlayerState),
   activeBribe: t.ref(BribeOfferState).optional(),
+  bribeOffers: t.array(BribeOfferState),
   bootyTile: t.ref(BootyTileState).optional(),
   blackMarketPepperPile: t.array(BlackMarketOrderState),
   blackMarketMeadPile: t.array(BlackMarketOrderState),

@@ -1,4 +1,4 @@
-import type { MouseEvent } from 'react';
+import { useState, type MouseEvent } from 'react';
 import { motion } from 'framer-motion';
 import { useDraggable } from '@dnd-kit/core';
 import type { ClientCard } from '../../state/gameStore';
@@ -42,6 +42,8 @@ function FannedCardItem({
   const yArc = reducedMotion ? 0 : Math.abs(offsetFromCenter) * (totalCards > 5 ? 3 : 2);
   const xOffset = reducedMotion ? 0 : offsetFromCenter * -6;
 
+  const [isHovered, setIsHovered] = useState(false);
+
   const handleClick = (e: MouseEvent) => {
     e.stopPropagation();
     if (disabled) return;
@@ -54,9 +56,11 @@ function FannedCardItem({
       ref={setNodeRef}
       {...listeners}
       {...attributes}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       className="relative shrink-0 touch-none select-none outline-none focus:ring-2 focus:ring-gold rounded-xl"
       style={{
-        zIndex: isDragging ? 0 : isSelected ? 30 + index : index + 10,
+        zIndex: isDragging ? 0 : isHovered ? 100 : isSelected ? 30 + index : index + 10,
         marginLeft: index === 0 ? 0 : '-16px',
       }}
     >
