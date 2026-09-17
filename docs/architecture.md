@@ -1,3 +1,11 @@
+<!--
+NOTE FOR AI AGENTS:
+This is the PRIMARY Digital Game Design Document (GDD) and Technical Architecture Spec.
+It contains the authoritative section references (§1–§6) cited throughout init.md and the codebase:
+§1 System Vision, §2 Rules Engine, §3 Expansion Modules, §4 State Models/Schemas, §5 UI/UX Paradigms, §6 Security & Anti-Cheat.
+For the physical board game rulebook consultation, refer to: docs/consultation-rulebook.md.
+-->
+
 # Game Design & Technical Architecture Document: Sheriff of Nottingham (2nd Edition Digital)
 
 ---

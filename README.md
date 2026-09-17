@@ -40,7 +40,7 @@ BlackMarketDigi/
 │       ├── src/net/           # Colyseus SDK 0.18 client connection service
 │       ├── src/state/         # Zustand client game store
 │       └── src/audio/         # Howler.js audio management
-├── docs/                      # GDD.md (CMON rulebook) & architecture.md (Digital GDD)
+├── docs/                      # consultation-rulebook.md (CMON rulebook) & architecture.md (PRIMARY Digital GDD)
 ├── init.md                    # Project development plan and phase roadmap
 └── docker-compose.yml         # Local development environment config
 ```

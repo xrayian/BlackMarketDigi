@@ -1,4 +1,11 @@
-# RULES
+<!--
+NOTE FOR AI AGENTS:
+This document is the physical board game rulebook (CMON 2nd Edition) for reference/consultation only.
+For the project's digital Game Design Document (GDD), technical architecture, schemas, and UI/UX specs (§1–§6),
+refer to: docs/architecture.md.
+-->
+
+# Physical Board Game Rulebook (Reference & Consultation)
 
 ## TABLE OF CONTENTS & CREDITS
 

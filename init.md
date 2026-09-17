@@ -11,7 +11,7 @@ script into `docs/manual-tests.md` and flag it before moving on.
 
 **Companion documents:**
 - **`docs/architecture.md` (*Game Design & Technical Architecture Document*):** The primary **Digital GDD** containing the structured rule engine specifications (§2), expansion modules (§3), TypeScript state models & JSON schemas (§4), digital UI/UX paradigms & micro-interactions (§5), and system security & zero-knowledge specs (§6) referenced by section number throughout this build plan.
-- **`docs/GDD.md` (*CMON 2nd Edition Rules*):** The verbatim physical board game rulebook (Sergio Halaban & André Zatz / CMON 2020), serving as the baseline for card flavor, original box rules, and physical component counts.
+- **`docs/consultation-rulebook.md` (*CMON 2nd Edition Rules*):** The physical board game rulebook (Sergio Halaban & André Zatz / CMON 2020) for consultation and reference, serving as the baseline for card flavor, original box rules, and physical component counts.
 - Every phase below references specific sections — read them before implementing that phase. Do not re-derive rules from memory or guesswork.
 
 **IP note:** implement the mechanics only. Do not source or embed official card
@@ -64,8 +64,8 @@ with more surface area for bugs (and for cheating).
 ```
 /sheriff-of-nottingham
   /docs
-    GDD.md                  # official CMON physical board game rulebook (card counts, base rules)
-    architecture.md         # digital game design doc (GDD) & technical architecture (§1–§6)
+    consultation-rulebook.md # physical board game rulebook for reference / consultation
+    architecture.md          # PRIMARY digital game design doc (GDD) & technical architecture (§1–§6)
     manual-tests.md
   /packages
     /server
@@ -189,7 +189,7 @@ public counts. No manual payload-sanitizing gatekeeper required.
 ## 5. Phase 1 — Rules Engine (headless, server-only, test-driven)
 
 Build this with **zero networking and zero rendering** — pure functions/state machine,
-fully unit-testable. Reference `docs/architecture.md` §2 (and `docs/GDD.md`).
+fully unit-testable. Reference `docs/architecture.md` §2 (and `docs/consultation-rulebook.md`).
 
 **Tasks**
 - `deck.ts`: build the correct deck per player count (3 vs 4–6), including the
@@ -200,12 +200,12 @@ fully unit-testable. Reference `docs/architecture.md` §2 (and `docs/GDD.md`).
 - `phases/declaration.ts`: validate `declared_count === bag.length`, `declared_good`
   is one of the four legal goods, sequencing from Sheriff's left.
 - `phases/inspection.ts`: pass-unopened / inspected-honest / inspected-dishonest
-  outcomes exactly as specified in `docs/architecture.md` §2.2 Phase 4 (and `docs/GDD.md` Phase 4), including partial-honesty
+  outcomes exactly as specified in `docs/architecture.md` §2.2 Phase 4 (and `docs/consultation-rulebook.md` Phase 4), including partial-honesty
   (declared goods stay, undeclared confiscated).
-- `debtResolution.ts`: implement the 4-step liquidation order from `docs/architecture.md` §2.2 (and `docs/GDD.md`) exactly,
+- `debtResolution.ts`: implement the 4-step liquidation order from `docs/architecture.md` §2.2 (and `docs/consultation-rulebook.md`) exactly,
   including "overpayment does not return change" and "empty stand wipes debt."
 - `scoring.ts`: King/Queen bonuses, tie-breaking (tied king, tied queen, overall game
-  ties) per `docs/architecture.md` §2.3 (and `docs/GDD.md`).
+  ties) per `docs/architecture.md` §2.3 (and `docs/consultation-rulebook.md`).
 - `modules/royalGoods.ts`, `modules/deputies.ts`, `modules/blackMarket.ts`: implement
   per `docs/architecture.md` §3, but keep them **behind feature flags** — don't wire into base rules yet.
 
@@ -273,7 +273,7 @@ Reference `docs/architecture.md` §5.1.
   "snap" animation + Howler sound that makes the selection immutable client-side
   (server is authoritative regardless).
 - Declaration UI: count + single-good picker, sequenced by turn order, with the
-  server rejecting invalid declarations (contraband, multi-good) per `docs/architecture.md` §2.2 Phase 3 (and `docs/GDD.md` Phase 3).
+  server rejecting invalid declarations (contraband, multi-good) per `docs/architecture.md` §2.2 Phase 3 (and `docs/consultation-rulebook.md` Phase 3).
 
 **Acceptance criteria**
 - A full Market → Load Bag → Declaration cycle is playable across 4 connected clients
@@ -309,15 +309,15 @@ Reference `docs/architecture.md` §5.1–§5.2 for the intended feel.
 
 ## 10. Phase 6 — Expansion Modules
 
-Reference `docs/architecture.md` §3 (and `docs/GDD.md`). Ship as togglable lobby settings, each independently testable.
+Reference `docs/architecture.md` §3 (and `docs/consultation-rulebook.md`). Ship as togglable lobby settings, each independently testable.
 
 **Tasks**
 - Royal Goods: shuffle into deck, treat as contraband through inspection, convert to
-  legal-equivalent counts at scoring per `docs/architecture.md` §3.1 (and `docs/GDD.md`).
+  legal-equivalent counts at scoring per `docs/architecture.md` §3.1 (and `docs/consultation-rulebook.md`).
 - 6-Player Deputies: Deputy assignment, joint pass/inspect/split-decision logic,
-  Booty tile split at phase end, per `docs/architecture.md` §3.2 (and `docs/GDD.md`).
+  Booty tile split at phase end, per `docs/architecture.md` §3.2 (and `docs/consultation-rulebook.md`).
 - Black Market: 3-matching-contraband trade-in, 1-claim-per-merchant-per-round limit,
-  per `docs/architecture.md` §3.3 (and `docs/GDD.md`).
+  per `docs/architecture.md` §3.3 (and `docs/consultation-rulebook.md`).
 
 **Acceptance criteria**
 - Each module has its own engine unit tests (extending Phase 1's suite) and a room
@@ -385,7 +385,7 @@ Reference `docs/architecture.md` §6.
   re-validated server-side even if the UI already disabled the invalid option.
 - **Hidden information never touches the wire** for unauthorized clients — enforced
   by schema `@filter`, verified by an automated test, not by code review alone.
-- **Numbers come from `docs/architecture.md` and `docs/GDD.md`**, not from memory of the physical game — card
+- **Numbers come from `docs/architecture.md` and `docs/consultation-rulebook.md`**, not from memory of the physical game — card
   counts, values, and penalties differ from the real box in subtle ways per the
   provided doc; don't "correct" them without checking the doc first.
 - Target **60fps** on a mid-tier laptop GPU for the Table View; the Examination Desk
@@ -477,7 +477,7 @@ respectively — but note the gap in the relevant `AGENT.md` so it's not forgott
 - **Small, single-purpose commits**, not one commit per phase. Each commit should be
   revertible on its own without breaking the build.
 - **Tests alongside implementation, not after.** For the rules engine especially
-  (Phase 1), write the test for a rule from the specifications (`docs/architecture.md` / `docs/GDD.md`) *before* implementing it — the
+  (Phase 1), write the test for a rule from the specifications (`docs/architecture.md` / `docs/consultation-rulebook.md`) *before* implementing it — the
   numbers are precise enough that this catches transcription errors immediately.
 - **No silent error handling.** A caught exception that doesn't re-throw, log, or
   surface to the room's error state is a bug waiting to be invisible. This matters more
