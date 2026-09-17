@@ -28,18 +28,21 @@ npm run dev          # starts both server (port 2567) and client (port 5173)
 - **Engine decoupled from networking:** All game logic in `packages/server/src/engine/` is pure functions with zero Colyseus imports, fully unit-testable.
 - **Numbers from specifications only:** Card counts, values, penalties come from `docs/architecture.md` and `docs/consultation-rulebook.md` — never from memory.
 
-## Current Phase: Phase 4 Completed — Ready for Phase 5 (Inspection & Bribe Negotiation)
+## Current Phase: Phase 5 Completed — Ready for Phase 6 (Expansion Modules)
 - **Phase 0 (Scaffolding):** Monorepo with npm workspaces (`shared`, `server`, `client`), Colyseus 0.18 server, Vite 6 client, lobby UI.
 - **Phase 1 (Rules Engine):** Pure headless TypeScript rules engine in `packages/server/src/engine/`. 100% branch and statement coverage on `debtResolution.ts` and `scoring.ts`. 76 engine unit tests.
 - **Phase 2 (Colyseus Room):** Full engine wired into `NottinghamRoom` with Colyseus 0.18 and Schema 5.0. Zero-knowledge privacy filtering (`.view()`), atomic bribe buffer (`sequenceNumber`), and multi-player integration tests.
 - **Phase 3 (3D Table & Scene):** Circular banquet table seating 3–6 players, dynamic camera rig, MerchantStand with instanced coin piles, facedown contraband vault, 3D merchant bag, candle flicker, bloom and vignette post-processing, reactive state sync.
-- **Phase 4 (Core Loop UI):**
-  - `MarketPanel`: Sheriff selects starting merchant, active merchant selects 0–5 cards to discard and confirms exchange, turn advances clockwise, draw/discard pile counters.
-  - `BagLoadingPanel`: Merchants select 1–5 cards from hand, "Snap Bag Shut!" locks selection, status tracking for all merchants.
-  - `DeclarationPanel`: Modal overlay with 4 legal good type buttons, auto-count from bag, sequential declaration per turn order with live status.
-  - `CardDisplay`: Reusable 2D card component with type-colored backgrounds, emojis, value badges, and selection glow.
-  - `ErrorToast`: Server validation errors surfaced as auto-dismissing crimson toast via `room.onMessage('error')`.
-  - Zustand store extended with `selectedCardIds`, `toggleCardSelection`, `errorMessage`, `setError`.
+- **Phase 4 (Core Loop UI):** MarketPanel, BagLoadingPanel, DeclarationPanel, CardDisplay, ErrorToast, Zustand store with card selection and error tracking.
+- **Phase 5 (Inspection & Bribe Negotiation - "The Examination Desk"):**
+  - `CameraRig`: Cinematic camera interpolation between Table View and 1-on-1 Examination Desk angle.
+  - `soundManager`: Procedural Web Audio synthesizer generating 1.2s tension sound ramp, mechanical bag snap, coin clink, gavel strike, and outcome stingers.
+  - `BribeScale`: Animated balance scale whose beam tilts dynamically using spring physics based on total bribe weight (coins, stand goods, bag claims).
+  - `UnsnapClasp`: Sheriff's 1.2s sustained hold interaction with tension audio ramp, release cancellation at <1.1s without state mutation, and snap crack at 1.2s.
+  - `BribeNegotiationPanel`: Bribe proposal builder with gold sliders, stand cards selection, promised goods, and 1.5s reaction buffer lock on modified offers.
+  - `InspectionOutcomeModal`: Visual feedback for Pass Unopened, Honest, and Dishonest outcomes, plus guided 4-step debt liquidation display.
+  - `ExaminationDesk`: Full orchestrator component connecting merchant interrogation, scale, negotiation, and inspection actions.
+  - Server: Added `select_inspect_merchant` and `inspection_result` broadcast in `NottinghamRoom`.
 
 ## Gotchas & Architecture Decisions
 - **Colyseus 0.18 & Schema 5.0**: Use `schema({ ... })` builder pattern instead of decorators for class fields with default collection factories to avoid ES2022 define property bugs.

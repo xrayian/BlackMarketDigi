@@ -116,8 +116,8 @@ npm run build
   * React Three Fiber circular banquet table seating 3–6 players without overlap, dynamic camera rig oriented for local seat, MerchantStand with instanced coin piles, 4 legal goods compartments, facedown contraband vault with seal medallion and count badge, 3D merchant bag with clasp, candle flicker, bloom and vignette post-processing, reactive state sync.
 * [x] **Phase 4: Core Loop UI: Market → Load Bag → Declaration**
   * Market panel with sheriff starting player selection, merchant discard/redraw with card selection UI, and clockwise turn advancement. Bag loading with 1–5 card selection and immutable snap. Declaration modal with legal good type picker and auto-count. Server validation errors surfaced as auto-dismissing error toasts.
-* [ ] **Phase 5: Inspection & Bribe Negotiation ("The Examination Desk")**
-  * 1-on-1 examination camera transition, bribe balance scale, press-and-hold unsnap bag clasp, guided debt liquidation UI.
+* [x] **Phase 5: Inspection & Bribe Negotiation ("The Examination Desk")**
+  * 1-on-1 examination desk camera transition, interactive spring-weighted bribe balance scale, 1.2s sustained hold unsnap bag clasp with procedural audio tension ramp and <1.1s release cancellation, pass unopened action, bribe negotiation panel with 1.5s reaction buffer lock, and guided 4-step debt liquidation display.
 * [ ] **Phase 6: Audio & Visual Polish**
   * Howler audio integration (bag snap, coin clink, tavern ambience, inspection tension), confetti celebrations, sound toggles.
 * [ ] **Phase 7: End-to-End Testing & Hardening**

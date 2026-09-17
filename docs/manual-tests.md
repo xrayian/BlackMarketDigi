@@ -63,3 +63,29 @@
   - **Server Validation Errors:**
     - Attempt invalid declaration (e.g., modify client to send contraband type) → verify crimson error toast appears with server rejection message.
     - Error toast auto-dismisses after 5 seconds or can be manually closed with ✕.
+
+## Phase 5: Inspection & Bribe Negotiation ("The Examination Desk")
+- [ ] 1-on-1 Examination Desk Viewport Transition:
+  - In INSPECTION phase, Sheriff sees list of uninspected merchants.
+  - Sheriff selects a merchant → verify camera smoothly animates and eases from global table view to 1-on-1 Examination Desk angle.
+  - Verify: Selected merchant's declared goods and card count display prominently.
+- [ ] Bribe Scale & Atomic Negotiation:
+  - Merchant adjusts gold slider, selects stand goods, or adds non-binding promises.
+  - Merchant clicks "Transmit Bribe Offer" → coin sound plays.
+  - Verify: Bribe Scale beam dynamically tilts with spring physics; plate shows gold and card icons.
+  - Verify: Sheriff sees proposal and has "Accept Bribe" / "Reject Bribe" buttons.
+  - Merchant modifies offer → verify 1.5s reaction buffer lock triggers with visual amber pulse, disabling Sheriff acceptance until cooldown clears.
+- [ ] Sheriff's Unsnap Bag Clasp & Tension Hold:
+  - Sheriff presses down on "Hold to Unsnap Bag":
+    - Verify: Tension sound ramp immediately begins ascending in pitch.
+    - Progress ring fills towards 1.2s threshold.
+  - Sheriff releases button before 1.1s (e.g., at 0.5s):
+    - Verify: Tension audio stops instantly, progress resets to 0, clasp returns to rest, and NO inspection occurs.
+  - Sheriff presses down and sustains hold for full 1.2s:
+    - Verify: At 1.2s threshold, punchy metallic SNAP sound triggers, irreversible bag inspection executes, and results modal opens.
+- [ ] Three Inspection Outcomes & Guided Debt Liquidation:
+  - **Pass Unopened:** Sheriff clicks "Pass Unopened" → pass chime plays, modal displays legal goods placed on stand and contraband stashed face-down; any agreed bribe transfers to Sheriff.
+  - **Inspected Honest:** Merchant loaded only declared goods → triumph fanfare plays, Sheriff pays penalty to merchant, modal displays penalty breakdown.
+  - **Inspected Dishonest:** Merchant smuggled contraband → discord stinger plays, contraband confiscated to discard, merchant pays fine to Sheriff.
+  - **Debt Liquidation Flow:** When debtor lacks liquid gold for full penalty, modal displays guided 4-step liquidation (cash deducted → stand legal goods surrendered → stand contraband surrendered → empty stand wipes remaining debt).
+
