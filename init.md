@@ -364,6 +364,13 @@ parchment receipt (`UnfurlingLedger`) demonstrating the 4-step statutory liquida
 - The balance-scale tilt animation and card-flip reveal both respect
   `prefers-reduced-motion` — build this in from the start here since it's core to
   this phase's UI, not deferred polish.
+- A player who is neither the Sheriff nor the current bag's owner can successfully
+  make and have accepted an offer concerning a different, not-yet-resolved bag in the
+  same Inspection phase, and that commitment is correctly enforced when that bag comes
+  up for resolution.
+- A bribe offer including a phantom item (a bag card or secret stand contraband that
+  turns out not to exist) resolves at reveal time to only its genuine portion, with
+  the discrepancy reflected in the negotiation ledger.
 
 ---
 

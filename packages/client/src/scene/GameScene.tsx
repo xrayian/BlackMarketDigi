@@ -12,6 +12,8 @@ import { ExaminationDesk } from '../ui/ExaminationDesk';
 import { InspectionOutcomeModal } from '../ui/InspectionOutcomeModal';
 import { BlackMarketPanel } from '../ui/BlackMarketPanel';
 import { SettingsModal } from '../ui/SettingsModal';
+import { NegotiationOfferModal } from '../ui/NegotiationOfferModal';
+import { NegotiationFeedback } from '../ui/NegotiationFeedback';
 
 export function GameScene() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -127,6 +129,10 @@ export function GameScene() {
       {/* Examination Desk & Inspection Outcomes */}
       <ExaminationDesk />
       <InspectionOutcomeModal />
+
+      {/* Negotiation Feed Rework: Toasts, DEAL Stamps, and Offer Modal */}
+      <NegotiationFeedback />
+      <NegotiationOfferModal />
 
       {/* Black Market Expansion Panel */}
       <BlackMarketPanel />

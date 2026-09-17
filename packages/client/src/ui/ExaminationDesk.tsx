@@ -19,6 +19,9 @@ export function ExaminationDesk() {
   const activeBribe = useGameStore((s) => s.activeBribe);
   const reducedMotion = useGameStore((s) => s.reducedMotion);
   const bribeOffers = useGameStore((s) => s.bribeOffers);
+  const isDeskMinimized = useGameStore((s) => s.isDeskMinimized);
+  const setIsDeskMinimized = useGameStore((s) => s.setIsDeskMinimized);
+  const pendingCommitments = useGameStore((s) => s.pendingCommitments);
 
   if (phase !== 'INSPECTION') return null;
 
@@ -26,6 +29,36 @@ export function ExaminationDesk() {
   const localPlayer = players.find((p) => p.id === localPlayerId);
   const sheriffPlayer = players.find((p) => p.id === sheriffId || p.isSheriff);
   const activeMerchant = players.find((p) => p.id === activeMerchantId);
+  const activeCommitment = pendingCommitments.find(
+    (c) => c.targetBagOwnerId === activeMerchant?.id
+  );
+
+  if (isDeskMinimized) {
+    return (
+      <motion.div
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: 20, opacity: 0 }}
+        className="fixed bottom-6 right-6 z-40"
+      >
+        <button
+          type="button"
+          onClick={() => setIsDeskMinimized(false)}
+          className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-tavern-surface/95 border-2 border-gold shadow-2xl text-gold font-display font-bold text-xs backdrop-blur-md hover:scale-105 transition-all cursor-pointer"
+        >
+          <span>⚖️ Desk: {activeMerchant ? activeMerchant.name : 'Select Bag'}</span>
+          {activeCommitment && (
+            <span className="px-1.5 py-0.5 rounded bg-crimson text-white text-[10px]">
+              🔨 {activeCommitment.forcedOutcome}
+            </span>
+          )}
+          <span className="px-2 py-0.5 rounded bg-gold text-tavern-bg text-[10px] font-black uppercase">
+            Expand
+          </span>
+        </button>
+      </motion.div>
+    );
+  }
 
   if (!sheriffPlayer) return null;
 
@@ -72,25 +105,45 @@ export function ExaminationDesk() {
 
   return (
     <AnimatePresence>
-      {/* Full-Screen 2D Examination Desk Overlay (docs/2d-design-overhaul.md §4.4) */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: reducedMotion ? 0.05 : 0.25, ease: 'easeOut' }}
-        className="fixed inset-0 z-40 bg-walnut-bg/95 backdrop-blur-md flex flex-col justify-between p-4 md:p-6 text-parchment select-none overflow-y-auto"
-      >
-        {/* Top Header Bar */}
-        <div className="flex items-center justify-between border-b border-gold/40 pb-3 shrink-0">
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="flex items-center gap-2">
-              <span className="text-2xl">⚖️</span>
-              <span className="font-display font-black text-gold text-lg md:text-xl tracking-wider uppercase">
-                The Examination Desk
-              </span>
-            </div>
+      <div className="fixed inset-0 z-30 flex items-center justify-center p-3 md:p-6 pointer-events-none">
+        {/* Soft backdrop scrim */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={() => setIsDeskMinimized(true)}
+          className="absolute inset-0 bg-black/40 backdrop-blur-[2px] pointer-events-auto"
+          title="Click backdrop to inspect the table"
+        />
 
-            {enableDeputies ? (
+        {/* Focused Panel (70% viewport width) */}
+        <motion.div
+          initial={{ scale: 0.95, opacity: 0, y: 15 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.95, opacity: 0, y: 15 }}
+          transition={{ duration: reducedMotion ? 0.05 : 0.2, ease: 'easeOut' }}
+          className="relative w-full max-w-5xl lg:w-[70vw] max-h-[90vh] bg-walnut-bg/95 border-2 border-gold/70 rounded-3xl p-4 md:p-6 text-parchment select-none overflow-y-auto shadow-[0_20px_60px_rgba(0,0,0,0.85)] backdrop-blur-md pointer-events-auto flex flex-col justify-between gap-3"
+        >
+          {/* Top Header Bar */}
+          <div className="flex items-center justify-between border-b border-gold/40 pb-3 shrink-0">
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">⚖️</span>
+                <span className="font-display font-black text-gold text-lg md:text-xl tracking-wider uppercase">
+                  The Examination Desk
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsDeskMinimized(true)}
+                  className="ml-2 flex items-center gap-1 px-2.5 py-1 rounded-xl bg-walnut-card hover:bg-gold/20 border border-gold/40 text-gold text-xs font-display font-bold transition-all shadow-sm cursor-pointer"
+                  title="Minimize Examination Desk to inspect the Table"
+                >
+                  <span>👁️</span>
+                  <span>View Table</span>
+                </button>
+              </div>
+
+              {enableDeputies ? (
               <div className="flex items-center gap-2">
                 <span className="text-xs bg-walnut-card px-2.5 py-1 rounded-lg border border-gold/30 font-display">
                   🛡️ Deputies:{' '}
@@ -257,6 +310,29 @@ export function ExaminationDesk() {
 
             {/* CENTER COLUMNS (2 cols): Sealed Bag + 2D Bribe Scale + Action Controls */}
             <div className="lg:col-span-2 flex flex-col items-center gap-4">
+              {/* Active Binding Table Commitment Banner */}
+              {activeCommitment && (
+                <div
+                  className={`w-full p-2.5 rounded-2xl border-2 flex items-center justify-between text-xs font-display font-bold shadow-lg ${
+                    activeCommitment.forcedOutcome === 'FORCE_INSPECT'
+                      ? 'bg-crimson/30 border-crimson text-crimson-200'
+                      : 'bg-emerald/30 border-emerald text-emerald-200'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">🔨</span>
+                    <span>
+                      {activeCommitment.forcedOutcome === 'FORCE_INSPECT'
+                        ? 'Binding Deal: The Sheriff MUST inspect this bag!'
+                        : 'Binding Deal: The Sheriff MUST pass this bag unopened!'}
+                    </span>
+                  </div>
+                  <span className="px-2 py-0.5 rounded bg-black/50 text-[10px] font-black uppercase tracking-wider">
+                    Locked Deal
+                  </span>
+                </div>
+              )}
+
               {/* Central Sealed Bag Preview */}
               <div className="w-full bg-walnut-surface/90 border-2 border-gold/50 rounded-3xl p-4 shadow-xl flex flex-col items-center gap-2">
                 <div className="flex items-center gap-2">
@@ -425,6 +501,7 @@ export function ExaminationDesk() {
           Nottingham Gate Examination • Truthful declarations are compensated by the Crown; contraband is forfeit with statutory penalty.
         </div>
       </motion.div>
-    </AnimatePresence>
-  );
+    </div>
+  </AnimatePresence>
+);
 }

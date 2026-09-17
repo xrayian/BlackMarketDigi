@@ -39,6 +39,30 @@ export const BribeOfferState = schema({
 }, 'BribeOfferState');
 export type BribeOfferState = InstanceType<typeof BribeOfferState>;
 
+export const NegotiationOfferState = schema({
+  id: t.string(),
+  fromPlayerId: t.string(),
+  targetBagOwnerId: t.string(),
+  intendedOutcome: t.string().default('PASS'), // 'PASS' | 'INSPECT'
+  goldOffered: t.number().default(0),
+  standLegalGoodsOffered: t.array('string'),
+  standContrabandCountOffered: t.number().default(0),
+  bagGoodsCountOffered: t.number().default(0),
+  futureFavorText: t.string().default(''),
+  status: t.string().default('OPEN'), // 'OPEN' | 'ACCEPTED' | 'DECLINED' | 'WITHDRAWN' | 'VOIDED'
+  acceptedByPlayerId: t.string().default(''),
+  sequence: t.number().default(1),
+  timestamp: t.number().default(0),
+}, 'NegotiationOfferState');
+export type NegotiationOfferState = InstanceType<typeof NegotiationOfferState>;
+
+export const PendingCommitmentState = schema({
+  sourceOfferId: t.string(),
+  targetBagOwnerId: t.string(),
+  forcedOutcome: t.string(), // 'FORCE_INSPECT' | 'FORCE_PASS'
+}, 'PendingCommitmentState');
+export type PendingCommitmentState = InstanceType<typeof PendingCommitmentState>;
+
 export const PlayerScoreState = schema({
   playerId: t.string(),
   name: t.string(),
@@ -102,6 +126,10 @@ export const GameState = schema({
   players: t.map(PlayerState),
   activeBribe: t.ref(BribeOfferState).optional(),
   bribeOffers: t.array(BribeOfferState),
+  negotiationFeed: t.array(NegotiationOfferState),
+  pendingCommitments: t.array(PendingCommitmentState),
+  currentInspectionBagOwnerId: t.string().default(''),
+  negotiationSequence: t.number().default(1),
   bootyTile: t.ref(BootyTileState).optional(),
   blackMarketPepperPile: t.array(BlackMarketOrderState),
   blackMarketMeadPile: t.array(BlackMarketOrderState),

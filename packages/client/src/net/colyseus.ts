@@ -79,6 +79,40 @@ class NetworkManager {
       }
     });
 
+    // Listen for cross-bag negotiation toast broadcasts
+    this.room.onMessage('negotiation_cross_bag_toast', (data: any) => {
+      useGameStore.getState().setCrossBagToast({
+        ...data,
+        timestamp: Date.now(),
+      });
+      setTimeout(() => {
+        const current = useGameStore.getState().crossBagToast;
+        if (current && Date.now() - current.timestamp >= 4900) {
+          useGameStore.getState().setCrossBagToast(null);
+        }
+      }, 5000);
+    });
+
+    // Listen for deal struck announcements
+    this.room.onMessage('negotiation_deal_struck', (deal: any) => {
+      useGameStore.getState().setDealStruckBanner({
+        ...deal,
+        timestamp: Date.now(),
+      });
+      soundManager.playSnap();
+      setTimeout(() => {
+        const current = useGameStore.getState().dealStruckBanner;
+        if (current && Date.now() - current.timestamp >= 3400) {
+          useGameStore.getState().setDealStruckBanner(null);
+        }
+      }, 3500);
+    });
+
+    // Listen for negotiation reconciliation records (Honor Among Thieves)
+    this.room.onMessage('negotiation_reconciled', (record: any) => {
+      useGameStore.getState().addReconciliationRecord(record);
+    });
+
     this.room.onLeave(() => {
       useGameStore.getState().reset();
     });

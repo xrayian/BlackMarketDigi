@@ -1,6 +1,54 @@
 import { create } from 'zustand';
-import type { GamePhase, InspectionResultMessage } from '@sheriff/shared';
+import type {
+  GamePhase,
+  InspectionResultMessage,
+  NegotiationOfferStatus,
+  NegotiationIntendedOutcome,
+  ForcedCommitmentOutcome,
+  BribeReconciliationRecord,
+} from '@sheriff/shared';
 import { soundManager } from '../audio/soundManager';
+
+export interface ClientNegotiationOffer {
+  id: string;
+  fromPlayerId: string;
+  targetBagOwnerId: string;
+  intendedOutcome: NegotiationIntendedOutcome;
+  goldOffered: number;
+  standLegalGoodsOffered: string[];
+  standContrabandCountOffered: number;
+  bagGoodsCountOffered: number;
+  futureFavorText?: string;
+  status: NegotiationOfferStatus;
+  acceptedByPlayerId?: string;
+  sequence: number;
+  timestamp: number;
+}
+
+export interface ClientPendingCommitment {
+  sourceOfferId: string;
+  targetBagOwnerId: string;
+  forcedOutcome: ForcedCommitmentOutcome;
+}
+
+export interface CrossBagToast {
+  fromPlayerId: string;
+  fromPlayerName: string;
+  targetBagOwnerId: string;
+  targetPlayerName: string;
+  goldOffered: number;
+  intendedOutcome: string;
+  timestamp: number;
+}
+
+export interface DealStruckBanner {
+  offerId: string;
+  fromPlayerId: string;
+  targetBagOwnerId: string;
+  forcedOutcome: string;
+  acceptedByPlayerId: string;
+  timestamp: number;
+}
 
 export interface ClientCard {
   id: string;
@@ -99,6 +147,23 @@ interface GameStore {
   blackMarketMeadPile: ClientBlackMarketOrder[];
   blackMarketSilkPile: ClientBlackMarketOrder[];
 
+  // Phase 4 & 5 Negotiation Feed Rework
+  negotiationFeed: ClientNegotiationOffer[];
+  pendingCommitments: ClientPendingCommitment[];
+  currentInspectionBagOwnerId: string;
+  negotiationSequence: number;
+  reconciliationRecords: BribeReconciliationRecord[];
+  addReconciliationRecord: (record: BribeReconciliationRecord) => void;
+  crossBagToast: CrossBagToast | null;
+  setCrossBagToast: (toast: CrossBagToast | null) => void;
+  dealStruckBanner: DealStruckBanner | null;
+  setDealStruckBanner: (banner: DealStruckBanner | null) => void;
+  offerModalTargetBagOwnerId: string | null;
+  openOfferModal: (targetBagOwnerId: string) => void;
+  closeOfferModal: () => void;
+  isDeskMinimized: boolean;
+  setIsDeskMinimized: (minimized: boolean) => void;
+
   // Phase 4 UI state
   selectedCardIds: string[];
   errorMessage: string | null;
@@ -147,6 +212,15 @@ const initialState = {
   connected: false,
   activeBribe: undefined as ClientBribeOffer | undefined,
   bribeOffers: [] as ClientBribeOffer[],
+  negotiationFeed: [] as ClientNegotiationOffer[],
+  pendingCommitments: [] as ClientPendingCommitment[],
+  currentInspectionBagOwnerId: '',
+  negotiationSequence: 1,
+  reconciliationRecords: [] as BribeReconciliationRecord[],
+  crossBagToast: null as CrossBagToast | null,
+  dealStruckBanner: null as DealStruckBanner | null,
+  offerModalTargetBagOwnerId: null as string | null,
+  isDeskMinimized: false,
   winnerId: null as string | null,
   winningScore: 0,
   enableRoyalGoods: false,
@@ -288,6 +362,36 @@ export const useGameStore = create<GameStore>((set) => ({
       ? Array.from(state.blackMarketSilkPile).map(mapBMOrder)
       : [];
 
+    const mapNegotiationOffer = (o: any): ClientNegotiationOffer => ({
+      id: o.id,
+      fromPlayerId: o.fromPlayerId,
+      targetBagOwnerId: o.targetBagOwnerId,
+      intendedOutcome: o.intendedOutcome || 'PASS',
+      goldOffered: o.goldOffered || 0,
+      standLegalGoodsOffered: o.standLegalGoodsOffered ? Array.from(o.standLegalGoodsOffered) : [],
+      standContrabandCountOffered: o.standContrabandCountOffered || 0,
+      bagGoodsCountOffered: o.bagGoodsCountOffered || 0,
+      futureFavorText: o.futureFavorText || '',
+      status: o.status || 'OPEN',
+      acceptedByPlayerId: o.acceptedByPlayerId || '',
+      sequence: o.sequence || 1,
+      timestamp: o.timestamp || Date.now(),
+    });
+
+    const negotiationFeed: ClientNegotiationOffer[] = state.negotiationFeed
+      ? Array.from(state.negotiationFeed).map(mapNegotiationOffer)
+      : [];
+
+    const mapCommitment = (c: any): ClientPendingCommitment => ({
+      sourceOfferId: c.sourceOfferId,
+      targetBagOwnerId: c.targetBagOwnerId,
+      forcedOutcome: c.forcedOutcome,
+    });
+
+    const pendingCommitments: ClientPendingCommitment[] = state.pendingCommitments
+      ? Array.from(state.pendingCommitments).map(mapCommitment)
+      : [];
+
     const prev = useGameStore.getState();
     const phaseChanged = prev.phase !== state.phase;
     const merchantChanged = prev.activeMerchantId !== state.activeMerchantId;
@@ -308,6 +412,10 @@ export const useGameStore = create<GameStore>((set) => ({
       players,
       activeBribe,
       bribeOffers,
+      negotiationFeed,
+      pendingCommitments,
+      currentInspectionBagOwnerId: state.currentInspectionBagOwnerId || '',
+      negotiationSequence: state.negotiationSequence || 1,
       winnerId: state.winnerId || null,
       winningScore: state.winningScore || 0,
       enableRoyalGoods: Boolean(state.enableRoyalGoods),
@@ -319,6 +427,7 @@ export const useGameStore = create<GameStore>((set) => ({
       blackMarketMeadPile,
       blackMarketSilkPile,
       selectedCardIds: (phaseChanged || merchantChanged) ? [] : prev.selectedCardIds,
+      reconciliationRecords: phaseChanged && state.phase === 'INSPECTION' ? [] : prev.reconciliationRecords,
     });
 
     // Trigger 1.5s reaction buffer lock if active bribe offer terms updated (docs/architecture.md §6.2)
@@ -329,6 +438,13 @@ export const useGameStore = create<GameStore>((set) => ({
       }, 1500);
     }
   },
+  addReconciliationRecord: (record) =>
+    set((s) => ({ reconciliationRecords: [...s.reconciliationRecords, record] })),
+  setCrossBagToast: (crossBagToast) => set({ crossBagToast }),
+  setDealStruckBanner: (dealStruckBanner) => set({ dealStruckBanner }),
+  openOfferModal: (targetBagOwnerId) => set({ offerModalTargetBagOwnerId: targetBagOwnerId }),
+  closeOfferModal: () => set({ offerModalTargetBagOwnerId: null }),
+  setIsDeskMinimized: (isDeskMinimized) => set({ isDeskMinimized }),
   toggleCardSelection: (cardId) =>
     set((s) => {
       const idx = s.selectedCardIds.indexOf(cardId);

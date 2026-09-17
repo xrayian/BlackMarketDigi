@@ -111,3 +111,42 @@ export interface BootyTileData {
   goods: Card[];
 }
 
+export type NegotiationOfferStatus = 'OPEN' | 'ACCEPTED' | 'DECLINED' | 'WITHDRAWN' | 'VOIDED';
+export type NegotiationIntendedOutcome = 'PASS' | 'INSPECT' | 'FORCE_INSPECT' | 'FORCE_PASS';
+export type ForcedCommitmentOutcome = 'FORCE_INSPECT' | 'FORCE_PASS';
+
+export interface NegotiationOffer {
+  id: string;
+  fromPlayerId: string;
+  targetBagOwnerId: string;
+  intendedOutcome: NegotiationIntendedOutcome;
+  goldOffered: number;
+  standLegalGoodsOffered: string[];
+  standContrabandCountOffered: number;
+  bagGoodsCountOffered: number;
+  futureFavorText?: string;
+  status: NegotiationOfferStatus;
+  acceptedByPlayerId?: string;
+  sequence: number;
+  timestamp: number;
+}
+
+export interface PendingCommitment {
+  sourceOfferId: string;
+  targetBagOwnerId: string;
+  forcedOutcome: ForcedCommitmentOutcome;
+}
+
+export interface BribeReconciliationRecord {
+  offerId: string;
+  fromPlayerId: string;
+  targetBagOwnerId: string;
+  honoredGold: number;
+  honoredLegalCardsCount: number;
+  honoredContrabandCount: number;
+  honoredBagCardsCount: number;
+  voidedContrabandCount: number;
+  voidedBagCardsCount: number;
+  summaryText: string;
+}
+

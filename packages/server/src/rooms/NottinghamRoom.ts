@@ -16,6 +16,12 @@ import {
   UpdateLobbyOptionsMessage,
   DeputyInspectionMessage,
   ClaimBlackMarketMessage,
+  ProposeNegotiationOfferMessage,
+  AcceptNegotiationOfferMessage,
+  DeclineNegotiationOfferMessage,
+  WithdrawNegotiationOfferMessage,
+  BribeReconciliationRecord,
+  ForcedCommitmentOutcome,
 } from '@sheriff/shared';
 import {
   GameState,
@@ -26,6 +32,8 @@ import {
   PlayerScoreState,
   BootyTileState,
   BlackMarketOrderState,
+  NegotiationOfferState,
+  PendingCommitmentState,
 } from '../schema/GameState';
 import {
   buildDeck,
@@ -219,6 +227,10 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
     this.declarationIndex = 0;
     this.inspectedMerchantIds.clear();
     this.bribeSequenceNumber = 1;
+    this.state.negotiationFeed.clear();
+    this.state.pendingCommitments.clear();
+    this.state.negotiationSequence = 1;
+    this.state.currentInspectionBagOwnerId = '';
     this.marketState = undefined;
     this.deputiesEngineState = undefined;
     this.blackMarketEngineState = undefined;
@@ -458,36 +470,307 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
       }
     });
 
-    // 6. Propose Bribe
-    this.onMessage('bribe_propose', (client, message: BribeOfferMessage) => {
+    // 6. Propose Negotiation Offer (All-Players, All-Bags, Concurrently)
+    this.onMessage('negotiation_propose', (client, message: ProposeNegotiationOfferMessage) => {
       if (this.state.phase !== 'INSPECTION') {
-        client.send('error', { message: 'Can only propose bribes during INSPECTION phase' });
+        client.send('error', { message: 'Can only propose negotiation offers during INSPECTION phase' });
         return;
       }
 
       const player = this.state.players.get(client.sessionId);
       if (!player) return;
 
-      if (message.gold !== undefined && (message.gold < 0 || !Number.isInteger(message.gold))) {
+      if (!message.targetBagOwnerId || !this.state.players.has(message.targetBagOwnerId)) {
+        client.send('error', { message: 'Invalid target bag owner' });
+        return;
+      }
+
+      if (this.inspectedMerchantIds.has(message.targetBagOwnerId)) {
+        client.send('error', { message: 'Target merchant bag has already been resolved' });
+        return;
+      }
+
+      const targetPlayer = this.state.players.get(message.targetBagOwnerId)!;
+      if (!targetPlayer.sealedBag || !targetPlayer.sealedBag.isSnapped) {
+        client.send('error', { message: 'Target merchant bag is not sealed' });
+        return;
+      }
+
+      const goldOffered = Number(message.goldOffered) || 0;
+      if (goldOffered < 0 || !Number.isInteger(goldOffered)) {
+        client.send('error', { message: 'Gold offered must be a non-negative integer' });
+        return;
+      }
+
+      if (goldOffered > player.gold) {
+        client.send('error', { message: 'Cannot offer more gold than you currently hold' });
+        return;
+      }
+
+      if (message.standLegalGoodsOffered && message.standLegalGoodsOffered.length > 0) {
+        const standLegalIds = new Set(player.standLegal.map((c) => c.id));
+        for (const cardId of message.standLegalGoodsOffered) {
+          if (!standLegalIds.has(cardId)) {
+            client.send('error', { message: `Card ${cardId} is not on your legal stand` });
+            return;
+          }
+        }
+      }
+
+      const standContrabandCountOffered = Number(message.standContrabandCountOffered) || 0;
+      if (standContrabandCountOffered < 0 || !Number.isInteger(standContrabandCountOffered)) {
+        client.send('error', { message: 'Stand contraband count must be a non-negative integer' });
+        return;
+      }
+
+      const bagGoodsCountOffered = Number(message.bagGoodsCountOffered) || 0;
+      if (bagGoodsCountOffered < 0 || !Number.isInteger(bagGoodsCountOffered)) {
+        client.send('error', { message: 'Bag goods count must be a non-negative integer' });
+        return;
+      }
+
+      const intendedOutcome =
+        message.intendedOutcome ||
+        (message.targetBagOwnerId === client.sessionId ? 'PASS' : 'INSPECT');
+
+      this.state.negotiationSequence++;
+
+      const offerState = new NegotiationOfferState({
+        id: `offer_${this.state.negotiationSequence}`,
+        fromPlayerId: client.sessionId,
+        targetBagOwnerId: message.targetBagOwnerId,
+        intendedOutcome,
+        goldOffered,
+        standLegalGoodsOffered: message.standLegalGoodsOffered || [],
+        standContrabandCountOffered,
+        bagGoodsCountOffered,
+        futureFavorText: message.futureFavorText || '',
+        status: 'OPEN',
+        acceptedByPlayerId: '',
+        sequence: this.state.negotiationSequence,
+        timestamp: Date.now(),
+      });
+
+      this.state.negotiationFeed.push(offerState);
+
+      // Mirror into legacy activeBribe & bribeOffers for backward compatibility
+      this.bribeSequenceNumber = this.state.negotiationSequence;
+      const legacyBribe = new BribeOfferState({
+        id: offerState.id,
+        sequenceNumber: offerState.sequence,
+        fromPlayerId: client.sessionId,
+        toPlayerId: this.state.sheriffId,
+        gold: goldOffered,
+        standCardIds: message.standLegalGoodsOffered || [],
+        bagCardClaims: [],
+        nonBindingTerms: message.futureFavorText || '',
+        status: 'PROPOSED',
+        createdAt: Date.now(),
+      });
+      this.state.activeBribe = legacyBribe;
+      const existingIdx = this.state.bribeOffers.findIndex((b) => b.fromPlayerId === client.sessionId);
+      if (existingIdx !== -1) {
+        this.state.bribeOffers[existingIdx] = legacyBribe;
+      } else {
+        this.state.bribeOffers.push(legacyBribe);
+      }
+
+      // Non-blocking toast notification for cross-bag offers
+      if (message.targetBagOwnerId !== client.sessionId) {
+        this.broadcast('negotiation_cross_bag_toast', {
+          fromPlayerId: client.sessionId,
+          fromPlayerName: player.name,
+          targetBagOwnerId: message.targetBagOwnerId,
+          targetPlayerName: targetPlayer.name,
+          goldOffered,
+          intendedOutcome,
+        });
+      }
+    });
+
+    // 7. Accept Negotiation Offer (Deciding Authority with sequence concurrency lock)
+    this.onMessage('negotiation_accept', (client, message: AcceptNegotiationOfferMessage) => {
+      if (this.state.phase !== 'INSPECTION') {
+        client.send('error', { message: 'Can only accept offers during INSPECTION phase' });
+        return;
+      }
+
+      const isAuthority =
+        client.sessionId === this.state.sheriffId ||
+        this.state.deputyIds.includes(client.sessionId);
+
+      if (!isAuthority) {
+        client.send('error', { message: 'Only the Sheriff or Deputy can accept negotiation offers' });
+        return;
+      }
+
+      const offer = this.state.negotiationFeed.find((o) => o.id === message.offerId);
+      if (!offer || offer.status !== 'OPEN') {
+        client.send('error', { message: 'Offer is not available for acceptance' });
+        return;
+      }
+
+      if (offer.fromPlayerId === client.sessionId) {
+        client.send('error', { message: 'Cannot accept your own offer' });
+        return;
+      }
+
+      if (this.inspectedMerchantIds.has(offer.targetBagOwnerId)) {
+        client.send('error', { message: 'Target merchant bag has already been resolved' });
+        return;
+      }
+
+      // Reject stale acceptance if sequence has advanced since offer was inspected
+      if (
+        message.expectedSequence !== undefined &&
+        message.expectedSequence !== this.state.negotiationSequence
+      ) {
+        client.send('error', { message: 'Negotiation terms changed before response was registered' });
+        return;
+      }
+
+      const forcedOutcome: ForcedCommitmentOutcome =
+        offer.intendedOutcome === 'INSPECT' || offer.intendedOutcome === 'FORCE_INSPECT'
+          ? 'FORCE_INSPECT'
+          : 'FORCE_PASS';
+
+      // Check for contradictory commitments
+      const existingCommitment = this.state.pendingCommitments.find(
+        (c) => c.targetBagOwnerId === offer.targetBagOwnerId
+      );
+      if (existingCommitment && existingCommitment.forcedOutcome !== forcedOutcome) {
+        client.send('error', {
+          message: `Cannot accept offer: contradicts an existing binding commitment (${existingCommitment.forcedOutcome}) for this bag`,
+        });
+        return;
+      }
+
+      offer.status = 'ACCEPTED';
+      offer.acceptedByPlayerId = client.sessionId;
+      this.state.negotiationSequence++;
+
+      if (!existingCommitment) {
+        this.state.pendingCommitments.push(
+          new PendingCommitmentState({
+            sourceOfferId: offer.id,
+            targetBagOwnerId: offer.targetBagOwnerId,
+            forcedOutcome,
+          })
+        );
+      }
+
+      // If activeBribe was mirrored, update its status as well
+      if (this.state.activeBribe && this.state.activeBribe.id === offer.id) {
+        this.state.activeBribe.status = 'ACCEPTED';
+      }
+
+      this.broadcast('negotiation_deal_struck', {
+        offerId: offer.id,
+        fromPlayerId: offer.fromPlayerId,
+        targetBagOwnerId: offer.targetBagOwnerId,
+        forcedOutcome,
+        acceptedByPlayerId: client.sessionId,
+      });
+    });
+
+    // 8. Decline Negotiation Offer
+    this.onMessage('negotiation_decline', (client, message: DeclineNegotiationOfferMessage) => {
+      if (this.state.phase !== 'INSPECTION') {
+        client.send('error', { message: 'Can only decline offers during INSPECTION phase' });
+        return;
+      }
+
+      const isAuthority =
+        client.sessionId === this.state.sheriffId ||
+        this.state.deputyIds.includes(client.sessionId);
+
+      if (!isAuthority) {
+        client.send('error', { message: 'Only the Sheriff or Deputy can decline negotiation offers' });
+        return;
+      }
+
+      const offer = this.state.negotiationFeed.find((o) => o.id === message.offerId);
+      if (!offer || offer.status !== 'OPEN') {
+        client.send('error', { message: 'Offer is not available' });
+        return;
+      }
+
+      offer.status = 'DECLINED';
+      this.state.negotiationSequence++;
+
+      if (this.state.activeBribe && this.state.activeBribe.id === offer.id) {
+        this.state.activeBribe.status = 'REJECTED';
+      }
+    });
+
+    // 9. Withdraw Negotiation Offer
+    this.onMessage('negotiation_withdraw', (client, message: WithdrawNegotiationOfferMessage) => {
+      if (this.state.phase !== 'INSPECTION') {
+        client.send('error', { message: 'Can only withdraw offers during INSPECTION phase' });
+        return;
+      }
+
+      const offer = this.state.negotiationFeed.find((o) => o.id === message.offerId);
+      if (!offer || offer.status !== 'OPEN') {
+        client.send('error', { message: 'Offer is not open' });
+        return;
+      }
+
+      if (offer.fromPlayerId !== client.sessionId) {
+        client.send('error', { message: "Cannot withdraw someone else's offer" });
+        return;
+      }
+
+      offer.status = 'WITHDRAWN';
+      this.state.negotiationSequence++;
+
+      if (this.state.activeBribe && this.state.activeBribe.id === offer.id) {
+        this.state.activeBribe.status = 'REJECTED';
+      }
+    });
+
+    // Backward-compatible bribe_propose wrapper
+    this.onMessage('bribe_propose', (client, message: BribeOfferMessage) => {
+      const isSheriff = client.sessionId === this.state.sheriffId;
+      const targetBagOwnerId = isSheriff
+        ? this.state.activeMerchantId
+        : client.sessionId;
+
+      if (!targetBagOwnerId) {
+        client.send('error', { message: 'Must select an active merchant before proposing terms' });
+        return;
+      }
+
+      // Route into negotiation_propose
+      const fakeMsg: ProposeNegotiationOfferMessage = {
+        targetBagOwnerId,
+        intendedOutcome: 'PASS',
+        goldOffered: message.gold || 0,
+        standLegalGoodsOffered: message.standCardIds || [],
+        futureFavorText: message.nonBindingTerms || '',
+      };
+      // Trigger propose logic
+      const player = this.state.players.get(client.sessionId);
+      if (!player) return;
+
+      if (this.state.phase !== 'INSPECTION') {
+        client.send('error', { message: 'Can only propose bribes during INSPECTION phase' });
+        return;
+      }
+
+      if (fakeMsg.goldOffered < 0 || !Number.isInteger(fakeMsg.goldOffered)) {
         client.send('error', { message: 'Bribe gold must be a non-negative integer' });
         return;
       }
 
-      const isSheriff = client.sessionId === this.state.sheriffId;
-      const targetMerchantId = isSheriff ? this.state.activeMerchantId : '';
-
       if (isSheriff) {
-        if (!targetMerchantId || !this.state.players.has(targetMerchantId)) {
-          client.send('error', { message: 'Must select an active merchant before proposing terms' });
-          return;
-        }
-        const targetMerchant = this.state.players.get(targetMerchantId)!;
-        if ((message.gold || 0) > targetMerchant.gold) {
+        const targetMerchant = this.state.players.get(targetBagOwnerId);
+        if (targetMerchant && fakeMsg.goldOffered > targetMerchant.gold) {
           client.send('error', { message: 'Cannot demand more gold than the merchant holds' });
           return;
         }
       } else {
-        if ((message.gold || 0) > player.gold) {
+        if (fakeMsg.goldOffered > player.gold) {
           client.send('error', { message: 'Cannot offer more gold than you currently hold' });
           return;
         }
@@ -502,16 +785,34 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
         }
       }
 
-      this.bribeSequenceNumber++;
-      const toPlayerId = isSheriff ? targetMerchantId : this.state.sheriffId;
+      this.state.negotiationSequence++;
+      this.bribeSequenceNumber = this.state.negotiationSequence;
+
+      const offerState = new NegotiationOfferState({
+        id: `offer_${this.state.negotiationSequence}`,
+        fromPlayerId: client.sessionId,
+        targetBagOwnerId,
+        intendedOutcome: 'PASS',
+        goldOffered: fakeMsg.goldOffered,
+        standLegalGoodsOffered: fakeMsg.standLegalGoodsOffered || [],
+        standContrabandCountOffered: 0,
+        bagGoodsCountOffered: 0,
+        futureFavorText: fakeMsg.futureFavorText || '',
+        status: 'OPEN',
+        acceptedByPlayerId: '',
+        sequence: this.state.negotiationSequence,
+        timestamp: Date.now(),
+      });
+
+      this.state.negotiationFeed.push(offerState);
 
       const bribeState = new BribeOfferState({
-        id: `bribe_${this.bribeSequenceNumber}`,
-        sequenceNumber: this.bribeSequenceNumber,
+        id: offerState.id,
+        sequenceNumber: this.state.negotiationSequence,
         fromPlayerId: client.sessionId,
-        toPlayerId,
-        gold: message.gold || 0,
-        standCardIds: message.standCardIds || [],
+        toPlayerId: isSheriff ? targetBagOwnerId : this.state.sheriffId,
+        gold: fakeMsg.goldOffered,
+        standCardIds: fakeMsg.standLegalGoodsOffered || [],
         bagCardClaims: (message.bagCardClaims || []).map((c) => JSON.stringify(c)),
         nonBindingTerms: message.nonBindingTerms || '',
         status: 'PROPOSED',
@@ -519,9 +820,7 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
       });
 
       this.state.activeBribe = bribeState;
-
-      // Track offer in bribeOffers array for multi-merchant visibility
-      const merchantKey = isSheriff ? targetMerchantId : client.sessionId;
+      const merchantKey = isSheriff ? targetBagOwnerId : client.sessionId;
       const existingIdx = this.state.bribeOffers.findIndex(
         (b) => b.fromPlayerId === merchantKey || b.toPlayerId === merchantKey
       );
@@ -532,7 +831,7 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
       }
     });
 
-    // 7. Respond to Bribe (atomic sequence check)
+    // Backward-compatible bribe_respond wrapper
     this.onMessage('bribe_respond', (client, message: BribeResponseMessage) => {
       if (this.state.phase !== 'INSPECTION') {
         client.send('error', { message: 'Can only respond to bribes during INSPECTION phase' });
@@ -548,19 +847,6 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
         return;
       }
 
-      const isAuthority =
-        client.sessionId === this.state.sheriffId ||
-        this.state.deputyIds.includes(client.sessionId);
-      const isRecipient =
-        !this.state.activeBribe.toPlayerId ||
-        this.state.activeBribe.toPlayerId === client.sessionId;
-
-      if (!isRecipient && !isAuthority) {
-        client.send('error', { message: 'You are not authorized to respond to this bribe' });
-        return;
-      }
-
-      // Reject stale acceptance if sequence number doesn't match current active bribe (GDD §6.2)
       if (
         message.sequenceNumber !== undefined &&
         message.sequenceNumber !== this.state.activeBribe.sequenceNumber
@@ -571,11 +857,18 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
 
       if (!message.accept) {
         this.state.activeBribe.status = 'REJECTED';
+        const feedOffer = this.state.negotiationFeed.find((o) => o.id === this.state.activeBribe!.id);
+        if (feedOffer) feedOffer.status = 'DECLINED';
         return;
       }
 
-      // Accepted bribe
       this.state.activeBribe.status = 'ACCEPTED';
+      const feedOffer = this.state.negotiationFeed.find((o) => o.id === this.state.activeBribe!.id);
+      if (feedOffer) {
+        feedOffer.status = 'ACCEPTED';
+        feedOffer.acceptedByPlayerId = client.sessionId;
+      }
+
       const isSheriffOffer = this.state.activeBribe.fromPlayerId === this.state.sheriffId;
       const merchantId = isSheriffOffer
         ? (this.state.activeBribe.toPlayerId || this.state.activeMerchantId)
@@ -586,7 +879,6 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
         return;
       }
 
-      // Execute pass-unopened with accepted bribe
       this.executePassUnopened(merchantId, {
         gold: this.state.activeBribe.gold,
         standCardIds: [...this.state.activeBribe.standCardIds],
@@ -616,6 +908,21 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
       if (this.inspectedMerchantIds.has(targetMerchantId)) {
         client.send('error', { message: 'Merchant has already been inspected this round' });
         return;
+      }
+
+      // Enforce binding pending commitments (e.g. Rival paid Sheriff to guarantee inspection)
+      const commitment = this.state.pendingCommitments.find(
+        (c) => c.targetBagOwnerId === targetMerchantId
+      );
+      if (commitment) {
+        if (commitment.forcedOutcome === 'FORCE_INSPECT') {
+          this.executeInspect(targetMerchantId);
+          return;
+        }
+        if (commitment.forcedOutcome === 'FORCE_PASS') {
+          this.executePassUnopened(targetMerchantId);
+          return;
+        }
       }
 
       if (this.state.enableDeputies && this.state.deputyIds.length === 2) {
@@ -655,6 +962,7 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
         return;
       }
       this.state.activeMerchantId = message.targetPlayerId;
+      this.state.currentInspectionBagOwnerId = message.targetPlayerId;
       const merchantOffer = this.state.bribeOffers.find(
         (b) => b.fromPlayerId === message.targetPlayerId || b.toPlayerId === message.targetPlayerId
       );
@@ -913,9 +1221,14 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
   private startInspectionPhase() {
     this.state.phase = 'INSPECTION';
     this.state.activeMerchantId = '';
+    this.state.currentInspectionBagOwnerId = '';
     this.inspectedMerchantIds.clear();
     this.state.activeBribe = undefined;
     this.state.bribeOffers.clear();
+    this.state.negotiationFeed.clear();
+    this.state.pendingCommitments.clear();
+    this.state.negotiationSequence = 1;
+    this.bribeSequenceNumber = 1;
   }
 
   private revealBagToAll(bag: SealedBagState) {
@@ -932,9 +1245,148 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
     });
   }
 
+  private reconcileAndExecuteBribesForBag(
+    targetMerchantId: string,
+    outcome: 'PASS' | 'INSPECT'
+  ): BribeReconciliationRecord[] {
+    const merchant = this.state.players.get(targetMerchantId);
+    if (!merchant) return [];
+
+    const sheriff = this.state.players.get(this.state.sheriffId);
+    if (!sheriff) return [];
+
+    // Mark all remaining OPEN offers targeting this bag as VOIDED
+    for (const offer of this.state.negotiationFeed) {
+      if (offer.targetBagOwnerId === targetMerchantId && offer.status === 'OPEN') {
+        offer.status = 'VOIDED';
+      }
+    }
+
+    // Find all ACCEPTED offers targeting this bag
+    const acceptedOffers = this.state.negotiationFeed.filter(
+      (o) => o.targetBagOwnerId === targetMerchantId && o.status === 'ACCEPTED'
+    );
+
+    const reconciliationRecords: BribeReconciliationRecord[] = [];
+
+    for (const offer of acceptedOffers) {
+      const fromPlayer = this.state.players.get(offer.fromPlayerId);
+      if (!fromPlayer) continue;
+
+      // 1. Reconcile Gold
+      const genuineGold = Math.min(Math.max(0, fromPlayer.gold), offer.goldOffered);
+      fromPlayer.gold -= genuineGold;
+
+      // In 6p Deputies mode with communal booty tile, joint deals go to booty tile
+      const isJointDeputy =
+        this.state.enableDeputies &&
+        this.state.bootyTile &&
+        this.state.deputyIds.includes(offer.acceptedByPlayerId || '');
+
+      const recipient = offer.acceptedByPlayerId
+        ? this.state.players.get(offer.acceptedByPlayerId) || sheriff
+        : sheriff;
+
+      if (isJointDeputy && this.state.bootyTile) {
+        this.state.bootyTile.gold += genuineGold;
+      } else {
+        recipient.gold += genuineGold;
+      }
+
+      // 2. Reconcile Stand Legal Goods
+      let honoredLegalCount = 0;
+      for (const cardId of offer.standLegalGoodsOffered) {
+        const idx = fromPlayer.standLegal.findIndex((c) => c.id === cardId);
+        if (idx !== -1) {
+          const [cardState] = fromPlayer.standLegal.splice(idx, 1);
+          recipient.standLegal.push(cardState);
+          honoredLegalCount++;
+        }
+      }
+
+      // 3. Reconcile Stand Contraband (Honor Among Thieves: phantom contraband voided)
+      const availableContraband = fromPlayer.standContraband.length;
+      const genuineContrabandCount = Math.min(availableContraband, offer.standContrabandCountOffered);
+      const voidedContrabandCount = offer.standContrabandCountOffered - genuineContrabandCount;
+
+      for (let i = 0; i < genuineContrabandCount; i++) {
+        const cs = fromPlayer.standContraband.pop();
+        if (cs) {
+          fromPlayer.standContrabandCount = fromPlayer.standContraband.length;
+          // Revealed contraband moves to recipient stand
+          recipient.standLegal.push(cs);
+        }
+      }
+
+      // 4. Reconcile Bag Goods (Honor Among Thieves: phantom bag cards voided)
+      let genuineBagCount = 0;
+      let voidedBagCount = offer.bagGoodsCountOffered;
+
+      if (offer.fromPlayerId === targetMerchantId && merchant.sealedBag) {
+        // Merchant whose bag is resolving promised cards from this bag
+        if (outcome === 'PASS') {
+          const availableInBag = merchant.sealedBag.cards.length;
+          genuineBagCount = Math.min(availableInBag, offer.bagGoodsCountOffered);
+          voidedBagCount = offer.bagGoodsCountOffered - genuineBagCount;
+
+          for (let i = 0; i < genuineBagCount; i++) {
+            const cs = merchant.sealedBag.cards.pop();
+            if (cs) {
+              merchant.sealedBag.cardCount = merchant.sealedBag.cards.length;
+              recipient.standLegal.push(cs);
+            }
+          }
+        }
+      }
+
+      const summaryParts: string[] = [];
+      if (genuineGold > 0) summaryParts.push(`${genuineGold} Gold`);
+      if (honoredLegalCount > 0) summaryParts.push(`${honoredLegalCount} Legal Goods`);
+      if (genuineContrabandCount > 0) summaryParts.push(`${genuineContrabandCount} Contraband`);
+      if (genuineBagCount > 0) summaryParts.push(`${genuineBagCount} Bag Cards`);
+
+      const voidedParts: string[] = [];
+      if (voidedContrabandCount > 0) voidedParts.push(`${voidedContrabandCount} promised contraband did not exist — voided`);
+      if (voidedBagCount > 0) voidedParts.push(`${voidedBagCount} promised bag cards did not exist — voided`);
+
+      const summaryText =
+        (summaryParts.length > 0 ? `Deal honored: ${summaryParts.join(' + ')}.` : 'No genuine goods to transfer.') +
+        (voidedParts.length > 0 ? ` (${voidedParts.join(', ')})` : '');
+
+      const record: BribeReconciliationRecord = {
+        offerId: offer.id,
+        fromPlayerId: fromPlayer.id,
+        targetBagOwnerId: targetMerchantId,
+        honoredGold: genuineGold,
+        honoredLegalCardsCount: honoredLegalCount,
+        honoredContrabandCount: genuineContrabandCount,
+        honoredBagCardsCount: genuineBagCount,
+        voidedContrabandCount,
+        voidedBagCardsCount: voidedBagCount,
+        summaryText,
+      };
+
+      reconciliationRecords.push(record);
+      this.broadcast('negotiation_reconciled', record);
+    }
+
+    return reconciliationRecords;
+  }
+
   private executePassUnopened(merchantId: string, bribe?: any) {
     const merchant = this.state.players.get(merchantId)!;
     const sheriff = this.state.players.get(this.state.sheriffId)!;
+
+    // Check binding commitments: If committed to FORCE_INSPECT, Sheriff cannot pass!
+    const commitment = this.state.pendingCommitments.find((c) => c.targetBagOwnerId === merchantId);
+    if (commitment && commitment.forcedOutcome === 'FORCE_INSPECT') {
+      this.executeInspect(merchantId);
+      return;
+    }
+
+    // Reconcile and apply all accepted negotiation feed bribes targeting this bag
+    const reconciliations = this.reconcileAndExecuteBribesForBag(merchantId, 'PASS');
+
     const bagCards = merchant.sealedBag!.cards.map(stateToCard);
     const standCards = merchant.standLegal.map(stateToCard);
 
@@ -984,6 +1436,9 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
     if (this.state.activeMerchantId === merchantId) {
       this.state.activeMerchantId = '';
     }
+    if (this.state.currentInspectionBagOwnerId === merchantId) {
+      this.state.currentInspectionBagOwnerId = '';
+    }
     const offerIdx = this.state.bribeOffers.findIndex(
       (b) => b.fromPlayerId === merchantId || b.toPlayerId === merchantId
     );
@@ -993,6 +1448,8 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
     if (this.state.activeBribe?.fromPlayerId === merchantId || this.state.activeBribe?.toPlayerId === merchantId) {
       this.state.activeBribe = undefined;
     }
+
+    const totalPaidGold = result.merchantPaidGold + reconciliations.reduce((s, r) => s + r.honoredGold, 0);
 
     this.broadcast('inspection_result', {
       outcome: 'PASS',
@@ -1006,7 +1463,7 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
       keptCardsCount: result.merchantKeptLegalCards.length + result.merchantKeptContrabandCards.length,
       confiscatedCardsCount: 0,
       debtSettled: true,
-      debtPaidGold: result.merchantPaidGold,
+      debtPaidGold: totalPaidGold,
       debtForgiven: 0,
       revealedCards: bagCards,
     });
@@ -1282,6 +1739,14 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
   private executeInspect(merchantId: string) {
     const merchant = this.state.players.get(merchantId)!;
     const sheriff = this.state.players.get(this.state.sheriffId)!;
+
+    // Check binding commitments: If committed to FORCE_PASS, Sheriff cannot inspect!
+    const commitment = this.state.pendingCommitments.find((c) => c.targetBagOwnerId === merchantId);
+    if (commitment && commitment.forcedOutcome === 'FORCE_PASS') {
+      this.executePassUnopened(merchantId);
+      return;
+    }
+
     const bagCards = merchant.sealedBag!.cards.map(stateToCard);
     const declaredGood = merchant.sealedBag!.declaredGood as GoodType;
     const declaredCount = merchant.sealedBag!.declaredCount;
@@ -1396,10 +1861,16 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
       }
     }
 
+    // Reconcile and apply all accepted negotiation feed bribes targeting this bag (e.g. Rival paid Sheriff to inspect)
+    this.reconcileAndExecuteBribesForBag(merchantId, 'INSPECT');
+
     this.inspectedMerchantIds.add(merchantId);
 
     if (this.state.activeMerchantId === merchantId) {
       this.state.activeMerchantId = '';
+    }
+    if (this.state.currentInspectionBagOwnerId === merchantId) {
+      this.state.currentInspectionBagOwnerId = '';
     }
     const offerIdx = this.state.bribeOffers.findIndex(
       (b) => b.fromPlayerId === merchantId || b.toPlayerId === merchantId

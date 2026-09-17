@@ -106,3 +106,34 @@ export interface BlackMarketClaimedMessage {
   pointsValue: number;
 }
 
+export interface ProposeNegotiationOfferMessage {
+  targetBagOwnerId: string;
+  intendedOutcome?: 'PASS' | 'INSPECT';
+  goldOffered: number;
+  standLegalGoodsOffered?: string[];
+  standContrabandCountOffered?: number;
+  bagGoodsCountOffered?: number;
+  futureFavorText?: string;
+}
+
+export interface AcceptNegotiationOfferMessage {
+  offerId: string;
+  expectedSequence?: number;
+}
+
+export interface DeclineNegotiationOfferMessage {
+  offerId: string;
+}
+
+export interface WithdrawNegotiationOfferMessage {
+  offerId: string;
+}
+
+export interface NegotiationDealStruckMessage {
+  offerId: string;
+  fromPlayerId: string;
+  targetBagOwnerId: string;
+  forcedOutcome: 'FORCE_INSPECT' | 'FORCE_PASS';
+  acceptedByPlayerId: string;
+}
+

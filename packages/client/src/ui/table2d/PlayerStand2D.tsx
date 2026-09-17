@@ -16,6 +16,11 @@ export function PlayerStand2D({
   isActiveTurn = false,
 }: PlayerStand2DProps) {
   const reducedMotion = useGameStore((s) => s.reducedMotion);
+  const phase = useGameStore((s) => s.phase);
+  const openOfferModal = useGameStore((s) => s.openOfferModal);
+  const pendingCommitments = useGameStore((s) => s.pendingCommitments);
+
+  const commitment = pendingCommitments.find((c) => c.targetBagOwnerId === player.id);
 
   // Group legal goods by goodType
   const legalCounts = useMemo(() => {
@@ -154,40 +159,74 @@ export function PlayerStand2D({
           )}
         </div>
 
-        {/* Sealed Merchant Bag Status */}
-        {player.sealedBag ? (
-          <div
-            className={`
-              flex items-center gap-1.5 px-2.5 py-0.5 rounded-md font-display text-xs font-bold border shadow
-              ${
-                player.sealedBag.isRevealed
-                  ? 'bg-tavern-card border-gold/40 text-gold'
-                  : player.sealedBag.isSnapped
-                  ? 'bg-emerald/25 border-emerald text-emerald-300'
-                  : 'bg-tavern-surface border-tavern-border text-parchment/60'
+        {/* Sealed Merchant Bag Status & Bribe Actions */}
+        <div className="flex items-center gap-1.5">
+          {/* Binding Commitment Gavel Chip */}
+          {commitment && (
+            <div
+              className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md font-display font-bold text-[10px] shadow border ${
+                commitment.forcedOutcome === 'FORCE_INSPECT'
+                  ? 'bg-crimson/90 border-crimson text-white animate-pulse'
+                  : 'bg-emerald/90 border-emerald text-white'
+              }`}
+              title={
+                commitment.forcedOutcome === 'FORCE_INSPECT'
+                  ? 'Binding Deal: Sheriff has committed to inspect this bag!'
+                  : 'Binding Deal: Sheriff has committed to pass this bag unopened!'
               }
-            `}
-            title={
-              player.sealedBag.isRevealed
-                ? 'Bag Inspected & Opened'
-                : player.sealedBag.isSnapped
-                ? `Bag sealed with ${player.sealedBag.cardCount} cards`
-                : 'Loading cards into bag...'
-            }
-          >
-            <span>💼</span>
-            <span>{player.sealedBag.cardCount}</span>
-            <span className="text-[10px]">
-              {player.sealedBag.isRevealed
-                ? '👁️'
-                : player.sealedBag.isSnapped
-                ? '🔒'
-                : '⏳'}
-            </span>
-          </div>
-        ) : (
-          <div className="text-[10px] text-parchment/40 italic">Stand Empty</div>
-        )}
+            >
+              <span>🔨</span>
+              <span>{commitment.forcedOutcome === 'FORCE_INSPECT' ? 'Inspect' : 'Pass'}</span>
+            </div>
+          )}
+
+          {/* Make an Offer Affordance */}
+          {phase === 'INSPECTION' && !player.isSheriff && !player.sealedBag?.isRevealed && (
+            <button
+              type="button"
+              onClick={() => openOfferModal(player.id)}
+              className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-gold/20 hover:bg-gold/35 border border-gold/50 text-gold hover:text-white font-display font-bold text-[10px] transition-all shadow-sm active:scale-95"
+              title={`Make a bribe offer regarding ${player.name}'s bag`}
+            >
+              <span>🤝</span>
+              <span>Offer</span>
+            </button>
+          )}
+
+          {player.sealedBag ? (
+            <div
+              className={`
+                flex items-center gap-1.5 px-2 py-0.5 rounded-md font-display text-xs font-bold border shadow
+                ${
+                  player.sealedBag.isRevealed
+                    ? 'bg-tavern-card border-gold/40 text-gold'
+                    : player.sealedBag.isSnapped
+                    ? 'bg-emerald/25 border-emerald text-emerald-300'
+                    : 'bg-tavern-surface border-tavern-border text-parchment/60'
+                }
+              `}
+              title={
+                player.sealedBag.isRevealed
+                  ? 'Bag Inspected & Opened'
+                  : player.sealedBag.isSnapped
+                  ? `Bag sealed with ${player.sealedBag.cardCount} cards`
+                  : 'Loading cards into bag...'
+              }
+            >
+              <span>💼</span>
+              <span>{player.sealedBag.cardCount}</span>
+              <span className="text-[10px]">
+                {player.sealedBag.isRevealed
+                  ? '👁️'
+                  : player.sealedBag.isSnapped
+                  ? '🔒'
+                  : '⏳'}
+              </span>
+            </div>
+          ) : (
+            <div className="text-[10px] text-parchment/40 italic">Stand Empty</div>
+          )}
+        </div>
       </div>
     </motion.div>
   );
