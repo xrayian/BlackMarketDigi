@@ -23,11 +23,11 @@ export function DeclarationPanel() {
 
   if (!localPlayer) return null;
 
-  const hasDeclared = localPlayer.sealedBag?.declaredGood !== undefined;
-  const bagCardCount = localPlayer.sealedBag?.cardCount || 0;
+  const hasDeclared = Boolean(localPlayer.sealedBag?.declaredGood);
+  const bagCardCount = localPlayer.sealedBag?.cardCount || localPlayer.sealedBag?.cards?.length || 0;
 
   const handleDeclare = () => {
-    if (selectedGood) {
+    if (selectedGood && bagCardCount > 0) {
       network.send('declaration', { declaredGood: selectedGood, declaredCount: bagCardCount });
     }
   };
@@ -51,7 +51,9 @@ export function DeclarationPanel() {
                   <span>
                     {m.sealedBag?.declaredGood
                       ? `Declared ${m.sealedBag.declaredCount} ${GOOD_DISPLAY[m.sealedBag.declaredGood as GoodType] || m.sealedBag.declaredGood}`
-                      : 'Declaring...'}
+                      : m.id === activeMerchantId
+                        ? 'Declaring...'
+                        : 'Waiting'}
                   </span>
                 </div>
               ))}
@@ -61,7 +63,7 @@ export function DeclarationPanel() {
           <div className="text-center space-y-4">
             <h2 className="text-3xl font-display text-gold mb-2">Make Your Declaration</h2>
             <p className="text-parchment/80">Look the Sheriff in the eye and declare what's in your bag!</p>
-            <p className="text-lg font-bold">Your bag contains {bagCardCount} cards</p>
+            <p className="text-lg font-bold">Your bag contains {bagCardCount} {bagCardCount === 1 ? 'card' : 'cards'}</p>
             
             <div className="grid grid-cols-2 gap-3 mt-4">
               {LEGAL_GOODS.map((good) => (
@@ -81,9 +83,9 @@ export function DeclarationPanel() {
             
             <button
               onClick={handleDeclare}
-              disabled={!selectedGood}
+              disabled={!selectedGood || bagCardCount === 0}
               className={`w-full mt-4 p-3 rounded font-bold text-lg transition-colors ${
-                selectedGood
+                selectedGood && bagCardCount > 0
                   ? 'btn-gold'
                   : 'bg-tavern-surface text-gray-500 cursor-not-allowed border border-tavern-border'
               }`}
@@ -95,9 +97,23 @@ export function DeclarationPanel() {
           <div className="text-center space-y-4">
             <h2 className="text-2xl font-display text-gold">Declaration Complete</h2>
             <p className="text-xl">
-              You declared: {localPlayer.sealedBag?.declaredCount} {GOOD_DISPLAY[localPlayer.sealedBag?.declaredGood as GoodType]}
+              You declared: {localPlayer.sealedBag?.declaredCount} {GOOD_DISPLAY[localPlayer.sealedBag?.declaredGood as GoodType] || localPlayer.sealedBag?.declaredGood}
             </p>
             <p className="text-parchment/70 italic mt-4">Waiting for other merchants...</p>
+            <div className="space-y-2 mt-4 text-left">
+              {merchants.map((m) => (
+                <div key={m.id} className="p-3 bg-tavern-surface border border-tavern-border rounded flex justify-between items-center">
+                  <span className="font-bold">{m.name}</span>
+                  <span>
+                    {m.sealedBag?.declaredGood
+                      ? `Declared ${m.sealedBag.declaredCount} ${GOOD_DISPLAY[m.sealedBag.declaredGood as GoodType] || m.sealedBag.declaredGood}`
+                      : m.id === activeMerchantId
+                        ? 'Declaring...'
+                        : 'Waiting'}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         ) : (
           <div className="text-center space-y-4">
