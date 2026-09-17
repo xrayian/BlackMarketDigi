@@ -7,6 +7,10 @@ import { Table } from './components/Table';
 import { TavernLighting } from './components/TavernLighting';
 import { CameraRig } from './components/CameraRig';
 import { TavernEffects } from './components/TavernEffects';
+import { MarketPanel } from '../ui/MarketPanel';
+import { BagLoadingPanel } from '../ui/BagLoadingPanel';
+import { DeclarationPanel } from '../ui/DeclarationPanel';
+import { ErrorToast } from '../ui/ErrorToast';
 
 export function GameScene() {
   const phase = useGameStore((s) => s.phase);
@@ -194,6 +198,12 @@ export function GameScene() {
           </button>
         </div>
       </div>
+
+      {/* Phase 4: Core Loop UI Panels */}
+      <MarketPanel />
+      <BagLoadingPanel />
+      <DeclarationPanel />
+      <ErrorToast />
 
       {/* Local Player Quick Stats Bar at Bottom Center */}
       {localPlayer && (

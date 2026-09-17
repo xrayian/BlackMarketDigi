@@ -72,12 +72,21 @@ interface GameStore {
   winnerId: string | null;
   winningScore: number;
 
+  // Phase 4 UI state
+  selectedCardIds: string[];
+  errorMessage: string | null;
+  errorTimestamp: number;
+
   setPhase: (phase: GamePhase) => void;
   setRoomId: (id: string) => void;
   setLocalPlayerId: (id: string) => void;
   setConnected: (connected: boolean) => void;
   updateGameState: (state: any) => void;
   updatePlayers: (players: Map<string, ClientPlayer>) => void;
+  toggleCardSelection: (cardId: string) => void;
+  clearSelection: () => void;
+  setError: (message: string) => void;
+  clearError: () => void;
   reset: () => void;
 }
 
@@ -96,6 +105,9 @@ const initialState = {
   activeBribe: undefined as ClientBribeOffer | undefined,
   winnerId: null as string | null,
   winningScore: 0,
+  selectedCardIds: [] as string[],
+  errorMessage: null as string | null,
+  errorTimestamp: 0,
 };
 
 function mapCard(c: any): ClientCard {
@@ -198,6 +210,23 @@ export const useGameStore = create<GameStore>((set) => ({
       winnerId: state.winnerId || null,
       winningScore: state.winningScore || 0,
     });
+
+    // Auto-clear card selection when the phase changes
+    const prev = useGameStore.getState();
+    if (prev.phase !== state.phase) {
+      set({ selectedCardIds: [] });
+    }
   },
+  toggleCardSelection: (cardId) =>
+    set((s) => {
+      const idx = s.selectedCardIds.indexOf(cardId);
+      if (idx >= 0) {
+        return { selectedCardIds: s.selectedCardIds.filter((id) => id !== cardId) };
+      }
+      return { selectedCardIds: [...s.selectedCardIds, cardId] };
+    }),
+  clearSelection: () => set({ selectedCardIds: [] }),
+  setError: (message) => set({ errorMessage: message, errorTimestamp: Date.now() }),
+  clearError: () => set({ errorMessage: null }),
   reset: () => set(initialState),
 }));

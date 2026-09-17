@@ -44,6 +44,11 @@ class NetworkManager {
       useGameStore.getState().updateGameState(state);
     });
 
+    // Listen for server-sent validation error messages
+    this.room.onMessage('error', (data: { message: string }) => {
+      useGameStore.getState().setError(data.message);
+    });
+
     this.room.onLeave(() => {
       useGameStore.getState().reset();
     });
