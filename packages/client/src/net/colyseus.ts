@@ -1,5 +1,7 @@
 import { Client, Room } from '@colyseus/sdk';
+import type { InspectionResultMessage } from '@sheriff/shared';
 import { useGameStore } from '../state/gameStore';
+import { soundManager } from '../audio/soundManager';
 
 const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:2567';
 
@@ -47,6 +49,18 @@ class NetworkManager {
     // Listen for server-sent validation error messages
     this.room.onMessage('error', (data: { message: string }) => {
       useGameStore.getState().setError(data.message);
+    });
+
+    // Listen for inspection outcome broadcasts
+    this.room.onMessage('inspection_result', (result: InspectionResultMessage) => {
+      useGameStore.getState().setLastInspectionResult(result);
+      if (result.outcome === 'HONEST') {
+        soundManager.playHonestFanfare();
+      } else if (result.outcome === 'DISHONEST') {
+        soundManager.playDishonestStinger();
+      } else {
+        soundManager.playPassChime();
+      }
     });
 
     this.room.onLeave(() => {

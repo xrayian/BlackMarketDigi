@@ -25,17 +25,17 @@
 - All colors use the custom Tailwind theme (tavern-*, gold-*, parchment, etc.)
 - Font: Cinzel for headings/display, Inter for body text
 
-## Current Phase: Phase 4 Completed (Core Loop UI)
-- **Phase 3 components** (Table, MerchantStand, Card3D, CoinPile, MerchantBag3D, CameraRig, TavernLighting, TavernEffects) remain unchanged.
-- **MarketPanel.tsx**: Sheriff picks starting merchant, active merchant selects 0–5 cards to discard with card selection, confirms exchange, turn advances clockwise. Shows draw/discard pile counts.
-- **BagLoadingPanel.tsx**: Merchants select 1–5 cards from hand, "Snap Bag Shut!" button locks selection via `load_bag` message. Shows snap status for all merchants. Sheriff sees waiting view.
-- **DeclarationPanel.tsx**: Modal overlay with 4 legal good type picker buttons (🍎🧀🍞🐔), auto-counted card count from sealed bag. Sequential declaration per server turn order with live status updates.
-- **CardDisplay.tsx**: Reusable 2D card component with type-colored backgrounds (emerald/amber/orange/yellow for legal, crimson for contraband, purple for royal), emoji icons, card name, value badge, and gold ring selection glow via Framer Motion.
-- **ErrorToast.tsx**: Subscribes to `room.onMessage('error')` via Zustand store. Shows crimson toast with auto-dismiss (5s) and manual close.
-- **GameScene.tsx**: Integrates MarketPanel, BagLoadingPanel, DeclarationPanel, and ErrorToast into the 2D overlay layer above the 3D Canvas.
-- **gameStore.ts**: Extended with `selectedCardIds`, `toggleCardSelection`, `clearSelection`, `errorMessage`, `setError`, `clearError`. Auto-clears selection on phase transitions.
-- **colyseus.ts**: Added `room.onMessage('error')` listener to surface server validation errors.
-- Ready for Phase 5: Inspection & Bribe Negotiation ("The Examination Desk").
+## Current Phase: Phase 5 Completed (Inspection & Bribe Negotiation — "The Examination Desk")
+- **soundManager.ts**: Procedural Web Audio API sound synthesizer providing cancelable 1.2s tension sound ramp (160Hz→620Hz), mechanical snap, metallic coin drop, wooden gavel strike, and outcome chords (honest fanfare, dishonest discord stinger, pass chime).
+- **CameraRig.tsx**: Smooth `useFrame` camera position & target interpolation between Table View `(0, 5.4, 6.8)` and 1-on-1 Examination Desk angle `(0, 3.4, 4.4)` when `activeMerchantId` is set.
+- **BribeScale.tsx**: Interactive balance scale visualizer whose brass beam tilts dynamically using spring physics based on total bribe weight (coins, stand goods, bag claims).
+- **UnsnapClasp.tsx**: Sheriff's 1.2s sustained hold clasp button with ascending audio tension ramp, release cancellation at <1.1s without state mutation, and snap crack at 1.2s. Includes "Pass Unopened" action.
+- **BribeNegotiationPanel.tsx**: Bribe proposal builder with gold sliders, stand cards selection, promised goods, and 1.5s reaction buffer lock on modified offers.
+- **InspectionOutcomeModal.tsx**: Visual feedback modal for Pass Unopened, Honest, and Dishonest outcomes, plus guided 4-step debt liquidation display (cash → stand legal → stand contraband → wipe).
+- **ExaminationDesk.tsx**: Master Examination Desk orchestrator connecting merchant selection, scale, negotiation, and inspection actions.
+- **colyseus.ts**: Added `inspection_result` listener with audio cues.
+- **gameStore.ts**: Added `lastInspectionResult`, `bribeReactionCooldown`, and 1.5s cooldown timer.
+- Ready for Phase 6: Expansion Modules (Royal Goods, 6-Player Deputies, Black Market).
 
 ## Gotchas & Decisions
 - **Angular Seating Formula**: `angle = ((player.seatIndex - localSeatIndex) / totalSeats) * Math.PI * 2 - Math.PI / 2` ensures the local player is always in the foreground facing the center, while other players arrange clockwise.

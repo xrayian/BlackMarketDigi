@@ -11,6 +11,8 @@ import { MarketPanel } from '../ui/MarketPanel';
 import { BagLoadingPanel } from '../ui/BagLoadingPanel';
 import { DeclarationPanel } from '../ui/DeclarationPanel';
 import { ErrorToast } from '../ui/ErrorToast';
+import { ExaminationDesk } from '../ui/ExaminationDesk';
+import { InspectionOutcomeModal } from '../ui/InspectionOutcomeModal';
 
 export function GameScene() {
   const phase = useGameStore((s) => s.phase);
@@ -204,6 +206,10 @@ export function GameScene() {
       <BagLoadingPanel />
       <DeclarationPanel />
       <ErrorToast />
+
+      {/* Phase 5: Examination Desk & Inspection Outcomes */}
+      <ExaminationDesk />
+      <InspectionOutcomeModal />
 
       {/* Local Player Quick Stats Bar at Bottom Center */}
       {localPlayer && (

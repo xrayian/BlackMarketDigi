@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { GamePhase } from '@sheriff/shared';
+import type { GamePhase, InspectionResultMessage } from '@sheriff/shared';
 
 export interface ClientCard {
   id: string;
@@ -77,6 +77,10 @@ interface GameStore {
   errorMessage: string | null;
   errorTimestamp: number;
 
+  // Phase 5 Inspection & Bribe state
+  lastInspectionResult: InspectionResultMessage | null;
+  bribeReactionCooldown: boolean;
+
   setPhase: (phase: GamePhase) => void;
   setRoomId: (id: string) => void;
   setLocalPlayerId: (id: string) => void;
@@ -87,6 +91,8 @@ interface GameStore {
   clearSelection: () => void;
   setError: (message: string) => void;
   clearError: () => void;
+  setLastInspectionResult: (result: InspectionResultMessage | null) => void;
+  setBribeReactionCooldown: (cooldown: boolean) => void;
   reset: () => void;
 }
 
@@ -108,6 +114,8 @@ const initialState = {
   selectedCardIds: [] as string[],
   errorMessage: null as string | null,
   errorTimestamp: 0,
+  lastInspectionResult: null as InspectionResultMessage | null,
+  bribeReactionCooldown: false,
 };
 
 function mapCard(c: any): ClientCard {
@@ -211,10 +219,22 @@ export const useGameStore = create<GameStore>((set) => ({
       winningScore: state.winningScore || 0,
     });
 
-    // Auto-clear card selection when the phase changes
     const prev = useGameStore.getState();
+    // Auto-clear card selection when the phase changes
     if (prev.phase !== state.phase) {
       set({ selectedCardIds: [] });
+    }
+
+    // Trigger 1.5s reaction buffer lock if active bribe offer terms updated (docs/architecture.md §6.2)
+    if (
+      activeBribe &&
+      prev.activeBribe &&
+      activeBribe.sequenceNumber !== prev.activeBribe.sequenceNumber
+    ) {
+      set({ bribeReactionCooldown: true });
+      setTimeout(() => {
+        set({ bribeReactionCooldown: false });
+      }, 1500);
     }
   },
   toggleCardSelection: (cardId) =>
@@ -228,5 +248,7 @@ export const useGameStore = create<GameStore>((set) => ({
   clearSelection: () => set({ selectedCardIds: [] }),
   setError: (message) => set({ errorMessage: message, errorTimestamp: Date.now() }),
   clearError: () => set({ errorMessage: null }),
+  setLastInspectionResult: (result) => set({ lastInspectionResult: result }),
+  setBribeReactionCooldown: (cooldown) => set({ bribeReactionCooldown: cooldown }),
   reset: () => set(initialState),
 }));

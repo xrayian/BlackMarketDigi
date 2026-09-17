@@ -12,6 +12,7 @@ import {
   BribeOfferMessage,
   BribeResponseMessage,
   SelectStartPlayerMessage,
+  SelectInspectMerchantMessage,
 } from '@sheriff/shared';
 import {
   GameState,
@@ -409,6 +410,14 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
         this.executeInspect(targetMerchantId);
       }
     });
+
+    // 9. Select Merchant to Examine (Sheriff sets active merchant for 1-on-1 inspection desk view)
+    this.onMessage('select_inspect_merchant', (client, message: SelectInspectMerchantMessage) => {
+      if (this.state.phase !== 'INSPECTION') return;
+      if (client.sessionId !== this.state.sheriffId) return;
+      if (this.inspectedMerchantIds.has(message.targetPlayerId)) return;
+      this.state.activeMerchantId = message.targetPlayerId;
+    });
   }
 
   private startGame() {
@@ -530,6 +539,26 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
     this.revealBagToAll(merchant.sealedBag!);
     this.inspectedMerchantIds.add(merchantId);
 
+    if (this.state.activeMerchantId === merchantId) {
+      this.state.activeMerchantId = '';
+    }
+
+    this.broadcast('inspection_result', {
+      outcome: 'PASS',
+      targetPlayerId: merchantId,
+      targetPlayerName: merchant.name,
+      sheriffId: sheriff.id,
+      sheriffName: sheriff.name,
+      declaredGood: merchant.sealedBag?.declaredGood || '',
+      declaredCount: merchant.sealedBag?.declaredCount || 0,
+      penaltyAmount: 0,
+      keptCardsCount: result.merchantKeptLegalCards.length + result.merchantKeptContrabandCards.length,
+      confiscatedCardsCount: 0,
+      debtSettled: true,
+      debtPaidGold: result.merchantPaidGold,
+      debtForgiven: 0,
+    });
+
     this.checkInspectionCompletion();
   }
 
@@ -542,6 +571,11 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
 
     const result = resolveInspection(bagCards, declaredGood, declaredCount);
     this.revealBagToAll(merchant.sealedBag!);
+
+    let debtPaidGold = 0;
+    let debtForgiven = 0;
+    let liquidatedLegal = 0;
+    let liquidatedContraband = 0;
 
     if (result.isHonest) {
       // Merchant kept all cards
@@ -568,6 +602,10 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
 
       sheriff.gold = debtRes.debtor.gold;
       merchant.gold = debtRes.creditor.gold;
+      debtPaidGold = debtRes.paidGold;
+      debtForgiven = debtRes.forgivenDebt;
+      liquidatedLegal = debtRes.transferredLegalCards.length;
+      liquidatedContraband = debtRes.transferredContrabandCards.length;
     } else {
       // Dishonest: Merchant keeps only truthful legal cards
       for (const card of result.merchantKeptCards) {
@@ -599,9 +637,36 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
 
       merchant.gold = debtRes.debtor.gold;
       sheriff.gold = debtRes.creditor.gold;
+      debtPaidGold = debtRes.paidGold;
+      debtForgiven = debtRes.forgivenDebt;
+      liquidatedLegal = debtRes.transferredLegalCards.length;
+      liquidatedContraband = debtRes.transferredContrabandCards.length;
     }
 
     this.inspectedMerchantIds.add(merchantId);
+
+    if (this.state.activeMerchantId === merchantId) {
+      this.state.activeMerchantId = '';
+    }
+
+    this.broadcast('inspection_result', {
+      outcome: result.isHonest ? 'HONEST' : 'DISHONEST',
+      targetPlayerId: merchantId,
+      targetPlayerName: merchant.name,
+      sheriffId: sheriff.id,
+      sheriffName: sheriff.name,
+      declaredGood: declaredGood,
+      declaredCount: declaredCount,
+      penaltyAmount: result.penaltyAmount,
+      keptCardsCount: result.merchantKeptCards.length,
+      confiscatedCardsCount: result.confiscatedCards.length,
+      debtSettled: true,
+      debtPaidGold,
+      debtForgiven,
+      liquidatedLegalCount: liquidatedLegal,
+      liquidatedContrabandCount: liquidatedContraband,
+    });
+
     this.checkInspectionCompletion();
   }
 

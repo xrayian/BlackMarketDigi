@@ -45,3 +45,25 @@ export interface BribeResponseMessage {
 export interface SelectStartPlayerMessage {
   playerId: string;
 }
+
+export interface SelectInspectMerchantMessage {
+  targetPlayerId: string;
+}
+
+export interface InspectionResultMessage {
+  outcome: 'PASS' | 'HONEST' | 'DISHONEST';
+  targetPlayerId: string;
+  targetPlayerName: string;
+  sheriffId: string;
+  sheriffName: string;
+  declaredGood: string;
+  declaredCount: number;
+  penaltyAmount: number;
+  keptCardsCount: number;
+  confiscatedCardsCount: number;
+  debtSettled: boolean;
+  debtPaidGold: number;
+  debtForgiven: number;
+  liquidatedLegalCount?: number;
+  liquidatedContrabandCount?: number;
+}
