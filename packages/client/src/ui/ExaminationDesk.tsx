@@ -54,6 +54,10 @@ export function ExaminationDesk() {
     network.send('negotiation_decline', { offerId });
   };
 
+  const handleWithdrawOffer = (offerId: string) => {
+    network.send('negotiation_withdraw', { offerId });
+  };
+
   if (isDeskMinimized) {
     return (
       <motion.div
@@ -146,8 +150,9 @@ export function ExaminationDesk() {
           className="relative w-full max-w-5xl lg:w-[70vw] max-h-[90vh] bg-walnut-bg/95 border-2 border-gold/70 rounded-3xl p-4 md:p-6 text-parchment select-none overflow-y-auto shadow-[0_20px_60px_rgba(0,0,0,0.85)] backdrop-blur-md pointer-events-auto flex flex-col justify-between gap-3"
         >
           {/* Top Header Bar */}
-          <div className="flex items-center justify-between border-b border-gold/40 pb-3 shrink-0">
-            <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex flex-col gap-2.5 border-b border-gold/40 pb-3 shrink-0">
+            {/* Row 1: Title, View Table, Authority Badge */}
+            <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="flex items-center gap-2">
                 <span className="text-2xl">⚖️</span>
                 <span className="font-display font-black text-gold text-lg md:text-xl tracking-wider uppercase">
@@ -156,7 +161,7 @@ export function ExaminationDesk() {
                 <button
                   type="button"
                   onClick={() => setIsDeskMinimized(true)}
-                  className="ml-2 flex items-center gap-1 px-2.5 py-1 rounded-xl bg-walnut-card hover:bg-gold/20 border border-gold/40 text-gold text-xs font-display font-bold transition-all shadow-sm cursor-pointer"
+                  className="h-7 px-2.5 rounded-lg bg-walnut-card hover:bg-gold/20 border border-gold/40 text-gold text-xs font-display font-bold transition-all shadow-sm cursor-pointer inline-flex items-center gap-1"
                   title="Minimize Examination Desk to inspect the Table"
                 >
                   <span>👁️</span>
@@ -164,77 +169,91 @@ export function ExaminationDesk() {
                 </button>
               </div>
 
-              {enableDeputies ? (
               <div className="flex items-center gap-2">
-                <span className="text-xs bg-walnut-card px-2.5 py-1 rounded-lg border border-gold/30 font-display">
-                  🛡️ Deputies:{' '}
-                  <span className="font-bold text-white">
-                    {deputyPlayers.map((d) => d.name).join(' & ')}
-                  </span>
-                </span>
-                {bootyTile && (
-                  <span className="flex items-center gap-1.5 bg-walnut-card px-2.5 py-1 rounded-lg border border-gold/40 text-xs text-gold font-display font-bold">
-                    <span>💰 Communal Booty:</span>
-                    <span className="text-white">{bootyTile.gold}g</span>
-                    {bootyTile.goodsCount > 0 && <span>({bootyTile.goodsCount} goods)</span>}
+                {enableDeputies ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs bg-walnut-card px-2.5 py-1 rounded-lg border border-gold/30 font-display">
+                      🛡️ Deputies:{' '}
+                      <span className="font-bold text-white">
+                        {deputyPlayers.map((d) => d.name).join(' & ')}
+                      </span>
+                    </span>
+                    {bootyTile && (
+                      <span className="flex items-center gap-1.5 bg-walnut-card px-2.5 py-1 rounded-lg border border-gold/40 text-xs text-gold font-display font-bold">
+                        <span>💰 Communal Booty:</span>
+                        <span className="text-white">{bootyTile.gold}g</span>
+                        {bootyTile.goodsCount > 0 && <span>({bootyTile.goodsCount} goods)</span>}
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <span className="text-xs bg-walnut-card px-2.5 py-1 rounded-lg border border-gold/30 font-display">
+                    ⭐ Sheriff: <span className="font-bold text-white">{sheriffPlayer.name}</span>
                   </span>
                 )}
               </div>
-            ) : (
-              <span className="text-xs bg-walnut-card px-2.5 py-1 rounded-lg border border-gold/30 font-display">
-                ⭐ Sheriff: <span className="font-bold text-white">{sheriffPlayer.name}</span>
-              </span>
-            )}
-          </div>
+            </div>
 
-          {activeMerchant && (
-            <div className="flex items-center gap-2 bg-walnut-card px-3 py-1.5 rounded-xl border border-gold/40 text-xs font-display">
-              <span className="text-gold-muted uppercase tracking-wider">Interrogating:</span>
-              <span className="font-bold text-white">{activeMerchant.name}</span>
-              {declaredGoodToken && (
-                <span className="flex items-center gap-1 text-gold ml-1">
-                  <span>(Declared {activeMerchant.sealedBag?.declaredCount}</span>
-                  <span>{declaredGoodToken.icon}</span>
-                  <span>{declaredGoodToken.name})</span>
-                </span>
+            {/* Row 2: Active Interrogating Banner & Merchant Selection Queue */}
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              {activeMerchant && (
+                <div className="flex items-center gap-2 bg-walnut-card px-3 py-1 rounded-xl border border-gold/40 text-xs font-display">
+                  <span className="text-gold-muted uppercase tracking-wider">Interrogating:</span>
+                  <span className="font-bold text-white">{activeMerchant.name}</span>
+                  {declaredGoodToken && (
+                    <span className="flex items-center gap-1 text-gold ml-1">
+                      <span>(Declared {activeMerchant.sealedBag?.declaredCount}</span>
+                      <span>{declaredGoodToken.icon}</span>
+                      <span>{declaredGoodToken.name})</span>
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {canInspect && uninspectedMerchants.length > 0 && (
+                <div className="flex items-center gap-1.5 overflow-x-auto py-1 px-2.5 bg-walnut-bg/90 border border-gold/40 rounded-xl max-w-full">
+                  <span className="text-[10px] font-display uppercase tracking-widest text-gold-muted whitespace-nowrap">
+                    Merchants:
+                  </span>
+                  {uninspectedMerchants.map((m) => {
+                    const feedOffer = negotiationFeed.find(
+                      (o) => o.targetBagOwnerId === m.id && o.status === 'OPEN'
+                    );
+                    const legacyOffer = bribeOffers.find(
+                      (b) => b.fromPlayerId === m.id || b.toPlayerId === m.id
+                    );
+                    const offerGold = feedOffer ? feedOffer.goldOffered : legacyOffer?.gold;
+                    const isSelected = activeMerchant?.id === m.id;
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => handleSelectMerchant(m.id)}
+                        className={`h-7 px-2.5 rounded-lg text-xs font-display inline-flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap border ${
+                          isSelected
+                            ? 'bg-gold text-walnut-bg border-gold font-bold shadow-md'
+                            : 'bg-walnut-card text-parchment hover:bg-gold/10 border-tavern-border'
+                        }`}
+                      >
+                        <span>💼 {m.name}</span>
+                        {offerGold !== undefined ? (
+                          <span
+                            className={`px-1.5 py-0.2 rounded font-bold text-[10px] ${
+                              isSelected ? 'bg-walnut-bg text-gold' : 'bg-gold/20 text-gold-light'
+                            }`}
+                          >
+                            🪙 {offerGold}g
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-parchment/40 italic">no bribe</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               )}
             </div>
-          )}
-
-          {/* Authority Queue: Switch between merchants & see all bribe offers in real time */}
-          {canInspect && uninspectedMerchants.length > 0 && (
-            <div className="flex items-center gap-2 overflow-x-auto py-1 px-3 bg-walnut-bg/90 border border-gold/40 rounded-2xl max-w-full">
-              <span className="text-[10px] font-display uppercase tracking-widest text-gold-muted whitespace-nowrap">
-                Merchants:
-              </span>
-              {uninspectedMerchants.map((m) => {
-                const offer = bribeOffers.find((b) => b.fromPlayerId === m.id || b.toPlayerId === m.id);
-                const isSelected = activeMerchant?.id === m.id;
-                return (
-                  <button
-                    key={m.id}
-                    type="button"
-                    onClick={() => handleSelectMerchant(m.id)}
-                    className={`px-3 py-1 rounded-xl text-xs font-display flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap border ${
-                      isSelected
-                        ? 'bg-gold text-walnut-bg border-gold font-bold shadow-md'
-                        : 'bg-walnut-card text-parchment hover:bg-gold/10 border-tavern-border'
-                    }`}
-                  >
-                    <span>💼 {m.name}</span>
-                    {offer ? (
-                      <span className={`px-1.5 py-0.5 rounded font-bold text-[10px] ${isSelected ? 'bg-walnut-bg text-gold' : 'bg-gold/20 text-gold-light'}`}>
-                        🪙 {offer.gold}g
-                      </span>
-                    ) : (
-                      <span className="text-[10px] text-parchment/40 italic">no bribe</span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
+          </div>
 
         {/* State 1: No Merchant Selected Yet */}
         {!activeMerchant ? (
@@ -255,7 +274,13 @@ export function ExaminationDesk() {
 
                 <div className="flex flex-wrap justify-center gap-3 mt-2 w-full">
                   {uninspectedMerchants.map((m) => {
-                    const offer = bribeOffers.find((b) => b.fromPlayerId === m.id || b.toPlayerId === m.id);
+                    const feedOffer = negotiationFeed.find(
+                      (o) => o.targetBagOwnerId === m.id && o.status === 'OPEN'
+                    );
+                    const legacyOffer = bribeOffers.find(
+                      (b) => b.fromPlayerId === m.id || b.toPlayerId === m.id
+                    );
+                    const offerGold = feedOffer ? feedOffer.goldOffered : legacyOffer?.gold;
                     return (
                       <motion.button
                         key={m.id}
@@ -270,9 +295,9 @@ export function ExaminationDesk() {
                         <span className="text-xs text-parchment/70 font-normal">
                           ({m.sealedBag?.declaredCount} {m.sealedBag?.declaredGood})
                         </span>
-                        {offer && (
+                        {offerGold !== undefined && (
                           <span className="px-2 py-0.5 rounded-full bg-gold/20 text-gold text-xs font-bold border border-gold/40">
-                            🪙 {offer.gold}g Offered
+                            🪙 {offerGold}g Offered
                           </span>
                         )}
                       </motion.button>
@@ -435,28 +460,39 @@ export function ExaminationDesk() {
                             </div>
                           </div>
 
-                          {isAuthority && (
-                            <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                          <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                            {isAuthority && offer.fromPlayerId !== localPlayerId && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeclineOffer(offer.id)}
+                                  className="h-8 px-2.5 rounded-lg bg-tavern-surface hover:bg-tavern-card text-parchment/80 border border-tavern-border text-[11px] font-bold transition-all cursor-pointer inline-flex items-center justify-center"
+                                >
+                                  Decline
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleAcceptOffer(offer)}
+                                  className={`h-8 px-3 rounded-lg font-black text-[11px] uppercase tracking-wider transition-all border shadow-md cursor-pointer inline-flex items-center justify-center gap-1 ${
+                                    isRivalInspect
+                                      ? 'bg-crimson hover:bg-crimson-light text-white border-red-400'
+                                      : 'bg-emerald-700 hover:bg-emerald-600 text-white border-emerald-400'
+                                  }`}
+                                >
+                                  {isRivalInspect ? '🔨 Accept & Inspect' : '🛡️ Accept & Pass'}
+                                </button>
+                              </>
+                            )}
+                            {offer.fromPlayerId === localPlayerId && (
                               <button
                                 type="button"
-                                onClick={() => handleDeclineOffer(offer.id)}
-                                className="px-2.5 py-1 rounded-lg bg-tavern-surface hover:bg-tavern-card text-parchment/80 border border-tavern-border text-[11px] font-bold transition-all cursor-pointer"
+                                onClick={() => handleWithdrawOffer(offer.id)}
+                                className="h-8 px-2.5 rounded-lg bg-tavern-surface hover:bg-tavern-card text-parchment/60 hover:text-white border border-tavern-border text-[11px] font-bold transition-all cursor-pointer inline-flex items-center justify-center"
                               >
-                                Decline
+                                Withdraw
                               </button>
-                              <button
-                                type="button"
-                                onClick={() => handleAcceptOffer(offer)}
-                                className={`px-3 py-1 rounded-lg font-black text-[11px] uppercase tracking-wider transition-all border shadow-md cursor-pointer ${
-                                  isRivalInspect
-                                    ? 'bg-crimson hover:bg-crimson-light text-white border-red-400'
-                                    : 'bg-emerald-700 hover:bg-emerald-600 text-white border-emerald-400'
-                                }`}
-                              >
-                                {isRivalInspect ? '🔨 Accept & Inspect' : '🛡️ Accept & Pass'}
-                              </button>
-                            </div>
-                          )}
+                            )}
+                          </div>
                         </div>
                       );
                     })}
@@ -543,7 +579,7 @@ export function ExaminationDesk() {
                         <button
                           type="button"
                           onClick={() => handleInspect(activeMerchant.id)}
-                          className="w-full max-w-md py-3 px-6 rounded-2xl bg-crimson hover:bg-crimson-light text-white font-display font-black text-sm uppercase tracking-wider border-2 border-red-400 shadow-xl cursor-pointer flex items-center justify-center gap-2 transition-transform active:scale-95"
+                          className="w-full max-w-md h-12 py-3 px-6 rounded-2xl bg-crimson hover:bg-crimson-light text-white font-display font-black text-sm uppercase tracking-wider border-2 border-red-400 shadow-xl cursor-pointer inline-flex items-center justify-center gap-2 transition-transform active:scale-95"
                         >
                           <span>🔨</span>
                           <span>Execute Inspection (Check {activeMerchant.name}&apos;s Pot)</span>
@@ -552,7 +588,7 @@ export function ExaminationDesk() {
                         <button
                           type="button"
                           onClick={() => handlePass(activeMerchant.id)}
-                          className="w-full max-w-md py-3 px-6 rounded-2xl bg-emerald-700 hover:bg-emerald-600 text-white font-display font-black text-sm uppercase tracking-wider border-2 border-emerald-400 shadow-xl cursor-pointer flex items-center justify-center gap-2 transition-transform active:scale-95"
+                          className="w-full max-w-md h-12 py-3 px-6 rounded-2xl bg-emerald-700 hover:bg-emerald-600 text-white font-display font-black text-sm uppercase tracking-wider border-2 border-emerald-400 shadow-xl cursor-pointer inline-flex items-center justify-center gap-2 transition-transform active:scale-95"
                         >
                           <span>🛡️</span>
                           <span>Execute Safe Passage (Wave Goods Through)</span>
@@ -563,7 +599,7 @@ export function ExaminationDesk() {
                       </span>
                     </div>
                   ) : (
-                    <div className="w-full flex justify-center">
+                    <div className="w-full flex justify-center pb-6">
                       <UnsnapClasp
                         onInspect={() => handleInspect(activeMerchant.id)}
                         onPass={() => handlePass(activeMerchant.id)}

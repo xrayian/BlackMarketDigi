@@ -105,7 +105,7 @@ export function GameScene() {
           <button
             type="button"
             onClick={() => openRulebook()}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-tavern-bg/95 border border-gold/40 text-gold hover:text-white hover:border-gold transition-colors font-display text-xs tracking-wider uppercase backdrop-blur-md shadow-lg cursor-pointer"
+            className="h-8 px-3 rounded-lg bg-tavern-bg/95 border border-gold/40 text-gold hover:text-white hover:border-gold transition-colors font-display text-xs tracking-wider uppercase backdrop-blur-md shadow-lg cursor-pointer inline-flex items-center justify-center gap-1.5"
             title="Open Nottingham Codex & Rulebook (?)"
           >
             <span>📖</span>
@@ -114,7 +114,7 @@ export function GameScene() {
           <button
             type="button"
             onClick={toggleFullscreen}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-tavern-bg/95 border border-tavern-border text-gold-muted hover:text-gold hover:border-gold/60 transition-colors font-display text-xs tracking-wider uppercase backdrop-blur-md shadow-lg cursor-pointer"
+            className="h-8 px-3 rounded-lg bg-tavern-bg/95 border border-tavern-border text-gold-muted hover:text-gold hover:border-gold/60 transition-colors font-display text-xs tracking-wider uppercase backdrop-blur-md shadow-lg cursor-pointer inline-flex items-center justify-center gap-1.5"
             title={isFullscreen ? 'Exit Immersive Fullscreen Mode' : 'Enter Immersive Fullscreen Mode'}
           >
             <span className="text-sm">{isFullscreen ? '🗗' : '⛶'}</span>
@@ -123,7 +123,7 @@ export function GameScene() {
           <button
             type="button"
             onClick={() => setIsSettingsOpen(true)}
-            className="px-2.5 py-1.5 rounded-lg bg-tavern-bg/85 border border-tavern-border text-gold-muted hover:text-gold hover:border-gold/60 transition-colors font-display text-sm tracking-wider uppercase backdrop-blur-md shadow-lg cursor-pointer"
+            className="h-8 w-8 rounded-lg bg-tavern-bg/85 border border-tavern-border text-gold-muted hover:text-gold hover:border-gold/60 transition-colors font-display text-sm tracking-wider uppercase backdrop-blur-md shadow-lg cursor-pointer inline-flex items-center justify-center"
             title="Game & Accessibility Settings"
           >
             ⚙️
@@ -131,7 +131,7 @@ export function GameScene() {
           <button
             type="button"
             onClick={() => network.leave()}
-            className="px-3 py-1.5 rounded-lg bg-tavern-bg/85 border border-tavern-border text-gold-muted hover:text-crimson hover:border-crimson/60 transition-colors font-display text-xs tracking-wider uppercase backdrop-blur-md shadow-lg cursor-pointer"
+            className="h-8 px-3 rounded-lg bg-tavern-bg/85 border border-tavern-border text-gold-muted hover:text-crimson hover:border-crimson/60 transition-colors font-display text-xs tracking-wider uppercase backdrop-blur-md shadow-lg cursor-pointer inline-flex items-center justify-center"
           >
             Leave
           </button>

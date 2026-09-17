@@ -748,9 +748,10 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
     // Backward-compatible bribe_propose wrapper
     this.onMessage('bribe_propose', (client, message: BribeOfferMessage) => {
       const isSheriff = client.sessionId === this.state.sheriffId;
-      const targetBagOwnerId = isSheriff
-        ? this.state.activeMerchantId
-        : client.sessionId;
+      const targetBagOwnerId =
+        (message as any).targetBagOwnerId ||
+        this.state.activeMerchantId ||
+        client.sessionId;
 
       if (!targetBagOwnerId) {
         client.send('error', { message: 'Must select an active merchant before proposing terms' });
@@ -836,9 +837,9 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
       });
 
       this.state.activeBribe = bribeState;
-      const merchantKey = isSheriff ? targetBagOwnerId : client.sessionId;
+      const merchantKey = targetBagOwnerId;
       const existingIdx = this.state.bribeOffers.findIndex(
-        (b) => b.fromPlayerId === merchantKey || b.toPlayerId === merchantKey
+        (b) => b.fromPlayerId === merchantKey || b.toPlayerId === merchantKey || b.id === bribeState.id
       );
       if (existingIdx !== -1) {
         this.state.bribeOffers[existingIdx] = bribeState;
@@ -886,20 +887,27 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
       }
 
       const isSheriffOffer = this.state.activeBribe.fromPlayerId === this.state.sheriffId;
-      const merchantId = isSheriffOffer
-        ? (this.state.activeBribe.toPlayerId || this.state.activeMerchantId)
-        : this.state.activeBribe.fromPlayerId;
+      const merchantId =
+        feedOffer?.targetBagOwnerId ||
+        this.state.activeMerchantId ||
+        (isSheriffOffer
+          ? (this.state.activeBribe.toPlayerId || this.state.activeMerchantId)
+          : this.state.activeBribe.fromPlayerId);
 
       if (!merchantId || !this.state.players.has(merchantId)) {
         client.send('error', { message: 'Target merchant not found' });
         return;
       }
 
-      this.executePassUnopened(merchantId, {
-        gold: this.state.activeBribe.gold,
-        standCardIds: [...this.state.activeBribe.standCardIds],
-        bagGoodsClaims: this.state.activeBribe.bagCardClaims.map((str) => JSON.parse(str)),
-      });
+      if (feedOffer?.intendedOutcome === 'FORCE_INSPECT') {
+        this.executeInspect(merchantId);
+      } else {
+        this.executePassUnopened(merchantId, {
+          gold: this.state.activeBribe.gold,
+          standCardIds: [...this.state.activeBribe.standCardIds],
+          bagGoodsClaims: this.state.activeBribe.bagCardClaims.map((str) => JSON.parse(str)),
+        });
+      }
     });
 
     // 8. Inspection Action (Sheriff or Deputy: PASS or INSPECT)

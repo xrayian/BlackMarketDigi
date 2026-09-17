@@ -31,6 +31,8 @@ export interface InspectionAction {
 }
 
 export interface BribeOfferMessage {
+  targetBagOwnerId?: string;
+  intendedOutcome?: 'PASS' | 'INSPECT';
   gold: number;
   standCardIds: string[];
   bagCardClaims: { goodType: GoodType | ContrabandType; count: number }[];

@@ -468,7 +468,7 @@ export function Lobby() {
         <button
           type="button"
           onClick={() => store.openRulebook()}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-tavern-surface/90 border border-gold/40 hover:border-gold text-gold hover:text-white transition-colors shadow-lg font-display text-xs tracking-wider uppercase cursor-pointer"
+          className="h-9 px-3 rounded-xl bg-tavern-surface/90 border border-gold/40 hover:border-gold text-gold hover:text-white transition-colors shadow-lg font-display text-xs tracking-wider uppercase cursor-pointer inline-flex items-center justify-center gap-1.5"
           title="Open Nottingham Codex & Rulebook (?)"
         >
           <span>📖</span>
@@ -478,7 +478,7 @@ export function Lobby() {
         <button
           type="button"
           onClick={() => store.toggleFullscreen()}
-          className="p-2.5 rounded-xl bg-tavern-surface/90 border border-tavern-border hover:border-gold/60 text-gold-muted hover:text-gold transition-colors shadow-lg cursor-pointer"
+          className="h-9 w-9 rounded-xl bg-tavern-surface/90 border border-tavern-border hover:border-gold/60 text-gold-muted hover:text-gold transition-colors shadow-lg cursor-pointer inline-flex items-center justify-center"
           title={store.isFullscreen ? 'Exit Immersive Fullscreen Mode' : 'Enter Immersive Fullscreen Mode'}
         >
           <span className="text-sm">{store.isFullscreen ? '🗗' : '⛶'}</span>
@@ -487,7 +487,7 @@ export function Lobby() {
         <button
           type="button"
           onClick={() => setIsSettingsOpen(true)}
-          className="p-2.5 rounded-xl bg-tavern-surface/90 border border-tavern-border hover:border-gold/60 text-gold-muted hover:text-gold transition-colors shadow-lg cursor-pointer"
+          className="h-9 w-9 rounded-xl bg-tavern-surface/90 border border-tavern-border hover:border-gold/60 text-gold-muted hover:text-gold transition-colors shadow-lg cursor-pointer inline-flex items-center justify-center"
           title="Game & Accessibility Settings"
         >
           ⚙️

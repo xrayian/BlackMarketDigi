@@ -12,11 +12,16 @@ interface BribeNegotiationPanelProps {
 
 export function BribeNegotiationPanel({ sheriff, merchant }: BribeNegotiationPanelProps) {
   const localPlayerId = useGameStore((s) => s.localPlayerId);
+  const playersMap = useGameStore((s) => s.players);
   const activeBribe = useGameStore((s) => s.activeBribe);
   const bribeReactionCooldown = useGameStore((s) => s.bribeReactionCooldown);
+  const negotiationFeed = useGameStore((s) => s.negotiationFeed);
+  const negotiationSequence = useGameStore((s) => s.negotiationSequence);
+  const openOfferModal = useGameStore((s) => s.openOfferModal);
 
   const isLocalSheriff = localPlayerId === sheriff.id;
   const isLocalMerchant = localPlayerId === merchant.id;
+  const localPlayer = playersMap.get(localPlayerId || '');
 
   // Proposal builder local state
   const [offerGold, setOfferGold] = useState<number>(0);
@@ -24,9 +29,18 @@ export function BribeNegotiationPanel({ sheriff, merchant }: BribeNegotiationPan
   const [bagClaims, setBagClaims] = useState<string[]>([]);
   const [nonBindingTerms, setNonBindingTerms] = useState<string>('');
   const [isComposing, setIsComposing] = useState(false);
+  const [intendedOutcome, setIntendedOutcome] = useState<'PASS' | 'INSPECT'>(
+    isLocalMerchant ? 'PASS' : 'INSPECT'
+  );
 
-  const maxGold = merchant.gold;
-  const availableStandCards: ClientCard[] = merchant.standLegal;
+  // Use the local player's own actual resources (never the examined merchant's!)
+  const maxGold = localPlayer ? localPlayer.gold : 0;
+  const availableStandCards: ClientCard[] = localPlayer ? localPlayer.standLegal : [];
+
+  // Check if this merchant already has open offers displayed in the parent ExaminationDesk
+  const hasOpenOffersInFeed = negotiationFeed.some(
+    (o) => o.targetBagOwnerId === merchant.id && o.status === 'OPEN'
+  );
 
   const handleToggleStandCard = (cardId: string) => {
     setSelectedStandCardIds((prev) =>
@@ -35,11 +49,14 @@ export function BribeNegotiationPanel({ sheriff, merchant }: BribeNegotiationPan
   };
 
   const handleSendBribe = () => {
-    network.send('bribe_propose', {
-      gold: offerGold,
-      standCardIds: selectedStandCardIds,
-      bagCardClaims: bagClaims.map((claim) => ({ goodType: claim, count: 1 })),
-      nonBindingTerms: nonBindingTerms.trim(),
+    const isTargetOwnBag = merchant.id === localPlayerId;
+    network.send('negotiation_propose', {
+      targetBagOwnerId: merchant.id,
+      intendedOutcome: isTargetOwnBag ? 'PASS' : intendedOutcome,
+      goldOffered: Math.min(maxGold, Math.max(0, offerGold)),
+      standLegalGoodsOffered: selectedStandCardIds,
+      bagGoodsCountOffered: isTargetOwnBag ? bagClaims.length : 0,
+      futureFavorText: nonBindingTerms.trim(),
     });
     soundManager.playCoin();
     setIsComposing(false);
@@ -47,38 +64,73 @@ export function BribeNegotiationPanel({ sheriff, merchant }: BribeNegotiationPan
 
   const handleAcceptBribe = () => {
     if (!activeBribe || bribeReactionCooldown) return;
-    network.send('bribe_respond', {
-      accept: true,
-      sequenceNumber: activeBribe.sequenceNumber,
-    });
+    const feedOffer = negotiationFeed.find((o) => o.id === activeBribe.id && o.status === 'OPEN');
+    if (feedOffer) {
+      network.send('negotiation_accept', {
+        offerId: feedOffer.id,
+        expectedSequence: negotiationSequence,
+      });
+    } else {
+      network.send('bribe_respond', {
+        accept: true,
+        sequenceNumber: activeBribe.sequenceNumber,
+      });
+    }
   };
 
   const handleRejectBribe = () => {
     if (!activeBribe) return;
-    network.send('bribe_respond', {
-      accept: false,
-      sequenceNumber: activeBribe.sequenceNumber,
-    });
+    const feedOffer = negotiationFeed.find((o) => o.id === activeBribe.id && o.status === 'OPEN');
+    if (feedOffer) {
+      network.send('negotiation_decline', {
+        offerId: feedOffer.id,
+      });
+    } else {
+      network.send('bribe_respond', {
+        accept: false,
+        sequenceNumber: activeBribe.sequenceNumber,
+      });
+    }
   };
 
+  // Identify true proposer and recipient names dynamically from playersMap
+  const fromPlayer = activeBribe ? playersMap.get(activeBribe.fromPlayerId) : null;
+  const fromName = fromPlayer
+    ? fromPlayer.name
+    : activeBribe?.fromPlayerId === sheriff.id
+    ? sheriff.name
+    : merchant.name;
+
+  const toPlayer = activeBribe ? playersMap.get(activeBribe.toPlayerId) : null;
+  const toName = toPlayer
+    ? toPlayer.name
+    : activeBribe?.toPlayerId === sheriff.id
+    ? sheriff.name
+    : merchant.name;
+
+  const canRespond =
+    activeBribe &&
+    (activeBribe.toPlayerId === localPlayerId ||
+      (isLocalSheriff && (activeBribe.toPlayerId === sheriff.id || !activeBribe.toPlayerId)));
+
   return (
-    <div className="flex flex-col gap-3 bg-tavern-surface/90 border border-tavern-border rounded-xl p-4 backdrop-blur-md shadow-xl text-parchment max-w-lg w-full">
-      {/* Active Bribe Display (if proposed) */}
+    <div className="flex flex-col gap-3 bg-tavern-surface/90 border border-tavern-border rounded-2xl p-3.5 backdrop-blur-md shadow-xl text-parchment max-w-lg w-full">
+      {/* Active Bribe Display (Only show if not already displayed in the live feed list above) */}
       <AnimatePresence>
-        {activeBribe && activeBribe.status === 'PROPOSED' && (
+        {!hasOpenOffersInFeed && activeBribe && activeBribe.status === 'PROPOSED' && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className={`p-3 rounded-lg border flex flex-col gap-2 ${
+            className={`p-3 rounded-xl border flex flex-col gap-2 ${
               bribeReactionCooldown
                 ? 'bg-amber-950/40 border-amber-500/80 ring-2 ring-amber-500/30'
                 : 'bg-tavern-card border-gold/40'
             }`}
           >
-            <div className="flex justify-between items-center text-xs">
+            <div className="flex justify-between items-center text-xs flex-wrap gap-1">
               <span className="font-display font-bold text-gold flex items-center gap-1.5">
-                <span>🪙 Active Bribe Proposal #{activeBribe.sequenceNumber}</span>
+                <span>🪙 Active Bribe #{activeBribe.sequenceNumber}</span>
                 {bribeReactionCooldown && (
                   <span className="text-[10px] text-amber-300 bg-amber-900/60 px-2 py-0.5 rounded animate-pulse">
                     Offer Modified (1.5s lock)
@@ -86,7 +138,8 @@ export function BribeNegotiationPanel({ sheriff, merchant }: BribeNegotiationPan
                 )}
               </span>
               <span className="text-gold-muted text-[11px]">
-                Offered by {activeBribe.fromPlayerId === merchant.id ? merchant.name : sheriff.name}
+                Offered by <strong className="text-white font-bold">{fromName}</strong>
+                {toName && <span className="text-parchment/60 font-normal"> to {toName}</span>}
               </span>
             </div>
 
@@ -104,84 +157,109 @@ export function BribeNegotiationPanel({ sheriff, merchant }: BribeNegotiationPan
 
             {activeBribe.nonBindingTerms && (
               <div className="text-xs italic text-parchment/70 bg-tavern-bg/50 px-2.5 py-1 rounded">
-                "{activeBribe.nonBindingTerms}"
+                &ldquo;{activeBribe.nonBindingTerms}&rdquo;
               </div>
             )}
 
             {/* Acceptance / Rejection Controls (Only visible to the recipient of the bribe) */}
-            {activeBribe.fromPlayerId !== localPlayerId && (isLocalSheriff || isLocalMerchant) ? (
+            {canRespond ? (
               <div className="flex items-center gap-2 mt-1">
                 <button
                   type="button"
                   disabled={bribeReactionCooldown}
                   onClick={handleAcceptBribe}
-                  className="flex-1 py-1.5 rounded-lg bg-emerald/30 border border-emerald/60 text-emerald-300 hover:bg-emerald/40 font-display text-xs font-bold uppercase transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                  className="flex-1 h-8 rounded-xl bg-emerald/30 border border-emerald/60 text-emerald-300 hover:bg-emerald/40 font-display text-xs font-bold uppercase transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer inline-flex items-center justify-center gap-1"
                 >
-                  Accept Bribe
+                  <span>🛡️</span>
+                  <span>Accept Bribe</span>
                 </button>
                 <button
                   type="button"
                   onClick={handleRejectBribe}
-                  className="flex-1 py-1.5 rounded-lg bg-crimson/30 border border-crimson/60 text-red-300 hover:bg-crimson/40 font-display text-xs font-bold uppercase transition-all cursor-pointer"
+                  className="flex-1 h-8 rounded-xl bg-crimson/30 border border-crimson/60 text-red-300 hover:bg-crimson/40 font-display text-xs font-bold uppercase transition-all cursor-pointer inline-flex items-center justify-center gap-1"
                 >
-                  Reject Bribe
+                  <span>✕</span>
+                  <span>Decline</span>
                 </button>
               </div>
             ) : activeBribe.fromPlayerId === localPlayerId ? (
               <div className="text-center text-xs text-amber-300/80 italic py-1 font-body">
-                Proposal submitted. Awaiting response from {activeBribe.fromPlayerId === merchant.id ? sheriff.name : merchant.name}...
+                Proposal submitted. Awaiting response from {toName}...
               </div>
             ) : null}
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Bribe Proposal Composition */}
+      {/* Bribe Proposal / Counter-Offer Actions */}
       {!isComposing ? (
-        <div className="flex justify-center">
-          {activeBribe ? (
-            <button
-              type="button"
-              onClick={() => setIsComposing(true)}
-              className="px-4 py-2 rounded-lg bg-tavern-card border border-gold/30 hover:border-gold text-gold-light hover:text-white font-display text-xs tracking-wider uppercase transition-all shadow-md cursor-pointer"
-            >
-              Counter-Offer Bribe 🪙
-            </button>
-          ) : isLocalMerchant ? (
-            <button
-              type="button"
-              onClick={() => setIsComposing(true)}
-              className="px-4 py-2 rounded-lg bg-tavern-card border border-gold/30 hover:border-gold text-gold-light hover:text-white font-display text-xs tracking-wider uppercase transition-all shadow-md cursor-pointer"
-            >
-              Offer Bribe to Sheriff 🪙
-            </button>
-          ) : isLocalSheriff ? (
-            <button
-              type="button"
-              onClick={() => setIsComposing(true)}
-              className="px-4 py-2 rounded-lg bg-tavern-card border border-gold/30 hover:border-gold text-gold-light hover:text-white font-display text-xs tracking-wider uppercase transition-all shadow-md cursor-pointer"
-            >
-              Demand Tribute 🪙
-            </button>
-          ) : null}
+        <div className="flex items-center justify-center gap-2 flex-wrap w-full">
+          <button
+            type="button"
+            onClick={() => openOfferModal(merchant.id)}
+            className="flex-1 h-9 px-3.5 rounded-xl bg-gold/20 hover:bg-gold/35 border border-gold/60 text-gold-light hover:text-white font-display text-xs tracking-wider uppercase font-bold transition-all shadow-md active:scale-95 inline-flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
+          >
+            <span>🤝</span>
+            <span>{hasOpenOffersInFeed ? 'Counter with Full Terms' : 'Detailed Bribe Proposal'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsComposing(true)}
+            className="h-9 px-3.5 rounded-xl bg-walnut-card hover:bg-gold/10 border border-gold/30 hover:border-gold text-gold-muted hover:text-white font-display text-xs tracking-wider uppercase transition-all shadow-md cursor-pointer inline-flex items-center justify-center gap-1.5 whitespace-nowrap"
+          >
+            <span>⚡</span>
+            <span>{hasOpenOffersInFeed ? 'Quick Counter' : 'Quick Bribe'}</span>
+          </button>
         </div>
       ) : (
         <div className="flex flex-col gap-3 pt-2 border-t border-tavern-border">
           <div className="flex justify-between items-center text-xs font-display">
-            <span className="text-gold font-bold">Construct Bribe Offer</span>
+            <span className="text-gold font-bold">
+              {hasOpenOffersInFeed ? 'Construct Counter-Offer' : 'Construct Bribe Offer'}
+            </span>
             <button
               type="button"
               onClick={() => setIsComposing(false)}
-              className="text-gold-muted hover:text-white text-xs"
+              className="text-gold-muted hover:text-white text-xs cursor-pointer"
             >
               ✕ Cancel
             </button>
           </div>
 
+          {/* Intended Consequence Toggle (if not targeting own bag) */}
+          {!isLocalMerchant && (
+            <div className="grid grid-cols-2 gap-2 text-xs font-display">
+              <button
+                type="button"
+                onClick={() => setIntendedOutcome('INSPECT')}
+                className={`h-8 rounded-lg border font-bold uppercase transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  intendedOutcome === 'INSPECT'
+                    ? 'bg-crimson/40 border-red-400 text-red-100 shadow-sm'
+                    : 'bg-tavern-card border-tavern-border text-parchment/60 hover:text-parchment'
+                }`}
+              >
+                <span>🔨</span>
+                <span>Check Pot</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIntendedOutcome('PASS')}
+                className={`h-8 rounded-lg border font-bold uppercase transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  intendedOutcome === 'PASS'
+                    ? 'bg-emerald/40 border-emerald-400 text-emerald-100 shadow-sm'
+                    : 'bg-tavern-card border-tavern-border text-parchment/60 hover:text-parchment'
+                }`}
+              >
+                <span>🛡️</span>
+                <span>Safe Passage</span>
+              </button>
+            </div>
+          )}
+
           {/* Gold Slider & Input */}
           <div className="flex flex-col gap-1 text-xs">
             <div className="flex justify-between">
-              <span className="text-parchment/80">Gold Coins:</span>
+              <span className="text-parchment/80">Your Gold Coins:</span>
               <span className="text-gold font-bold font-display">{offerGold} / {maxGold}</span>
             </div>
             <input
@@ -197,7 +275,7 @@ export function BribeNegotiationPanel({ sheriff, merchant }: BribeNegotiationPan
           {/* Stand Goods Offer (if available) */}
           {availableStandCards.length > 0 && (
             <div className="flex flex-col gap-1 text-xs">
-              <span className="text-parchment/80">Offer Goods from Stand:</span>
+              <span className="text-parchment/80">Your Stand Goods:</span>
               <div className="flex gap-2 overflow-x-auto py-1">
                 {availableStandCards.map((card) => {
                   const isSelected = selectedStandCardIds.includes(card.id);
@@ -215,11 +293,11 @@ export function BribeNegotiationPanel({ sheriff, merchant }: BribeNegotiationPan
             </div>
           )}
 
-          {/* Promised Bag Goods (for merchant) */}
+          {/* Promised Bag Goods (only if local merchant targets own bag) */}
           {isLocalMerchant && merchant.sealedBag && (
             <div className="flex flex-col gap-1 text-xs">
               <span className="text-parchment/80">Promised Good from Bag:</span>
-              <div className="flex gap-2">
+              <div className="flex gap-1.5 flex-wrap">
                 {['APPLE', 'CHEESE', 'BREAD', 'CHICKEN'].map((good) => (
                   <button
                     key={good}
@@ -229,13 +307,14 @@ export function BribeNegotiationPanel({ sheriff, merchant }: BribeNegotiationPan
                         prev.includes(good) ? prev.filter((g) => g !== good) : [...prev, good]
                       )
                     }
-                    className={`px-2 py-1 rounded text-xs border transition-all ${
+                    className={`h-7 px-2 rounded-lg text-xs border transition-all inline-flex items-center gap-1 cursor-pointer ${
                       bagClaims.includes(good)
-                        ? 'border-gold bg-gold/20 text-gold-light'
+                        ? 'border-gold bg-gold/25 text-gold font-bold'
                         : 'border-tavern-border bg-tavern-card text-parchment/60'
                     }`}
                   >
-                    {good === 'APPLE' ? '🍎' : good === 'CHEESE' ? '🧀' : good === 'BREAD' ? '🍞' : '🐔'} {good}
+                    <span>{good === 'APPLE' ? '🍎' : good === 'CHEESE' ? '🧀' : good === 'BREAD' ? '🍞' : '🐔'}</span>
+                    <span>{good}</span>
                   </button>
                 ))}
               </div>
@@ -251,7 +330,7 @@ export function BribeNegotiationPanel({ sheriff, merchant }: BribeNegotiationPan
               value={nonBindingTerms}
               onChange={(e) => setNonBindingTerms(e.target.value)}
               maxLength={80}
-              className="px-3 py-1.5 rounded bg-tavern-bg border border-tavern-border text-xs text-parchment placeholder-parchment/40 focus:outline-none focus:border-gold"
+              className="h-8 px-3 rounded-lg bg-tavern-bg border border-tavern-border text-xs text-parchment placeholder-parchment/40 focus:outline-none focus:border-gold"
             />
           </div>
 
@@ -259,12 +338,14 @@ export function BribeNegotiationPanel({ sheriff, merchant }: BribeNegotiationPan
           <button
             type="button"
             onClick={handleSendBribe}
-            className="w-full py-2 rounded-lg btn-gold font-display text-xs tracking-wider uppercase font-bold"
+            className="w-full h-9 rounded-xl btn-gold font-display text-xs tracking-wider uppercase font-bold inline-flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
           >
-            Transmit Bribe Offer
+            <span>🤝</span>
+            <span>Transmit Bribe Offer</span>
           </button>
         </div>
       )}
     </div>
   );
 }
+

@@ -200,14 +200,14 @@ export function NegotiationLedger() {
                         <button
                           type="button"
                           onClick={() => handleDecline(offer.id)}
-                          className="px-2.5 py-1 rounded-lg bg-crimson/30 hover:bg-crimson/50 text-crimson-200 border border-crimson/50 text-[11px] font-bold transition-all"
+                          className="h-7 px-2.5 rounded-lg bg-crimson/30 hover:bg-crimson/50 text-crimson-200 border border-crimson/50 text-[11px] font-bold transition-all cursor-pointer inline-flex items-center justify-center"
                         >
                           Decline
                         </button>
                         <button
                           type="button"
                           onClick={() => handleAccept(offer)}
-                          className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-all border shadow-sm ${
+                          className={`h-7 px-3 rounded-lg text-[11px] font-bold transition-all border shadow-sm cursor-pointer inline-flex items-center justify-center gap-1 ${
                             offer.intendedOutcome === 'FORCE_INSPECT' || offer.intendedOutcome === 'INSPECT'
                               ? 'bg-crimson/40 hover:bg-crimson/60 text-red-100 border-red-400'
                               : 'bg-emerald/40 hover:bg-emerald/60 text-emerald-100 border-emerald-400'
@@ -224,7 +224,7 @@ export function NegotiationLedger() {
                       <button
                         type="button"
                         onClick={() => handleWithdraw(offer.id)}
-                        className="px-2.5 py-1 rounded-lg bg-tavern-surface hover:bg-tavern-card text-parchment/60 hover:text-white border border-tavern-border text-[11px] font-bold transition-all"
+                        className="h-7 px-2.5 rounded-lg bg-tavern-surface hover:bg-tavern-card text-parchment/60 hover:text-white border border-tavern-border text-[11px] font-bold transition-all cursor-pointer inline-flex items-center justify-center"
                       >
                         Withdraw
                       </button>

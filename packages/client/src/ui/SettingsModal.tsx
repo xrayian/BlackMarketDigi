@@ -22,146 +22,151 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 select-none">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-3 sm:p-4 select-none">
         <motion.div
-          initial={{ opacity: 0, scale: 0.92 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.92 }}
+          initial={{ opacity: 0, scale: 0.92, y: 10 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.92, y: 10 }}
           transition={{ duration: reducedMotion ? 0 : 0.15 }}
-          className="w-full max-w-md bg-tavern-bg border border-gold/60 rounded-3xl p-6 shadow-2xl text-parchment flex flex-col gap-6"
+          className="relative w-full max-w-md max-h-[88vh] bg-tavern-bg border-2 border-gold/70 rounded-3xl shadow-2xl text-parchment flex flex-col overflow-hidden"
         >
-          {/* Header */}
-          <div className="flex items-center justify-between border-b border-tavern-border pb-3">
-            <h2 className="font-display font-black text-xl text-gold tracking-wide flex items-center gap-2">
+          {/* Fixed Header Bar */}
+          <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-tavern-border bg-tavern-surface/70 shrink-0">
+            <h2 className="font-display font-black text-lg sm:text-xl text-gold tracking-wide flex items-center gap-2 leading-none">
               <span>⚙️</span>
-              <span>Game & Accessibility Settings</span>
+              <span>Game & Accessibility</span>
             </h2>
             <button
               type="button"
               onClick={onClose}
-              className="text-parchment/60 hover:text-white text-lg font-bold px-2 py-1 rounded"
+              className="text-parchment/60 hover:text-white text-base font-bold w-8 h-8 rounded-lg hover:bg-tavern-card inline-flex items-center justify-center cursor-pointer transition-colors"
             >
               ✕
             </button>
           </div>
 
-          {/* Audio Section */}
-          <div className="space-y-3">
-            <h3 className="font-display text-xs text-gold-muted uppercase tracking-wider font-bold">
-              Audio & Haptics
-            </h3>
+          {/* Scrollable Body */}
+          <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5 custom-scrollbar">
+            {/* Audio Section */}
+            <div className="space-y-2.5">
+              <h3 className="font-display text-xs text-gold-muted uppercase tracking-wider font-bold">
+                Audio & Haptics
+              </h3>
 
-            <label className="flex items-center justify-between p-3 rounded-xl bg-tavern-surface/80 border border-tavern-border cursor-pointer hover:border-gold/40 transition-colors">
-              <div>
-                <div className="font-display font-bold text-sm text-gold-light">🔊 Sound Effects</div>
-                <div className="text-xs text-parchment/60">Bag snap, tension ramp, coin clinks, gavel</div>
-              </div>
-              <input
-                type="checkbox"
-                checked={soundEnabled}
-                onChange={(e) => setSoundEnabled(e.target.checked)}
-                className="accent-gold h-5 w-5 rounded"
-              />
-            </label>
-
-            <label className="flex items-center justify-between p-3 rounded-xl bg-tavern-surface/80 border border-tavern-border cursor-pointer hover:border-gold/40 transition-colors">
-              <div>
-                <div className="font-display font-bold text-sm text-gold-light">🕯️ Tavern Hearth Ambience</div>
-                <div className="text-xs text-parchment/60">Crackling fireplace and atmospheric low drone</div>
-              </div>
-              <input
-                type="checkbox"
-                checked={ambientEnabled}
-                onChange={(e) => setAmbientEnabled(e.target.checked)}
-                className="accent-gold h-5 w-5 rounded"
-              />
-            </label>
-          </div>
-
-          {/* Accessibility & Display Section */}
-          <div className="space-y-3">
-            <h3 className="font-display text-xs text-gold-muted uppercase tracking-wider font-bold">
-              Display, Accessibility & Guides
-            </h3>
-
-            <label className="flex items-center justify-between p-3 rounded-xl bg-tavern-surface/80 border border-tavern-border cursor-pointer hover:border-gold/40 transition-colors">
-              <div>
-                <div className="font-display font-bold text-sm text-gold-light">⛶ Immersive Fullscreen Mode</div>
-                <div className="text-xs text-parchment/60">
-                  Fills your entire screen, hiding browser chrome and taskbars
-                </div>
-              </div>
-              <input
-                type="checkbox"
-                checked={isFullscreen}
-                onChange={() => toggleFullscreen()}
-                className="accent-gold h-5 w-5 rounded cursor-pointer"
-              />
-            </label>
-
-            <label className="flex items-center justify-between p-3 rounded-xl bg-tavern-surface/80 border border-tavern-border cursor-pointer hover:border-gold/40 transition-colors">
-              <div>
-                <div className="font-display font-bold text-sm text-gold-light">♿ Reduced Motion</div>
-                <div className="text-xs text-parchment/60">
-                  Disables camera easing/tweening and excessive spring bounce
-                </div>
-              </div>
-              <input
-                type="checkbox"
-                checked={reducedMotion}
-                onChange={(e) => setReducedMotion(e.target.checked)}
-                className="accent-gold h-5 w-5 rounded cursor-pointer"
-              />
-            </label>
-
-            <button
-              type="button"
-              onClick={() => {
-                onClose();
-                openRulebook();
-              }}
-              className="w-full flex items-center justify-between p-3 rounded-xl bg-[#2a1d13] border border-gold/40 hover:border-gold hover:bg-[#382619] transition-all cursor-pointer text-left shadow-md"
-            >
-              <div className="flex items-center gap-2.5">
-                <span className="text-xl">📖</span>
+              <label className="flex items-center justify-between p-3 rounded-xl bg-tavern-surface/80 border border-tavern-border cursor-pointer hover:border-gold/40 transition-colors">
                 <div>
-                  <div className="font-display font-bold text-sm text-gold">Nottingham Codex & Rulebook</div>
-                  <div className="text-xs text-parchment/70">Complete beginner guide, turn phases, penalties, and tips</div>
+                  <div className="font-display font-bold text-sm text-gold-light">🔊 Sound Effects</div>
+                  <div className="text-xs text-parchment/60">Bag snap, tension ramp, coin clinks, gavel</div>
                 </div>
-              </div>
-              <span className="text-gold font-bold text-sm">Read →</span>
-            </button>
-          </div>
+                <input
+                  type="checkbox"
+                  checked={soundEnabled}
+                  onChange={(e) => setSoundEnabled(e.target.checked)}
+                  className="accent-gold h-5 w-5 rounded cursor-pointer shrink-0 ml-3"
+                />
+              </label>
 
-          {/* Color-Blind / Indicator Guide */}
-          <div className="p-3 rounded-xl bg-tavern-surface/50 border border-tavern-border/70 space-y-2">
-            <h4 className="font-display text-[11px] text-gold-muted uppercase tracking-wider font-bold">
-              Color-Independent Card Indicators
-            </h4>
-            <div className="grid grid-cols-3 gap-2 text-center text-xs">
-              <div className="p-1.5 rounded bg-tavern-bg border border-emerald/40">
-                <span className="text-base block">⚖️</span>
-                <span className="font-bold text-emerald-400">Legal</span>
-              </div>
-              <div className="p-1.5 rounded bg-tavern-bg border border-crimson/40">
-                <span className="text-base block">⚜️</span>
-                <span className="font-bold text-red-400">Contraband</span>
-              </div>
-              <div className="p-1.5 rounded bg-tavern-bg border border-purple-500/40">
-                <span className="text-base block">👑</span>
-                <span className="font-bold text-purple-300">Royal</span>
+              <label className="flex items-center justify-between p-3 rounded-xl bg-tavern-surface/80 border border-tavern-border cursor-pointer hover:border-gold/40 transition-colors">
+                <div>
+                  <div className="font-display font-bold text-sm text-gold-light">🕯️ Tavern Hearth Ambience</div>
+                  <div className="text-xs text-parchment/60">Crackling fireplace and atmospheric low drone</div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={ambientEnabled}
+                  onChange={(e) => setAmbientEnabled(e.target.checked)}
+                  className="accent-gold h-5 w-5 rounded cursor-pointer shrink-0 ml-3"
+                />
+              </label>
+            </div>
+
+            {/* Accessibility & Display Section */}
+            <div className="space-y-2.5">
+              <h3 className="font-display text-xs text-gold-muted uppercase tracking-wider font-bold">
+                Display & Accessibility
+              </h3>
+
+              <label className="flex items-center justify-between p-3 rounded-xl bg-tavern-surface/80 border border-tavern-border cursor-pointer hover:border-gold/40 transition-colors">
+                <div>
+                  <div className="font-display font-bold text-sm text-gold-light">⛶ Immersive Fullscreen Mode</div>
+                  <div className="text-xs text-parchment/60">
+                    Fills entire screen, hiding browser chrome &amp; taskbar
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={isFullscreen}
+                  onChange={() => toggleFullscreen()}
+                  className="accent-gold h-5 w-5 rounded cursor-pointer shrink-0 ml-3"
+                />
+              </label>
+
+              <label className="flex items-center justify-between p-3 rounded-xl bg-tavern-surface/80 border border-tavern-border cursor-pointer hover:border-gold/40 transition-colors">
+                <div>
+                  <div className="font-display font-bold text-sm text-gold-light">♿ Reduced Motion</div>
+                  <div className="text-xs text-parchment/60">
+                    Disables camera easing/tweening &amp; excessive bounces
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={reducedMotion}
+                  onChange={(e) => setReducedMotion(e.target.checked)}
+                  className="accent-gold h-5 w-5 rounded cursor-pointer shrink-0 ml-3"
+                />
+              </label>
+
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  openRulebook();
+                }}
+                className="w-full flex items-center justify-between p-3 rounded-xl bg-[#2a1d13] border border-gold/40 hover:border-gold hover:bg-[#382619] transition-all cursor-pointer text-left shadow-md"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="text-xl">📖</span>
+                  <div>
+                    <div className="font-display font-bold text-sm text-gold">Nottingham Codex &amp; Rulebook</div>
+                    <div className="text-xs text-parchment/70">Complete beginner guide, turn phases, and rules</div>
+                  </div>
+                </div>
+                <span className="text-gold font-bold text-sm shrink-0 ml-2">Read →</span>
+              </button>
+            </div>
+
+            {/* Color-Blind / Indicator Guide */}
+            <div className="p-3 rounded-xl bg-tavern-surface/50 border border-tavern-border/70 space-y-2">
+              <h4 className="font-display text-[11px] text-gold-muted uppercase tracking-wider font-bold">
+                Color-Independent Card Indicators
+              </h4>
+              <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                <div className="p-2 rounded-lg bg-tavern-bg border border-emerald/40">
+                  <span className="text-base block">⚖️</span>
+                  <span className="font-bold text-emerald-400">Legal</span>
+                </div>
+                <div className="p-2 rounded-lg bg-tavern-bg border border-crimson/40">
+                  <span className="text-base block">⚜️</span>
+                  <span className="font-bold text-red-400">Contraband</span>
+                </div>
+                <div className="p-2 rounded-lg bg-tavern-bg border border-purple-500/40">
+                  <span className="text-base block">👑</span>
+                  <span className="font-bold text-purple-300">Royal</span>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Close Button */}
-          <button
-            type="button"
-            onClick={onClose}
-            className="btn-gold w-full py-2.5 rounded-xl font-display font-bold tracking-wider"
-          >
-            Done
-          </button>
+          {/* Fixed Footer Bar */}
+          <div className="px-5 sm:px-6 py-3.5 border-t border-tavern-border bg-tavern-surface/70 shrink-0">
+            <button
+              type="button"
+              onClick={onClose}
+              className="btn-gold w-full h-10 rounded-xl font-display font-bold tracking-wider inline-flex items-center justify-center cursor-pointer shadow-md text-sm"
+            >
+              Done
+            </button>
+          </div>
         </motion.div>
       </div>
     </AnimatePresence>
