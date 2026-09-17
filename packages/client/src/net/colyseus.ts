@@ -1,4 +1,4 @@
-import { Client, Callbacks, Room } from '@colyseus/sdk';
+import { Client, Room } from '@colyseus/sdk';
 import { useGameStore } from '../state/gameStore';
 
 const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:2567';
@@ -34,47 +34,19 @@ class NetworkManager {
     store.setRoomId(this.room.roomId);
     store.setConnected(true);
 
-    const callbacks = Callbacks.get(this.room);
+    // Initial state sync
+    if (this.room.state) {
+      store.updateGameState(this.room.state);
+    }
 
-    callbacks.listen('phase', (value: string) => {
-      useGameStore.getState().setPhase(value as any);
-    });
-
-    callbacks.onAdd('players', (player: any) => {
-      this.syncPlayers();
-      callbacks.listen(player, 'ready', () => this.syncPlayers());
-      callbacks.listen(player, 'name', () => this.syncPlayers());
-    });
-
-    callbacks.onRemove('players', () => {
-      this.syncPlayers();
-    });
-
-    this.room.onStateChange(() => {
-      this.syncPlayers();
+    // Subscribe to all incremental state updates from Colyseus
+    this.room.onStateChange((state: any) => {
+      useGameStore.getState().updateGameState(state);
     });
 
     this.room.onLeave(() => {
       useGameStore.getState().reset();
     });
-  }
-
-  private syncPlayers() {
-    if (!this.room || !this.room.state) return;
-    const players = new Map<string, any>();
-    const state = this.room.state as any;
-    if (state.players && typeof state.players.forEach === 'function') {
-      state.players.forEach((player: any, key: string) => {
-        players.set(key, {
-          id: player.id,
-          name: player.name,
-          gold: player.gold,
-          ready: player.ready,
-          seatIndex: player.seatIndex,
-        });
-      });
-    }
-    useGameStore.getState().updatePlayers(players);
   }
 
   send(type: string, data?: any) {

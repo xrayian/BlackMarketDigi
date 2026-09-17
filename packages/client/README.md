@@ -9,18 +9,18 @@ The frontend web client for **Sheriff of Nottingham Digital (2nd Edition)**, bui
 ```
 packages/client/
 ├── src/
-│   ├── components/
-│   │   ├── 3d/                # Three.js 3D table environment, merchant stands, cards, bags
-│   │   └── ui/                # Tavern UI components, modal dialogs, player badges
-│   ├── services/
-│   │   └── colyseus.ts        # Client Colyseus 0.18 SDK client manager & state listeners
-│   ├── types/                 # Client UI state definitions & prop types
+│   ├── scene/                 # React Three Fiber 3D world (Table, MerchantStand, Card3D, CoinPile, CameraRig, Lighting)
+│   ├── ui/                    # Tailwind CSS overlay components (Lobby, HUD, modals)
+│   ├── net/                   # Colyseus 0.18 SDK client manager & state listeners
+│   ├── state/                 # Zustand store (gameStore)
+│   ├── audio/                 # Howler.js audio management
 │   ├── App.tsx                # App root, phase screen routing, connection status
 │   └── main.tsx               # Application entry point
-├── public/                    # Static assets, textures, card illustrations, sound effects
+├── public/                    # Static assets and icons
 ├── index.html                 # HTML entry template
 ├── tailwind.config.js         # Medieval / tavern aesthetic theme design tokens
 └── vite.config.ts             # Vite 6 configuration and local proxy
+
 ```
 
 ### Key Capabilities
