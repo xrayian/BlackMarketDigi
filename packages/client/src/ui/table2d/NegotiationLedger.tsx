@@ -160,17 +160,17 @@ export function NegotiationLedger() {
                   )}
                 </div>
 
-                {/* Target Bag Chip */}
-                <div className="mb-1.5">
-                  {isTargetOwnBag ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-tavern-bg border border-tavern-border text-[10px] text-parchment/70">
-                      <span>👤</span>
-                      <span>Own Bag ({offer.intendedOutcome})</span>
+                {/* Target Bag & Purpose Badge */}
+                <div className="mb-1.5 flex flex-wrap gap-1">
+                  {offer.intendedOutcome === 'FORCE_INSPECT' || offer.intendedOutcome === 'INSPECT' ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-crimson/40 border border-red-500 text-[10px] text-red-100 font-bold">
+                      <span>🔨</span>
+                      <span>BRIBE TO CHECK BAG: Inspect {targetPlayer}'s Bag</span>
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-900/40 border border-gold/50 text-[10px] text-gold font-bold">
-                      <span>↗️</span>
-                      <span>Concerns {targetPlayer}'s Bag ({offer.intendedOutcome})</span>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald/40 border border-emerald-500 text-[10px] text-emerald-100 font-bold">
+                      <span>🛡️</span>
+                      <span>BRIBE TO PASS: Pass {isTargetOwnBag ? 'own bag' : `${targetPlayer}'s bag`} unopened</span>
                     </span>
                   )}
                 </div>
@@ -207,9 +207,15 @@ export function NegotiationLedger() {
                         <button
                           type="button"
                           onClick={() => handleAccept(offer)}
-                          className="px-3 py-1 rounded-lg bg-emerald/30 hover:bg-emerald/50 text-emerald-200 border border-emerald/50 text-[11px] font-bold transition-all"
+                          className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-all border shadow-sm ${
+                            offer.intendedOutcome === 'FORCE_INSPECT' || offer.intendedOutcome === 'INSPECT'
+                              ? 'bg-crimson/40 hover:bg-crimson/60 text-red-100 border-red-400'
+                              : 'bg-emerald/40 hover:bg-emerald/60 text-emerald-100 border-emerald-400'
+                          }`}
                         >
-                          Accept Deal 🤝
+                          {offer.intendedOutcome === 'FORCE_INSPECT' || offer.intendedOutcome === 'INSPECT'
+                            ? '🔨 Accept & Inspect Bag'
+                            : '🛡️ Accept & Pass Bag'}
                         </button>
                       </>
                     )}

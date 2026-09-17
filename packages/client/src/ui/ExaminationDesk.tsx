@@ -22,6 +22,8 @@ export function ExaminationDesk() {
   const isDeskMinimized = useGameStore((s) => s.isDeskMinimized);
   const setIsDeskMinimized = useGameStore((s) => s.setIsDeskMinimized);
   const pendingCommitments = useGameStore((s) => s.pendingCommitments);
+  const negotiationFeed = useGameStore((s) => s.negotiationFeed);
+  const negotiationSequence = useGameStore((s) => s.negotiationSequence);
 
   if (phase !== 'INSPECTION') return null;
 
@@ -32,6 +34,25 @@ export function ExaminationDesk() {
   const activeCommitment = pendingCommitments.find(
     (c) => c.targetBagOwnerId === activeMerchant?.id
   );
+  const isAuthority =
+    localPlayerId === sheriffId || (enableDeputies && deputyIds.includes(localPlayerId || ''));
+
+  const openBribesForThisMerchant = activeMerchant
+    ? negotiationFeed.filter(
+        (o) => o.targetBagOwnerId === activeMerchant.id && o.status === 'OPEN'
+      )
+    : [];
+
+  const handleAcceptOffer = (offer: any) => {
+    network.send('negotiation_accept', {
+      offerId: offer.id,
+      expectedSequence: negotiationSequence,
+    });
+  };
+
+  const handleDeclineOffer = (offerId: string) => {
+    network.send('negotiation_decline', { offerId });
+  };
 
   if (isDeskMinimized) {
     return (
@@ -313,22 +334,29 @@ export function ExaminationDesk() {
               {/* Active Binding Table Commitment Banner */}
               {activeCommitment && (
                 <div
-                  className={`w-full p-2.5 rounded-2xl border-2 flex items-center justify-between text-xs font-display font-bold shadow-lg ${
+                  className={`w-full p-3 rounded-2xl border-2 flex items-center justify-between text-xs font-display font-bold shadow-lg ${
                     activeCommitment.forcedOutcome === 'FORCE_INSPECT'
                       ? 'bg-crimson/30 border-crimson text-crimson-200'
                       : 'bg-emerald/30 border-emerald text-emerald-200'
                   }`}
                 >
-                  <div className="flex items-center gap-2">
-                    <span className="text-xl">🔨</span>
-                    <span>
-                      {activeCommitment.forcedOutcome === 'FORCE_INSPECT'
-                        ? 'Binding Deal: The Sheriff MUST inspect this bag!'
-                        : 'Binding Deal: The Sheriff MUST pass this bag unopened!'}
-                    </span>
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-2xl">{activeCommitment.forcedOutcome === 'FORCE_INSPECT' ? '🔨' : '🛡️'}</span>
+                    <div>
+                      <div className="text-white font-black text-xs uppercase tracking-wide">
+                        {activeCommitment.forcedOutcome === 'FORCE_INSPECT'
+                          ? 'BINDING DEAL: SHERIFF MUST INSPECT THIS BAG'
+                          : 'BINDING DEAL: SHERIFF MUST PASS THIS BAG UNOPENED'}
+                      </div>
+                      <div className="text-[11px] text-parchment/80 font-normal font-body">
+                        {activeCommitment.forcedOutcome === 'FORCE_INSPECT'
+                          ? `A bribe was accepted to CHECK ${activeMerchant.name}'s pot! Inspection is legally guaranteed.`
+                          : `A bribe was accepted for safe passage. ${activeMerchant.name}'s goods must pass unopened.`}
+                      </div>
+                    </div>
                   </div>
-                  <span className="px-2 py-0.5 rounded bg-black/50 text-[10px] font-black uppercase tracking-wider">
-                    Locked Deal
+                  <span className="px-2.5 py-1 rounded bg-black/60 text-[10px] font-black uppercase tracking-wider shrink-0 border border-white/20">
+                    {activeCommitment.forcedOutcome === 'FORCE_INSPECT' ? '🔨 Must Inspect' : '🛡️ Must Pass'}
                   </span>
                 </div>
               )}
@@ -362,6 +390,79 @@ export function ExaminationDesk() {
                   isOfferPending={activeBribe?.status === 'PROPOSED'}
                 />
               </div>
+
+              {/* Active Open Bribes List for This Bag */}
+              {openBribesForThisMerchant.length > 0 && (
+                <div className="w-full flex flex-col gap-2 p-3 rounded-2xl bg-walnut-card/95 border border-gold/40 shadow-lg">
+                  <div className="flex items-center justify-between border-b border-tavern-border pb-1.5">
+                    <span className="text-xs font-display font-black text-gold uppercase tracking-wider flex items-center gap-1.5">
+                      <span>🤝</span>
+                      <span>Live Bribe Proposals for this Bag:</span>
+                    </span>
+                    <span className="text-[10px] text-parchment/60 font-display">
+                      {openBribesForThisMerchant.length} active
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    {openBribesForThisMerchant.map((offer) => {
+                      const fromName = playersMap.get(offer.fromPlayerId)?.name || 'Merchant';
+                      const isRivalInspect =
+                        offer.intendedOutcome === 'FORCE_INSPECT' || offer.intendedOutcome === 'INSPECT';
+                      return (
+                        <div
+                          key={offer.id}
+                          className={`flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded-xl border text-xs font-display ${
+                            isRivalInspect
+                              ? 'bg-crimson/25 border-red-500/60 text-red-100'
+                              : 'bg-emerald/25 border-emerald-500/60 text-emerald-100'
+                          }`}
+                        >
+                          <div className="flex flex-col gap-0.5">
+                            <div className="font-bold flex items-center gap-1.5 flex-wrap">
+                              <span>{isRivalInspect ? '🔨 RIVAL BRIBE (CHECK POT):' : '🛡️ SAFE PASSAGE BRIBE:'}</span>
+                              <span className="text-white">{fromName}</span>
+                              <span>offers</span>
+                              <span className="text-gold font-bold">🪙 {offer.goldOffered}g</span>
+                              {offer.standLegalGoodsOffered.length > 0 && (
+                                <span className="text-parchment/80">+{offer.standLegalGoodsOffered.length} goods</span>
+                              )}
+                            </div>
+                            <div className="text-[11px] text-parchment/80 font-body">
+                              {isRivalInspect
+                                ? `Paying for the Sheriff to immediately INSPECT & CHECK ${activeMerchant.name}'s bag!`
+                                : `Paying for the Sheriff to immediately PASS ${activeMerchant.name}'s goods unopened!`}
+                            </div>
+                          </div>
+
+                          {isAuthority && (
+                            <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                              <button
+                                type="button"
+                                onClick={() => handleDeclineOffer(offer.id)}
+                                className="px-2.5 py-1 rounded-lg bg-tavern-surface hover:bg-tavern-card text-parchment/80 border border-tavern-border text-[11px] font-bold transition-all cursor-pointer"
+                              >
+                                Decline
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleAcceptOffer(offer)}
+                                className={`px-3 py-1 rounded-lg font-black text-[11px] uppercase tracking-wider transition-all border shadow-md cursor-pointer ${
+                                  isRivalInspect
+                                    ? 'bg-crimson hover:bg-crimson-light text-white border-red-400'
+                                    : 'bg-emerald-700 hover:bg-emerald-600 text-white border-emerald-400'
+                                }`}
+                              >
+                                {isRivalInspect ? '🔨 Accept & Inspect' : '🛡️ Accept & Pass'}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Bribe Negotiation Proposal Builder */}
               <BribeNegotiationPanel sheriff={sheriffPlayer} merchant={activeMerchant} />
@@ -436,12 +537,39 @@ export function ExaminationDesk() {
                     </div>
                   )
                 ) : isLocalSheriff ? (
-                  <div className="w-full flex justify-center">
-                    <UnsnapClasp
-                      onInspect={() => handleInspect(activeMerchant.id)}
-                      onPass={() => handlePass(activeMerchant.id)}
-                    />
-                  </div>
+                  activeCommitment ? (
+                    <div className="w-full flex flex-col items-center gap-2">
+                      {activeCommitment.forcedOutcome === 'FORCE_INSPECT' ? (
+                        <button
+                          type="button"
+                          onClick={() => handleInspect(activeMerchant.id)}
+                          className="w-full max-w-md py-3 px-6 rounded-2xl bg-crimson hover:bg-crimson-light text-white font-display font-black text-sm uppercase tracking-wider border-2 border-red-400 shadow-xl cursor-pointer flex items-center justify-center gap-2 transition-transform active:scale-95"
+                        >
+                          <span>🔨</span>
+                          <span>Execute Inspection (Check {activeMerchant.name}&apos;s Pot)</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handlePass(activeMerchant.id)}
+                          className="w-full max-w-md py-3 px-6 rounded-2xl bg-emerald-700 hover:bg-emerald-600 text-white font-display font-black text-sm uppercase tracking-wider border-2 border-emerald-400 shadow-xl cursor-pointer flex items-center justify-center gap-2 transition-transform active:scale-95"
+                        >
+                          <span>🛡️</span>
+                          <span>Execute Safe Passage (Wave Goods Through)</span>
+                        </button>
+                      )}
+                      <span className="text-[11px] text-parchment/70 italic font-body">
+                        Deal struck! The accepted bribe binds this decision.
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="w-full flex justify-center">
+                      <UnsnapClasp
+                        onInspect={() => handleInspect(activeMerchant.id)}
+                        onPass={() => handlePass(activeMerchant.id)}
+                      />
+                    </div>
+                  )
                 ) : (
                   <div className="text-center text-xs text-gold-muted italic py-2 font-body">
                     {localPlayer?.id === activeMerchant.id

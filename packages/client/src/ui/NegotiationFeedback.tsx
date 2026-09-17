@@ -63,17 +63,24 @@ export function NegotiationFeedback() {
                 DEAL!
               </span>
               <div className="text-xs md:text-sm font-display font-bold text-parchment mt-2">
-                The Sheriff has locked in terms with{' '}
+                The Sheriff accepted terms with{' '}
                 <span className="text-gold">
                   {playersMap.get(dealStruckBanner.fromPlayerId)?.name || 'Merchant'}
-                </span>
-                !
+                </span>{' '}
+                regarding{' '}
+                <span className="text-white">
+                  {playersMap.get(dealStruckBanner.targetBagOwnerId)?.name || 'Merchant'}'s
+                </span>{' '}
+                bag!
               </div>
-              <div className="text-[11px] font-display text-emerald-300 uppercase tracking-wider mt-1">
-                Outcome:{' '}
+              <div className={`text-xs font-display font-black uppercase tracking-wider mt-2 px-3.5 py-1 rounded-full border shadow-md ${
+                dealStruckBanner.forcedOutcome === 'FORCE_INSPECT'
+                  ? 'bg-crimson/60 text-red-100 border-red-400'
+                  : 'bg-emerald/60 text-emerald-100 border-emerald-400'
+              }`}>
                 {dealStruckBanner.forcedOutcome === 'FORCE_INSPECT'
-                  ? '🔨 Guaranteed Inspection'
-                  : '🛡️ Guaranteed Pass'}
+                  ? `🔨 DEAL ACCEPTED: CHECKING ${playersMap.get(dealStruckBanner.targetBagOwnerId)?.name || 'MERCHANT'}'S POT NOW!`
+                  : `🛡️ DEAL ACCEPTED: PASSING ${playersMap.get(dealStruckBanner.targetBagOwnerId)?.name || 'MERCHANT'}'S GOODS UNOPENED!`}
               </div>
             </div>
           </motion.div>

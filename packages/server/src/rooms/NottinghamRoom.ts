@@ -671,6 +671,22 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
         forcedOutcome,
         acceptedByPlayerId: client.sessionId,
       });
+
+      // If the accepted offer concerns the merchant currently being examined at the desk,
+      // immediate resolution is triggered:
+      // - If forcedOutcome is 'FORCE_INSPECT' (e.g. Player B bribed to check Player A's pot), trigger inspect!
+      // - If forcedOutcome is 'FORCE_PASS' (e.g. Player A bribed to let goods pass), trigger pass!
+      const isCurrentlyExamined =
+        this.state.activeMerchantId === offer.targetBagOwnerId ||
+        this.state.currentInspectionBagOwnerId === offer.targetBagOwnerId;
+
+      if (isCurrentlyExamined && !this.inspectedMerchantIds.has(offer.targetBagOwnerId)) {
+        if (forcedOutcome === 'FORCE_INSPECT') {
+          this.executeInspect(offer.targetBagOwnerId);
+        } else {
+          this.executePassUnopened(offer.targetBagOwnerId);
+        }
+      }
     });
 
     // 8. Decline Negotiation Offer

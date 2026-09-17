@@ -50,6 +50,8 @@ describe('NegotiationFeedRework Integration Tests (Colyseus 0.18)', () => {
     const serverRoom = matchMaker.getLocalRoomById(room1.roomId) as NottinghamRoom;
     serverRoom.state.phase = 'INSPECTION';
     serverRoom.state.sheriffId = room1.sessionId;
+    serverRoom.state.activeMerchantId = '';
+    serverRoom.state.currentInspectionBagOwnerId = '';
 
     // Give each merchant a sealed bag
     for (const rid of [room2.sessionId, room3.sessionId, room4.sessionId]) {
@@ -378,6 +380,113 @@ describe('NegotiationFeedRework Integration Tests (Colyseus 0.18)', () => {
     });
     await delay(100);
     expect(offer.status).toBe('WITHDRAWN');
+
+    await room1.leave();
+    await room2.leave();
+    await room3.leave();
+    await room4.leave();
+  });
+
+  it('when merchant is currently at examination desk, rival bribe to inspect immediately triggers checking pot upon acceptance', async () => {
+    const { room1, room2, room3, room4, serverRoom } = await setup4PlayerInspectionRoom();
+
+    // Sheriff selects Marian to examine at the desk
+    room1.send('select_inspect_merchant', { targetPlayerId: room2.sessionId });
+    await delay(100);
+    expect(serverRoom.state.activeMerchantId).toBe(room2.sessionId);
+
+    let inspectionResult: any = null;
+    room1.onMessage('inspection_result', (data) => {
+      inspectionResult = data;
+    });
+
+    // LittleJohn (room3) bribes Sheriff with 10 gold to FORCE_INSPECT Marian (check her pot)
+    room3.send('negotiation_propose', {
+      targetBagOwnerId: room2.sessionId,
+      intendedOutcome: 'FORCE_INSPECT',
+      goldOffered: 10,
+      futureFavorText: 'I know she has contraband, check her pot!',
+    });
+    await delay(100);
+
+    const offer = serverRoom.state.negotiationFeed.at(0)!;
+    expect(offer.status).toBe('OPEN');
+
+    // Sheriff accepts LittleJohn's rival bribe
+    room1.send('negotiation_accept', {
+      offerId: offer.id,
+      expectedSequence: serverRoom.state.negotiationSequence,
+    });
+    await delay(150);
+
+    // Acceptance IMMEDIATELY triggers inspection of Marian's pot without Sheriff clicking inspect
+    expect(inspectionResult).toBeDefined();
+    expect(inspectionResult.outcome).toBe('HONEST'); // Bag had 2 Apples
+    expect(inspectionResult.targetPlayerId).toBe(room2.sessionId);
+
+    // Marian is now marked as inspected and desk resets
+    expect(serverRoom.state.activeMerchantId).toBe('');
+
+    // LittleJohn paid 10 gold bribe to Sheriff upon resolution
+    const littleJohn = serverRoom.state.players.get(room3.sessionId)!;
+    const sheriff = serverRoom.state.players.get(room1.sessionId)!;
+    expect(littleJohn.gold).toBe(40); // 50 - 10
+    // Sheriff got 10g from LittleJohn, paid 4g penalty for honest inspection (50 + 10 - 4 = 56)
+    expect(sheriff.gold).toBe(56);
+
+    await room1.leave();
+    await room2.leave();
+    await room3.leave();
+    await room4.leave();
+  });
+
+  it('when merchant is currently at examination desk, safe passage bribe immediately triggers passing goods upon acceptance', async () => {
+    const { room1, room2, room3, room4, serverRoom } = await setup4PlayerInspectionRoom();
+
+    // Sheriff selects Marian to examine at the desk
+    room1.send('select_inspect_merchant', { targetPlayerId: room2.sessionId });
+    await delay(100);
+    expect(serverRoom.state.activeMerchantId).toBe(room2.sessionId);
+
+    let inspectionResult: any = null;
+    room1.onMessage('inspection_result', (data) => {
+      inspectionResult = data;
+    });
+
+    // Marian (room2) bribes Sheriff with 5 gold to PASS her goods
+    room2.send('negotiation_propose', {
+      targetBagOwnerId: room2.sessionId,
+      intendedOutcome: 'PASS',
+      goldOffered: 5,
+      futureFavorText: 'Let me through, these are just fresh apples!',
+    });
+    await delay(100);
+
+    const offer = serverRoom.state.negotiationFeed.at(0)!;
+    expect(offer.status).toBe('OPEN');
+
+    // Sheriff accepts Marian's safe passage bribe
+    room1.send('negotiation_accept', {
+      offerId: offer.id,
+      expectedSequence: serverRoom.state.negotiationSequence,
+    });
+    await delay(150);
+
+    // Acceptance IMMEDIATELY triggers passing goods unopened without Sheriff clicking pass
+    expect(inspectionResult).toBeDefined();
+    expect(inspectionResult.outcome).toBe('PASS');
+    expect(inspectionResult.targetPlayerId).toBe(room2.sessionId);
+
+    // Marian is now marked as inspected and desk resets
+    expect(serverRoom.state.activeMerchantId).toBe('');
+
+    // Marian paid 5 gold to Sheriff
+    const marian = serverRoom.state.players.get(room2.sessionId)!;
+    const sheriff = serverRoom.state.players.get(room1.sessionId)!;
+    expect(marian.gold).toBe(45); // 50 - 5
+    expect(sheriff.gold).toBe(55); // 50 + 5
+    // Marian kept her 2 declared apples in stand
+    expect(marian.standLegal.length).toBe(2);
 
     await room1.leave();
     await room2.leave();

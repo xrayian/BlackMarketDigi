@@ -208,6 +208,37 @@ export function NegotiationOfferModal() {
                   </>
                 )}
               </div>
+
+              {/* Live Explanatory Preview of What the Bribe Does */}
+              <div
+                className={`p-2.5 rounded-xl border text-[11px] font-body leading-relaxed mt-1 ${
+                  intendedOutcome === 'FORCE_INSPECT' || intendedOutcome === 'INSPECT'
+                    ? 'bg-crimson/25 border-red-500/60 text-red-100'
+                    : 'bg-emerald/25 border-emerald-500/60 text-emerald-100'
+                }`}
+              >
+                {isTargetingOwnBag ? (
+                  intendedOutcome === 'PASS' ? (
+                    <div>
+                      🛡️ <strong>Safe Passage Bribe:</strong> You are offering tribute to convince the Sheriff to wave your bag through unopened without inspection.
+                    </div>
+                  ) : (
+                    <div>
+                      ⚔️ <strong>Dare / Double Bluff:</strong> You are daring the Sheriff to open your bag. (If your bag is honest, the Sheriff will be forced to pay you fines!).
+                    </div>
+                  )
+                ) : (
+                  intendedOutcome === 'FORCE_INSPECT' ? (
+                    <div>
+                      🔨 <strong>Rival Bribe (Check Pot):</strong> You are paying the Sheriff to <strong>INSPECT & CHECK {eligibleMerchants.find(m => m.id === selectedTargetId)?.name || 'this merchant'}'s bag</strong> immediately!
+                    </div>
+                  ) : (
+                    <div>
+                      🛡️ <strong>Ally Bribe (Safe Passage):</strong> You are paying the Sheriff to let {eligibleMerchants.find(m => m.id === selectedTargetId)?.name || 'this merchant'}'s bag pass through unopened.
+                    </div>
+                  )
+                )}
+              </div>
             </div>
 
             {/* Gold Bribe */}
