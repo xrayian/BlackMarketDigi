@@ -35,9 +35,11 @@ BlackMarketDigi/
 │   │   ├── src/rooms/         # NottinghamRoom room lifecycle and state sync
 │   │   └── src/schema/        # @colyseus/schema 5.0 binary state models
 │   └── client/                # React 18 + Vite 6 client application
-│       ├── src/components/    # Three.js 3D table, merchant stands, cards, bags
-│       ├── src/ui/            # Tavern-themed UI, lobby, inspection dialogs
-│       └── src/services/      # Colyseus SDK 0.18 client connection service
+│       ├── src/scene/         # Three.js / R3F 3D table, stands, cards, coin piles, bags, lighting
+│       ├── src/ui/            # Tavern-themed UI, lobby, HUD, inspection dialogs
+│       ├── src/net/           # Colyseus SDK 0.18 client connection service
+│       ├── src/state/         # Zustand client game store
+│       └── src/audio/         # Howler.js audio management
 ├── docs/                      # Game design document (GDD) and specifications
 ├── init.md                    # Project development plan and phase roadmap
 └── docker-compose.yml         # Local development environment config
@@ -108,15 +110,16 @@ npm run build
   * Monorepo setup, Schema 5.0 models, NottinghamRoom lobby, 4-character room codes, tavern lobby UI.
 * [x] **Phase 1: Headless Rules Engine (100% Branch Coverage)**
   * Pure TypeScript deck generation, market discard/redraw, sealed bag loading, declaration, inspection, 4-step debt liquidation, endgame scoring with floored King/Queen splits, and expansion modules.
-* [ ] **Phase 2: Wire Rules Engine into NottinghamRoom**
-  * Authoritative Colyseus 0.18 state transitions, zero-knowledge client views, bribe negotiation protocol with 1.5s reaction buffer, reconnection handling.
-* [ ] **Phase 3: 3D Table & Scene**
-  * Three.js / React Three Fiber interactive 3D table, camera perspectives (Sheriff view, Merchant view), bag snap animations.
-* [ ] **Phase 4: Game HUD & Bribe Interaction UI**
-  * Drag-and-drop bag loading, declaration wheel/modal, dynamic bribe negotiation tray.
-* [ ] **Phase 5: Audio & Polish**
-  * Bag snap sounds, coin clinks, inspection tension audio, celebration animations.
-* [ ] **Phase 6: AI Bot Implementation**
-  * Heuristic and bluffing bot logic for solo and fill-in gameplay.
+* [x] **Phase 2: Wire Rules Engine into NottinghamRoom**
+  * Authoritative Colyseus 0.18 state transitions, zero-knowledge client views (`.view()`), atomic bribe negotiation protocol with sequence number buffer, 4-player integration tests.
+* [x] **Phase 3: 3D Table & Scene**
+  * React Three Fiber circular banquet table seating 3–6 players without overlap, dynamic camera rig oriented for local seat, MerchantStand with instanced coin piles, 4 legal goods compartments, facedown contraband vault with seal medallion and count badge, 3D merchant bag with clasp, candle flicker, bloom and vignette post-processing, reactive state sync.
+* [ ] **Phase 4: Core Loop UI: Market → Load Bag → Declaration**
+  * Hand tray with drag-and-drop market discard/redraw, 3D bag loading with spring animation and locking snap clasp, declaration picker, authoritative validation error feedback.
+* [ ] **Phase 5: Inspection & Bribe Negotiation ("The Examination Desk")**
+  * 1-on-1 examination camera transition, bribe balance scale, press-and-hold unsnap bag clasp, guided debt liquidation UI.
+* [ ] **Phase 6: Audio & Visual Polish**
+  * Howler audio integration (bag snap, coin clink, tavern ambience, inspection tension), confetti celebrations, sound toggles.
 * [ ] **Phase 7: End-to-End Testing & Hardening**
-  * Full-game multi-client simulation, reconnection stress tests, edge case verification.
+  * Multi-client browser testing, reconnection stress tests, edge case verification.
+

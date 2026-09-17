@@ -28,18 +28,25 @@ npm run dev          # starts both server (port 2567) and client (port 5173)
 - **Engine decoupled from networking:** All game logic in `packages/server/src/engine/` is pure functions with zero Colyseus imports, fully unit-testable.
 - **Numbers from GDD only:** Card counts, values, penalties come from `docs/GDD.md` — never from memory.
 
-## Current Phase: Phase 0 Completed — Ready for Phase 1 (Rules Engine)
-- Monorepo scaffolded and verified with npm workspaces (`shared`, `server`, `client`)
-- Colyseus 0.18 server boots and exposes `NottinghamRoom`
-- Client connects with `@colyseus/sdk` 0.18 using `Callbacks.get(room)`
-- Room code generator creates clean 4-character uppercase codes
-- End-to-end integration test passes in Vitest (`packages/server/test/rooms/NottinghamRoom.test.ts`)
-- Acceptance criteria for Phase 0 verified: `npm run dev` boots both, two tabs join same room and see each other in lobby
+## Current Phase: Phase 3 Completed — Ready for Phase 4 (Core Loop UI)
+- **Phase 0 (Scaffolding):** Monorepo with npm workspaces (`shared`, `server`, `client`), Colyseus 0.18 server, Vite 6 client, lobby UI.
+- **Phase 1 (Rules Engine):** Pure headless TypeScript rules engine in `packages/server/src/engine/`. 100% branch and statement coverage on `debtResolution.ts` and `scoring.ts`. 76 engine unit tests.
+- **Phase 2 (Colyseus Room):** Full engine wired into `NottinghamRoom` with Colyseus 0.18 and Schema 5.0. Zero-knowledge privacy filtering (`.view()`), atomic bribe buffer (`sequenceNumber`), and multi-player integration tests.
+- **Phase 3 (3D Table & Scene):**
+  - Circular banquet table seating 3–6 players without overlap; local player always anchored in bottom foreground.
+  - Dynamic `CameraRig` clamped to table with local player seat view.
+  - `MerchantStand`: Instanced cylinder coin piles scaling with player gold count, 4 legal goods compartments, facedown contraband vault with wax seal medallion and aggregate count.
+  - `MerchantBag3D`: Pouch mesh with livery tint, cinch ring, metallic clasp, and status tag.
+  - Atmosphere: Candle flicker (`useFrame`), warm key & rim lighting, bloom and vignette post-processing (`@react-three/postprocessing`).
+  - Reactive sync: `room.onStateChange` -> `useGameStore` -> 3D scene props.
 
 ## Gotchas & Architecture Decisions
 - **Colyseus 0.18 & Schema 5.0**: Use `schema({ ... })` builder pattern instead of decorators for class fields with default collection factories to avoid ES2022 define property bugs.
-- **Client SDK**: Use `@colyseus/sdk` 0.18 with `Callbacks.get(room)` instead of legacy `colyseus.js` 0.16. State callbacks use `callbacks.listen(...)`, `callbacks.onAdd(...)`, and `room.onStateChange(...)`.
-- **Room IDs**: Default Colyseus nanoids are mixed-case 9-char strings; `NottinghamRoom` sets `this.roomId = generateRoomCode()` to provide clean 4-letter uppercase codes without visual ambiguity.
+- **Client SDK**: Use `@colyseus/sdk` 0.18 with `Callbacks.get(room)`. State callbacks use `room.onStateChange(...)` mapped into Zustand `useGameStore`.
+- **Table Seat Angular Formula**: To guarantee the local player is always in the foreground at `-PI/2`: `angle = ((player.seatIndex - localSeatIndex) / totalSeats) * Math.PI * 2 - Math.PI / 2; rotY = -angle - Math.PI / 2`.
+- **Three.js Instancing & Performance**: Coin piles use `instancedMesh` with a single cylinder geometry and standard gold material, allowing hundreds of coins to render with 1 draw call.
+- **Strict Client TypeScript**: Vite build enforces `noUnusedLocals` strictly. Avoid unreferenced imports in 3D components.
 
 ## Build Plan Reference
 The full phased build plan is in `init.md`. Work through phases in order — each has acceptance criteria that must pass before starting the next.
+

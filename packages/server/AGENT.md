@@ -17,17 +17,14 @@
 - Room layer calls engine functions and applies mutations to schema state.
 - All message handlers validate inputs server-side even if client UI prevents invalid actions.
 
-## Current Phase: Phase 1 Completed (Headless Rules Engine)
-- Headless, pure TypeScript rules engine under `src/engine/` (zero Colyseus/networking imports).
-- Modules:
-  - `deck.ts`: Complete deck builders for 3 vs 4-6 players (156 vs 204 base cards; 162 vs 216 with Royal Goods), card shuffling, discard sweep, draw & reshuffle-on-empty.
-  - `phases/market.ts`: Discard-and-redraw logic, clockwise merchant sequencing skipping Sheriff, faceup set-aside and discard sweep.
-  - `phases/loadBag.ts`: Validation of 1-5 cards from hand, immutable bag snap sealing.
-  - `phases/declaration.ts`: Strict validation of declaration count equal to bag size, 1 of 4 legal goods, clockwise from Sheriff's left.
-  - `phases/inspection.ts`: Pass-unopened (with bribe and bag goods claim verification), inspected honest (Sheriff pays full bag penalty), and inspected dishonest with partial honesty (matching cards stay, non-matching confiscated to discard, merchant pays fine on confiscated cards).
-  - `debtResolution.ts`: Strict 4-step liquidation (1: cash on hand, 2: stand legal goods, 3: stand contraband goods, 4: empty stand wipes remaining debt) with no change on overpayment. **100% statement and branch coverage**.
-  - `scoring.ts`: Stand goods value + cash on hand + floored King/Queen bonuses (King tie splits K+Q and skips Queen; Queen tie splits Queen) + tiebreaker chain (total points -> most legal goods -> most contraband -> shared victory). **100% statement and branch coverage**.
-  - `modules/royalGoods.ts`, `modules/deputies.ts`, `modules/blackMarket.ts`: Full GDD expansion rules isolated behind feature flags.
-- Comprehensive Vitest suite with 77 tests (76 engine unit tests + 1 room integration test), 100% statement and branch coverage across engine files.
-- Ready for Phase 2: Wire engine into NottinghamRoom.
+## Current Phase: Phase 2 Completed (Colyseus Room Integration)
+- **Phase 1 (Rules Engine):** Pure TypeScript engine in `src/engine/` (zero Colyseus imports). 76 unit tests with 100% branch/statement coverage on `debtResolution.ts` and `scoring.ts`.
+- **Phase 2 (Room Integration):**
+  - `NottinghamRoom.ts`: Implemented using `@colyseus/schema` 5.0 builder syntax and `@colyseus/sdk` 0.18.
+  - Phase state machine: Maps all engine phases (LOBBY -> MARKET -> LOAD_BAG -> DECLARATION -> INSPECTION -> ROUND_END -> GAME_END) to room state.
+  - Zero-Knowledge Security: Schema views (`.view(sessionId)`) ensure non-owning clients never receive another player's hand cards or sealed bag cards until inspected.
+  - Atomic Bribes: `BribeOffer` tracks an atomic `sequenceNumber` to invalidate stale accepts across network jitter.
+  - Vitest integration suite: End-to-end 4-player test simulating round progression, state transitions, and privacy verification. All 80 tests pass.
+- Ready for Phase 4: Client message handling for Market, Load Bag, and Declaration.
+
 
