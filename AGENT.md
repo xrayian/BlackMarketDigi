@@ -2,43 +2,49 @@
 
 ## Tech Stack
 - **Monorepo:** npm workspaces with `packages/shared`, `packages/server`, `packages/client`
-- **Server:** Colyseus 0.18.x (`defineServer`, `defineRoom`, `@colyseus/schema` 5.0 builder syntax)
-- **Client:** React 18 + Vite, React Three Fiber (3D), Tailwind CSS (2D UI), Zustand (state), Framer Motion (animations), `@colyseus/sdk` 0.18 (`Callbacks.get(room)`)
-- **Shared:** TypeScript types, game constants, card data — imported by both server and client
-- See `init.md` §1 for full rationale on each choice
+- **Server:** Colyseus 0.18.x (`defineServer`, `defineRoom`), `@colyseus/schema` 5.0 (decorator-free `schema()` and `t.*` builder syntax)
+- **Client:** React 18 + Vite 6, Tailwind CSS with centralized design tokens (`src/theme/tokens.ts`), Framer Motion (physics spring animations), `@dnd-kit/core` & `@dnd-kit/utilities` (accessible drag-and-drop), Zustand (state store), `@colyseus/sdk` 0.18
+- **Audio Engine:** Custom procedural Web Audio API synthesizer (`soundManager.ts`) with zero external sound files
+- **Shared:** TypeScript types, game constants, card catalog, message interfaces
+- **Deployment:** Docker Compose, Node 22 Alpine, Nginx reverse proxy with dynamic WS/WSS autodetection, Let's Encrypt SSL
+- See `init.md` §1 for full rationale on each architectural choice
 
 ## How to Run
 ```bash
 npm install          # from repo root
 npm run dev          # starts both server (port 2567) and client (port 5173)
+npm test             # runs all 88 unit & integration tests
+npm run build        # builds shared, server, and client packages
 ```
 
 ## Repository Layout
 ```
-/docs           — consultation-rulebook.md (CMON rulebook), architecture.md (PRIMARY Digital GDD & specs)
+/docs           — consultation-rulebook.md (CMON rulebook), architecture.md (PRIMARY GDD), hosting.md, azure-deployment-guide.md
+/deploy         — azure-setup.sh, setup-ssl.sh, update.sh (turnkey cloud VM automation)
+/nginx          — default.conf, ssl.conf (reverse proxy routing SPA assets and WebSocket upgrades)
 /packages
   /shared       — types, constants, card definitions, message interfaces
-  /server       — Colyseus server, room, schema, pure game engine
-  /client       — React + R3F game client, Tailwind UI, Zustand stores
+  /server       — Colyseus server, room, schema, pure game engine, fuzzing tests
+  /client       — React 2D tabletop client, Tailwind UI, Zustand store, procedural Web Audio synthesizer
 ```
 
-## Key Decisions
-- **Colyseus over NestJS+Redis:** Schema `@filter` gives us hidden-information security as a decorator, not a hand-rolled sanitization layer. See init.md §1 for details.
-- **No physics engine for MVP:** Spring animations (react-spring) provide tactile feel without cross-client non-determinism.
-- **Engine decoupled from networking:** All game logic in `packages/server/src/engine/` is pure functions with zero Colyseus imports, fully unit-testable.
-- **Numbers from specifications only:** Card counts, values, penalties come from `docs/architecture.md` and `docs/consultation-rulebook.md` — never from memory.
+## Key Decisions & Conventions
+- **Colyseus over NestJS+Redis:** Schema `.view()` provides authoritative hidden-information isolation over the wire without a hand-rolled sanitization layer.
+- **Pure 2D Tabletop Canvas:** Top-down DOM/SVG rendering with Framer Motion springs and `@dnd-kit/core` drag-and-drop replaces legacy 3D canvas, ensuring silky 60fps on mobile and low-tier hardware.
+- **Zero External Audio Assets:** All sounds (bag snap, coin clink, scale tip, card slide, fireplace ambience, fanfares) are procedurally generated via the Web Audio API.
+- **Engine Decoupled from Networking:** All game logic in `packages/server/src/engine/` consists of pure functions with zero Colyseus imports, with 100% branch and statement coverage.
+- **Numbers from Specifications Only:** Card counts, values, penalties come strictly from `docs/architecture.md` and `docs/consultation-rulebook.md`.
+- **Zero Port Friction & Dynamic Connection Discovery:** Nginx routes both SPA assets and WebSocket streams across port 80/443; `packages/client/src/net/colyseus.ts` discovers host/protocol at runtime without hardcoded IPs.
 
-## Current Phase: Phase 5 2D Retrofit Completed — Ready for Phase 8 (Anti-Cheat Hardening & Testing)
+## Project Phases Status: All Phases 0–9 Complete (100% Verified)
 - **Phase 0 (Scaffolding):** Monorepo with npm workspaces (`shared`, `server`, `client`), Colyseus 0.18 server, Vite 6 client, lobby UI.
-- **Phase 1 (Rules Engine):** Pure headless TypeScript rules engine in `packages/server/src/engine/`. 100% branch and statement coverage on `debtResolution.ts` and `scoring.ts`. 76 engine unit tests.
+- **Phase 1 (Rules Engine):** Pure headless TypeScript rules engine in `packages/server/src/engine/`. 100% branch and statement coverage on `debtResolution.ts` and `scoring.ts`.
 - **Phase 2 (Colyseus Room):** Full engine wired into `NottinghamRoom` with Colyseus 0.18 and Schema 5.0. Zero-knowledge privacy filtering (`.view()`), atomic bribe buffer (`sequenceNumber`), and multi-player integration tests.
 - **Phase 3 (2D Table & Board Scene Retrofit):**
-  - Replaced legacy 3D canvas with top-down 2D tabletop arena (`TableBoard2D`) supporting 3–6 seats with local player anchored in foreground.
+  - Top-down 2D tabletop arena (`TableBoard2D`) supporting 3–6 seats with local player anchored in foreground.
   - `PlayerStand2D`: Nameplate, connection status, role badges, gold coin purse, legal goods bins, vaulted contraband count, royal goods count, and sealed bag indicator.
   - `MarketBoard2D`: Central market board with illustrated draw and discard piles displaying count badges and discard statistics.
   - `ActionLedger`: Collapsible event log keeping historical record of phase changes, trades, and inspection results.
-  - `tokens.ts`: Centralized theme palette (parchment, walnut, gold, crimson, emerald, contraband, royal) and motion presets.
-  - Uninstalled all dead 3D dependencies (`@react-three/fiber`, `@react-three/drei`, `three`, `@react-spring/three`, `@react-three/postprocessing`).
 - **Phase 4 (2D Core Loop UI Retrofit):**
   - `HandCardFan`: Card fan with arc curvature (`(i - c) * angle`), hover-to-lift (`y: -32`, `scale: 1.12`, `rotate: 0`), and selection badges.
   - `MerchantBagDropZone`: Tactile burlap sack drop target with `@dnd-kit/core` droppable integration, glowing hover ring, Framer Motion puff animation on card add, and squash-then-settle animation on bag snap.
@@ -50,27 +56,32 @@ npm run dev          # starts both server (port 2567) and client (port 5173)
   - `BribeScale`: 2D illustrated brass balance beam with hanging pans, tilting proportionally via Framer Motion spring physics based on bribe weight, with tipping audio.
   - `UnsnapClasp`: 2D radial SVG progress ring around a wax-seal clasp with exact 1.2s hold duration, tension audio ramp, and clean cancellation at <1.1s.
   - `StaggeredCardReveal`: Staggered card flip reveal (~140ms delay) with radiant color-coded halos (emerald for legal, violet/crimson for contraband).
-  - `UnfurlingLedger`: Scroll-unfurl parchment receipt displaying statutory 4-step debt liquidation order (Gold → Stand Legal → Stand Contraband → Debt Forgiveness) with animated strikethroughs and checkmarks.
+  - `UnfurlingLedger`: Scroll-unfurl parchment receipt displaying statutory 4-step debt liquidation order with animated strikethroughs and checkmarks.
   - `BribeNegotiationPanel`: Atomic proposal builder with 1.5s reaction buffer lock on modified offers.
 - **Phase 6 (Expansion Modules):**
   - **Royal Goods**: 12 royal cards (6 for 3p) filtered/shuffled into deck, treated as contraband through inspection, stored in private `standRoyal`, converted to legal equivalent counts for King/Queen bonus scoring plus face value scored.
   - **6-Player Deputies**: 2 deputies assigned per round, communal `bootyTile` collecting joint pass bribes and dishonesty fines, joint/solo pass/inspect decisions (`JOINT_PASS`, `JOINT_INSPECT`, `SOLO_PASS`, `SOLO_INSPECT`), equal booty split at round end (odd remainder discarded), game over at 9 rounds or 3 deck depletions.
   - **Black Market**: 3 order piles (Pepper 14/10, Mead 16/12, Silk 18/14), 3-matching-contraband trade-in per merchant per round via `claim_black_market`, client `BlackMarketPanel` order board.
-  - **Lobby Options**: Togglable expansion settings on room creation and dynamic host controls in lobby (`update_lobby_options`).
-  - **Test Suite**: 84 tests passing across 13 test files covering each module independently and a 6-player end-to-end integration test with all modules enabled.
-- **Phase 7 (Micro-interactions, Audio, Visual Polish & Accessibility):**
-  - `soundManager`: Full procedural Web Audio API audio suite including continuous cozy tavern ambience loop (warm hearth fireplace rumble, ember micro-crackles, low resonant drone), tactile card slide SFX (`playCardSlide`), metallic scale hinge tipping sound (`playScaleTip`), bag latch snap (`playSnap`), and outcome fanfares/discord stingers.
-  - `SettingsModal`: Dedicated UI modal accessible from Lobby and Game Scene offering audio controls (SFX on/off, Tavern Ambience on/off) and accessibility preferences (Reduced Motion on/off, Color-Independent Card Guide).
-  - `CardDisplay`: Color-independent card classification badges (⚖️ Legal, ⚜️ Contraband, 👑 Royal) with visible value and penalty stats.
-  - `BribeScale`: Synchronized scale-tipping audio and non-overshoot spring transitions under Reduced Motion.
+- **Phase 7 (Procedural Audio, Visual Polish & Accessibility):**
+  - `soundManager`: Procedural Web Audio API synthesizer with cozy tavern ambience, tactile card slide, scale tipping, bag snap, and fanfare/stinger cues.
+  - `SettingsModal`: Audio controls and accessibility preferences (Reduced Motion, Color-Independent Card Guide).
+  - `CardDisplay`: Color-independent card classification badges (⚖️ Legal, ⚜️ Contraband, 👑 Royal).
+- **Phase 8 (Anti-Cheat Hardening & Fuzzing):**
+  - Strict server-side action validation: All rejected operations emit `{ message: string }` errors.
+  - `AntiCheatFuzzing.test.ts`: Fuzzing suite simulating out-of-phase messages, spoofed cards, negative bribes, bag tampering, and memory leak checks.
+  - All 10 items in `Issues.md` resolved (multi-merchant bribe queue, self-set bribe crash fix, card hover z-index trap fix, clasp button sizing fix, minimizable bottomsheets, discard selection resets).
+  - All 88 tests passing across 14 test files.
+- **Phase 9 (Cloud VM Deployment & Containerization):**
+  - Multi-stage production Dockerfiles (`Dockerfile.server`, `Dockerfile.client`).
+  - Unified Nginx reverse proxy (`nginx/default.conf`) handling static assets and Colyseus WebSocket upgrade traffic.
+  - Dynamic client WebSocket autodetection (`getWsUrl()`) matching host and protocol (`ws://` vs `wss://`).
+  - Root `docker-compose.yml` with healthchecks and network isolation.
+  - Automated deployment scripts in `deploy/` (`azure-setup.sh`, `setup-ssl.sh`, `update.sh`).
+  - Comprehensive documentation in `docs/hosting.md` and `docs/azure-deployment-guide.md`.
 
-## Gotchas & Architecture Decisions
+## Gotchas & Architecture Reference
 - **Colyseus 0.18 & Schema 5.0**: Use `schema({ ... })` builder pattern instead of decorators for class fields with default collection factories to avoid ES2022 define property bugs.
 - **Client SDK**: Use `@colyseus/sdk` 0.18 with `Callbacks.get(room)`. State callbacks use `room.onStateChange(...)` mapped into Zustand `useGameStore`.
-- **Table Seat Angular Formula**: To guarantee the local player is always in the foreground at `-PI/2`: `angle = ((player.seatIndex - localSeatIndex) / totalSeats) * Math.PI * 2 - Math.PI / 2; rotY = -angle - Math.PI / 2`.
-- **Three.js Instancing & Performance**: Coin piles use `instancedMesh` with a single cylinder geometry and standard gold material, allowing hundreds of coins to render with 1 draw call.
-- **Strict Client TypeScript**: Vite build enforces `noUnusedLocals` strictly. Avoid unreferenced imports in 3D components.
-
-## Build Plan Reference
-The full phased build plan is in `init.md`. Work through phases in order — each has acceptance criteria that must pass before starting the next.
-
+- **Table Seat Angular Formula**: To guarantee the local player is always in the foreground at `-PI/2`: `angle = ((player.seatIndex - localSeatIndex) / totalSeats) * Math.PI * 2 - Math.PI / 2`.
+- **Strict Client TypeScript**: Vite build enforces `noUnusedLocals` strictly. Avoid unreferenced imports in TSX components.
+- **Nginx WebSocket Keep-Alive**: Always maintain `proxy_read_timeout 86400s;` and `proxy_send_timeout 86400s;` to prevent idle connection termination.

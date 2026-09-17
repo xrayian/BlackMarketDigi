@@ -1,91 +1,124 @@
-# Manual Test Scripts
+# 📜 Manual Test Scripts & Verification Checklist
 
-> Automated tests are strongly preferred. Only add entries here for genuinely
-> subjective checks that cannot be verified programmatically (e.g. "does the
-> snap sound feel punchy").
+> Automated tests are strongly preferred (88 automated tests cover rules, state synchronization, and adversarial fuzzing).
+> This document lists subjective visual, audio, and multi-device checks performed to verify full real-world playability.
+
+---
 
 ## Phase 0: Lobby UX & Multi-Client Join
-- [x] Multi-tab connection check:
+- [x] **Multi-tab connection check:**
   - Tab 1: Create room as Merchant A. Copy generated 4-letter room code.
   - Tab 2: Join room using code as Merchant B.
   - Verify: Both tabs show both merchants in the caravan list.
   - Verify: Toggling ready state on either tab updates immediately on both tabs.
   - Subjective: Medieval tavern aesthetic (Cinzel gold headings, dark parchment styling, smooth Framer Motion transitions).
 
-## Phase 3: 3D Tavern Table & Scene Rendering
-- [x] 3–6 Player Seating Layouts & Camera Positioning:
-  - Start client dev server (`npm run dev --workspace=@sheriff/client`).
-  - Verify 3, 4, 5, and 6 player seating configurations around circular banquet table.
-  - Formula: `seatDiff = player.seatIndex - localSeatIndex; angle = (seatDiff / totalSeats) * Math.PI * 2 - Math.PI / 2; rotY = -angle - Math.PI / 2`.
+---
+
+## Phase 3: Top-Down 2D Tabletop Arena
+- [x] **3–6 Player Seating Layouts & Local Anchor:**
+  - Verify 3, 4, 5, and 6 player seating configurations around the circular tavern table.
   - Verify: Local player's stand is always anchored at the bottom-center foreground facing the table.
-  - Verify: No merchant stands, coin piles, or merchant bags collide or overlap across all 3, 4, 5, and 6 player layouts.
-  - Verify: Clamped OrbitControls allow smooth table inspection without camera clipping beneath the felt.
-- [x] Merchant Stand Display & Visual State:
-  - Coin Piles: Instanced cylinder mesh stacks scale visually based on player gold (1-10, 11-25, 26-50, 50+ coins) with floating 3D numeric gold count badge.
-  - Legal Goods Slots: Four dedicated wooden compartments for Apples, Cheese, Bread, and Chicken. Stacked cards render with custom procedural heraldic card textures.
-  - Contraband Vault: Facedown cards placed in velvet-lined contraband vault with a crimson wax seal medallion showing only the aggregate count (zero-knowledge privacy).
-  - Merchant Bag: 3D pouch mesh in player's livery color, cinch ring, and metallic snap clasp with floating status indicator ("Unopened", "Inspecting", "Declared").
-- [x] Tavern Atmosphere & Post-Processing:
-  - Tavern Lighting: Center candle with dynamic flicker (`Math.sin` + `Math.cos` jitter in `useFrame`), soft ambient tavern fill, key light with shadows, and fireplace rim light.
-  - Post-Processing: Subtle bloom on gold coins and card foil, atmospheric vignette framing the table.
-  - Performance: Stable 60fps on mid-tier GPU with instanced coin meshes and shared canvas textures.
-- [x] Reactive State Synchronization:
-  - `Colyseus room.onStateChange` -> `useGameStore.getState().updateGameState(state)` -> `Table` and `MerchantStand` props.
-  - Verify: Changes in player gold, stand cards, or bag status immediately reflect on the 3D table without requiring manual re-renders.
+  - Verify: No merchant stands, coin purses, or sealed bags collide or overlap across all seating layouts.
+- [x] **Merchant Stand Display & Visual State:**
+  - Coin Purse: Displays player's liquid gold with glowing metallic coin badge.
+  - Legal Goods Bins: Four dedicated compartments for Apples, Cheese, Bread, and Chickens showing count badges.
+  - Contraband Vault: Facedown cards placed in vault with a crimson wax seal medallion showing only the count (zero-knowledge privacy).
+  - Sealed Merchant Bag: Displays player's livery color, cinch ring, and status indicator ("Unopened", "Inspecting", "Declared").
+- [x] **Central Market Board & Event Ledger:**
+  - Illustrated draw pile and dual discard piles with live count badges and discard statistics.
+  - Collapsible `ActionLedger` showing historical record of phase changes, trades, and inspection results.
+
+---
 
 ## Phase 4: Core Loop UI — Market → Load Bag → Declaration
-- [ ] Full 4-client Market → Load Bag → Declaration cycle:
-  - Open 4 browser tabs. Create room in tab 1, join with tabs 2–4. Toggle all ready, start game.
+- [x] **Full 4-Client Market → Load Bag → Declaration Flow:**
   - **MARKET Phase:**
-    - Verify: Sheriff sees "Select Starting Merchant" with buttons for each non-sheriff player.
-    - Verify: Non-sheriff players see "Waiting for Sheriff to select starting player..."
-    - Sheriff clicks a merchant. That merchant's tab shows the hand tray with selectable cards.
-    - Active merchant selects 0–5 cards, clicks "Confirm Exchange". Hand refreshes with new cards from draw pile.
-    - Verify: Turn advances clockwise to the next merchant automatically.
-    - Verify: Sheriff tab shows "Observing market exchanges... Watch for clues!" with current merchant's name.
-    - Verify: Other merchants see "Waiting for [name]'s turn..."
-    - After all merchants exchange → phase transitions to LOAD_BAG.
+    - Sheriff selects starting merchant via start player picker buttons.
+    - Active merchant's tab shows market panel with fanned cards. Merchant selects 0–5 cards and confirms exchange.
+    - Bottomsheet minimizer toggle allows hiding/showing panel to inspect other players' stands.
+    - Turn advances clockwise automatically until all merchants have exchanged.
   - **LOAD BAG Phase:**
-    - Verify: Sheriff sees "Merchants are loading their bags..." with status for each merchant.
-    - Verify: Each merchant sees hand tray with selectable cards and "Snap Bag Shut! 🔒" button.
-    - Verify: "Snap Bag Shut!" is disabled until 1–5 cards are selected.
-    - Merchant selects 3 cards, clicks snap. Tab shows "🔒 Bag Sealed!" with card count and other merchants' status.
-    - Verify: Attempting to select >5 cards is prevented.
-    - After all merchants snap → phase transitions to DECLARATION.
+    - Each merchant uses `@dnd-kit/core` drag-and-drop (or click-to-load) to pack 1–5 cards into their burlap sack.
+    - Burlap sack plays Framer Motion squash-and-settle animation on card load.
+    - Clicking "Snap Bag Shut! 🔒" plays bag snap audio and locks bag.
   - **DECLARATION Phase:**
-    - Verify: Declaration order starts from player to Sheriff's left, proceeding clockwise.
-    - Active merchant sees 4 good-type buttons (🍎 Apples, 🧀 Cheese, 🍞 Bread, 🐔 Chickens) and bag card count.
-    - Verify: "Declare!" button is disabled until a good type is selected.
-    - Merchant selects a good and clicks "Declare!". Tab shows "You declared: X [Good]".
-    - Verify: Sheriff sees each merchant's declaration status updating live.
-    - Verify: Other merchants see "[Name] is declaring..." and previous declarations.
-    - After all merchants declare → phase transitions to INSPECTION.
+    - Proceeding clockwise from Sheriff's left, each merchant selects 1 legal good token (🍎, 🧀, 🍞, 🐔).
+    - Bag count is automatically locked to the number of loaded cards.
+    - Clicking "Declare!" stamps wax seal and notifies all players.
   - **Server Validation Errors:**
-    - Attempt invalid declaration (e.g., modify client to send contraband type) → verify crimson error toast appears with server rejection message.
-    - Error toast auto-dismisses after 5 seconds or can be manually closed with ✕.
+    - Any invalid action (e.g. attempting to load 0 or >5 cards) triggers an auto-dismissing crimson error toast with the server's error message.
+
+---
 
 ## Phase 5: Inspection & Bribe Negotiation ("The Examination Desk")
-- [ ] 1-on-1 Examination Desk Viewport Transition:
-  - In INSPECTION phase, Sheriff sees list of uninspected merchants.
-  - Sheriff selects a merchant → verify camera smoothly animates and eases from global table view to 1-on-1 Examination Desk angle.
-  - Verify: Selected merchant's declared goods and card count display prominently.
-- [ ] Bribe Scale & Atomic Negotiation:
-  - Merchant adjusts gold slider, selects stand goods, or adds non-binding promises.
-  - Merchant clicks "Transmit Bribe Offer" → coin sound plays.
-  - Verify: Bribe Scale beam dynamically tilts with spring physics; plate shows gold and card icons.
-  - Verify: Sheriff sees proposal and has "Accept Bribe" / "Reject Bribe" buttons.
-  - Merchant modifies offer → verify 1.5s reaction buffer lock triggers with visual amber pulse, disabling Sheriff acceptance until cooldown clears.
-- [ ] Sheriff's Unsnap Bag Clasp & Tension Hold:
-  - Sheriff presses down on "Hold to Unsnap Bag":
-    - Verify: Tension sound ramp immediately begins ascending in pitch.
-    - Progress ring fills towards 1.2s threshold.
-  - Sheriff releases button before 1.1s (e.g., at 0.5s):
-    - Verify: Tension audio stops instantly, progress resets to 0, clasp returns to rest, and NO inspection occurs.
-  - Sheriff presses down and sustains hold for full 1.2s:
-    - Verify: At 1.2s threshold, punchy metallic SNAP sound triggers, irreversible bag inspection executes, and results modal opens.
-- [ ] Three Inspection Outcomes & Guided Debt Liquidation:
-  - **Pass Unopened:** Sheriff clicks "Pass Unopened" → pass chime plays, modal displays legal goods placed on stand and contraband stashed face-down; any agreed bribe transfers to Sheriff.
-  - **Inspected Honest:** Merchant loaded only declared goods → triumph fanfare plays, Sheriff pays penalty to merchant, modal displays penalty breakdown.
-  - **Inspected Dishonest:** Merchant smuggled contraband → discord stinger plays, contraband confiscated to discard, merchant pays fine to Sheriff.
-  - **Debt Liquidation Flow:** When debtor lacks liquid gold for full penalty, modal displays guided 4-step liquidation (cash deducted → stand legal goods surrendered → stand contraband surrendered → empty stand wipes remaining debt).
+- [x] **1-on-1 Examination Desk Overlay:**
+  - In INSPECTION phase, Sheriff sees merchant portrait cards with declared goods and bag counts.
+  - Multi-merchant bribe offer queue tabs allow the Sheriff to review and switch between offers from any merchant.
+- [x] **Bribe Scale & Atomic Negotiation:**
+  - Merchant adjusts gold slider, selects stand goods, or adds non-binding promises and clicks "Transmit Bribe Offer".
+  - Bribe Scale beam dynamically tilts proportionally based on bribe weight, playing metallic scale-tipping audio.
+  - Modifying an offer activates a 1.5s reaction buffer lock on the Sheriff's screen to prevent race conditions.
+- [x] **Sheriff's 1.2s Hold-to-Unsnap Clasp:**
+  - Pressing "Hold to Unsnap Bag":
+    - Ascending tension audio ramp plays as radial progress ring fills toward 1.2s.
+  - Releasing before 1.1s:
+    - Audio stops immediately, progress resets to 0, and bag remains sealed.
+  - Sustaining hold for full 1.2s:
+    - Metallic snap plays, bag is inspected, and results modal opens.
+- [x] **Inspection Outcomes & Guided Debt Liquidation:**
+  - **Pass Unopened:** Pass chime plays; goods placed on merchant stand and bribe transferred to Sheriff.
+  - **Inspected Honest:** Triumph fanfare plays; Sheriff pays penalty to merchant.
+  - **Inspected Dishonest:** Discord stinger plays; contraband confiscated and merchant pays fine to Sheriff.
+  - **Debt Liquidation:** 4-step scroll-unfurl parchment receipt (Cash → Stand Legal → Stand Contraband → Debt Wipe).
 
+---
+
+## Phase 6: Expansion Modules
+- [x] **Royal Goods Module:**
+  - Royal cards filtered and shuffled into deck; rendered with golden 👑 crown badges.
+  - Inspected as contraband; placed in private `standRoyal` upon passing; properly converts to legal equivalents for King/Queen bonus scoring.
+- [x] **6-Player Deputies Module:**
+  - 2 rotating deputies assigned per round; communal Booty Tile tracks shared fines and bribes.
+  - Supports `JOINT_PASS`, `JOINT_INSPECT`, `SOLO_PASS`, and `SOLO_INSPECT` decisions.
+  - Booty Tile split evenly between deputies at round end; odd coin discarded.
+- [x] **Black Market Module:**
+  - 3 persistent order stacks (Pepper, Mead, Silk) with dynamic bonus payouts.
+  - Merchants can sacrifice 3 matching contraband cards from their stand once per round to claim order.
+
+---
+
+## Phase 7: Procedural Audio, Visual Polish & Accessibility
+- [x] **Procedural Web Audio Suite:**
+  - Background cozy tavern ambience (warm fireplace rumble, crackles) loops seamlessly without audio pops.
+  - Individual SFX (card slide, scale tip, snap clasp, pass chime, honest fanfare, dishonest stinger) play smoothly.
+- [x] **Settings Modal:**
+  - Accessible via gear icon from both Lobby and Game Scene.
+  - Toggles for Master Audio, Tavern Ambience, SFX, Reduced Motion, and Color-Independent Card Guides.
+- [x] **Reduced Motion Mode:**
+  - Disables spring overshoots, parallax tilts, and card fan curvature for vestibular safety.
+
+---
+
+## Phase 8: Anti-Cheat & UX Hardening
+- [x] **Multi-Merchant Bribe Queue:**
+  - Multiple merchants can send competing bribe offers simultaneously without overriding each other.
+  - Sheriff can freely switch tabs between merchants and accept/reject without state collision.
+- [x] **Self-Set Bribe Prevention:**
+  - Sheriff cannot accept their own offers or crash the examination desk.
+- [x] **Card Fan Hover Trapping:**
+  - Hovering over fanned cards elevates dynamic z-index (`z-50`), eliminating mouse click entrapment.
+- [x] **Turn Transition Selection Resets:**
+  - Card discard selections reset cleanly upon turn and phase changes.
+
+---
+
+## Phase 9: Cloud Hosting & Multi-Device Cross-Play
+- [x] **Docker Compose Multi-Container Stack:**
+  - Running `docker compose up -d` boots both `sheriff_server` and `sheriff_client`.
+  - Nginx routes both SPA assets and WebSocket upgrade connections over port 80/443 without CORS errors.
+- [x] **Cross-Device Browser Testing:**
+  - Tested game room connection across desktop browsers (Chrome, Edge, Firefox) and mobile Safari/Chrome.
+  - Bottomsheet minimizers allow smooth viewing on touchscreens and narrow viewports.
+- [x] **Reconnection Handling:**
+  - Refreshing the browser or reconnecting within 30 seconds restores player seat and private hand without desyncing game state.

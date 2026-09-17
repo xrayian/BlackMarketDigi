@@ -285,22 +285,28 @@ export interface GameState {
 
 ## 6. System Architecture & Anti-Cheat Security
 
+> **Implementation Note:** Per `init.md` §1, the production stack implements this architectural specification using **Colyseus 0.18** with `@colyseus/schema` 5.0 (replacing NestJS/Redis) and **React 18 + Vite + Zustand** (replacing Vue/Pinia), containerized via Docker and served behind an **Nginx** reverse proxy on ports 80/443. All zero-knowledge and transactional invariants described below are strictly preserved.
+
 ```
 +---------------------------------------------------------------------------------+
 |                               SERVER BOUNDARY                                   |
 |                                                                                 |
-|   [PostgreSQL] <---> [Prisma ORM] <---> [NestJS Game Engine] <---> [Redis]      |
-|                                                  ^                (Locks/Room   |
-|                                                  |                 State Cache) |
-+--------------------------------------------------|------------------------------+
-                                            WSS Events
-                                       (Delta Serialized)
-                                                   |
-                                                   v
-                                   [Nuxt 3 / Vue 3 Pinia Client]
-                                     - Canvas / WebGL Layer
-                                     - Web Audio Context Engine
-                                     - Local Escrow Prediction
+|   [Nginx Reverse Proxy]                                                         |
+|         │ (80/443: SPA Static & WSS Upgrade)                                    |
+|         ▼                                                                       |
+|   [Colyseus 0.18 Room Engine] (Node 22, Port 2567)                              |
+|         ├── State Machine: NottinghamRoom.ts                                    |
+|         ├── Zero-Knowledge Views: @colyseus/schema 5.0 (.view())                |
+|         └── Headless Rules Engine: packages/server/src/engine/                  |
++---------------------------------------------------------------------------------+
+                                       WSS Events
+                           (Delta Serialized / Zero-Knowledge)
+                                           │
+                                           ▼
+                             [React 18 / Vite 6 Client]
+                               - 2D Tabletop Canvas & Framer Motion
+                               - Procedural Web Audio API Synthesizer
+                               - Zustand Reactive State Store (gameStore.ts)
 ```
 
 ### 6.1 Information Masking (Zero-Knowledge Serialization)

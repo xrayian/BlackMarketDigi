@@ -2,6 +2,8 @@
 
 This guide walks you step-by-step through deploying **Sheriff of Nottingham: Digital Edition** onto a Virtual Machine (VM) in Microsoft Azure Cloud.
 
+> 💡 **Looking for other hosting options?** For generic Linux VPS (AWS, DigitalOcean, Hetzner), home server self-hosting, or local LAN setups, see the general [Hosting & Deployment Guide](hosting.md).
+
 ---
 
 ## 🏗️ Architecture Overview

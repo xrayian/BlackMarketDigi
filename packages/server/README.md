@@ -9,9 +9,9 @@ Authoritative multiplayer game server and headless rules engine for **Sheriff of
 ```
 packages/server/
 ├── src/
-│   ├── index.ts               # Server bootstrap (defineServer, defineRoom, transport)
+│   ├── index.ts               # Server bootstrap (defineServer, defineRoom, environment config)
 │   ├── rooms/
-│   │   └── NottinghamRoom.ts  # Room lifecycle, phase orchestration, atomic bribes, reconnection
+│   │   └── NottinghamRoom.ts  # Room lifecycle, phase orchestration, atomic bribes, reconnection, validation
 │   ├── schema/
 │   │   └── GameState.ts       # Schema 5.0 models (CardState, SealedBagState, PlayerState, GameState)
 │   └── engine/                # Zero-dependency, headless rules engine (100% branch coverage)
@@ -29,16 +29,17 @@ packages/server/
 │           └── blackMarket.ts # Black market demand orders & reward claims
 └── test/
     ├── engine/                # Exhaustive unit tests for all engine modules
-    └── rooms/                 # Colyseus 0.18 room integration tests
+    └── rooms/                 # Colyseus 0.18 room integration & anti-cheat fuzzing tests
 ```
 
 ---
 
-## 🔒 Security & Netcode Features
+## 🔒 Security & Anti-Cheat Guarantees
 
-* **Zero-Knowledge State Isolation:** Private card data (`hand`, `sealedBag.cards`, `standContraband`, `standRoyal`) are protected using `@colyseus/schema` 5.0's `.view()`. Non-owning clients never receive private card payloads over the wire; only public counts (`handCount`, `cardCount`, `standContrabandCount`) are synchronized until cards are legally revealed.
+* **Zero-Knowledge State Isolation:** Private card data (`hand`, `sealedBag.cards`, `standContraband`, `standRoyal`) are strictly protected using `@colyseus/schema` 5.0's `.view(sessionId)`. Non-owning clients never receive private card payloads over the wire; only public counts (`handCount`, `cardCount`, `standContrabandCount`) are synchronized until cards are legally revealed.
+* **Strict Server-Side Action Validation:** Every client message is validated against current room phase, player roles, card ownership, and legality before mutation. Invalid actions trigger structured `{ message: string }` error events to the offending client while preserving server stability.
 * **Atomic Bribe Reaction Buffer:** Bribe proposals carry an auto-incrementing `sequenceNumber`. If a merchant modifies their bribe while the Sheriff is reviewing it, stale acceptances are rejected atomically.
-* **Reconnection Window:** Disconnected players retain their seat and state for up to 30 seconds before voluntary drop cleanup triggers.
+* **Fuzz Testing & Adversarial Hardening:** The test suite includes [`test/rooms/AntiCheatFuzzing.test.ts`](test/rooms/AntiCheatFuzzing.test.ts), which fuzzes the room state machine with out-of-phase messages, spoofed cards, bad bag loads, tampered declarations, and negative bribes.
 
 ---
 
@@ -47,29 +48,39 @@ packages/server/
 The server codebase is tested with [Vitest 3](https://vitest.dev/) and V8 coverage:
 
 ```bash
-# Run all unit and room integration tests
+# Run all unit, room integration, and anti-cheat fuzzing tests (88 tests)
 npm test
 
-# Run tests with branch coverage report
+# Run tests with branch coverage report (asserting 100% engine coverage)
 npm run test:coverage
 ```
 
 ### Coverage Guarantee
 * **100% statement and branch coverage** on all engine modules:
-  * [`src/engine/debtResolution.ts`](./src/engine/debtResolution.ts)
-  * [`src/engine/scoring.ts`](./src/engine/scoring.ts)
-  * [`src/engine/deck.ts`](./src/engine/deck.ts)
-  * [`src/engine/phases/*`](./src/engine/phases/)
-  * [`src/engine/modules/*`](./src/engine/modules/)
+  * [`src/engine/debtResolution.ts`](src/engine/debtResolution.ts)
+  * [`src/engine/scoring.ts`](src/engine/scoring.ts)
+  * [`src/engine/deck.ts`](src/engine/deck.ts)
+  * [`src/engine/phases/*`](src/engine/phases/)
+  * [`src/engine/modules/*`](src/engine/modules/)
 
 ---
 
-## 🛠 Development Scripts
+## 🛠 Development & Deployment
 
+### Local Development
 ```bash
 # Start Colyseus development server on ws://localhost:2567
 npm run dev
 
-# Build TypeScript output
+# Build TypeScript output to dist/
 npm run build
 ```
+
+### Production Docker Container
+The server is containerized via `Dockerfile.server` (multi-stage Node 22 Alpine, non-root `node` user):
+```bash
+docker build -f Dockerfile.server -t sheriff-server .
+docker run -p 2567:2567 sheriff-server
+```
+
+See [`docs/hosting.md`](../../docs/hosting.md) for full cloud deployment and Docker Compose details.
