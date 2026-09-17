@@ -55,6 +55,13 @@ export function CardDisplay({ card, selected, disabled, onClick }: CardDisplayPr
   const colors = getCardColor(card);
   const emoji = getCardEmoji(card);
 
+  const classificationBadge =
+    card.classification === 'ROYAL'
+      ? { icon: '👑', label: 'Royal' }
+      : card.classification === 'CONTRABAND'
+      ? { icon: '⚜️', label: 'Contraband' }
+      : { icon: '⚖️', label: 'Legal' };
+
   return (
     <motion.div
       onClick={disabled ? undefined : onClick}
@@ -64,22 +71,42 @@ export function CardDisplay({ card, selected, disabled, onClick }: CardDisplayPr
       whileHover={disabled ? undefined : { scale: selected ? 1.05 : 1.03, filter: 'brightness(1.1)' }}
       className={`
         relative flex flex-col justify-between
-        w-[80px] h-[112px] rounded-xl border-2
+        w-[84px] h-[118px] rounded-xl border-2
         ${colors.bg} ${colors.border}
         ${selected ? 'ring-2 ring-gold shadow-[0_0_15px_rgba(212,168,75,0.4)]' : ''}
         ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
         p-1.5 select-none overflow-hidden text-parchment
       `}
     >
-      <div className="text-2xl text-center leading-none mt-1">{emoji}</div>
+      {/* Top Header: Classification Icon Badge (Color-independent indicator) */}
+      <div className="flex items-center justify-between px-0.5">
+        <span
+          className="text-[10px] bg-tavern-bg/80 px-1 py-0.2 rounded border border-white/20 font-display font-bold leading-none"
+          title={`${classificationBadge.label} Good`}
+        >
+          {classificationBadge.icon}
+        </span>
+        <span className="text-[9px] text-parchment/60 font-display uppercase tracking-tighter">
+          {card.classification[0]}
+        </span>
+      </div>
+
+      <div className="text-2xl text-center leading-none mt-0.5">{emoji}</div>
       
-      <div className="font-display text-xs text-center leading-tight break-words flex-1 flex items-center justify-center">
+      <div className="font-display text-[11px] font-bold text-center leading-tight break-words flex-1 flex items-center justify-center px-0.5">
         {card.name}
       </div>
       
-      <div className="flex items-center justify-center gap-0.5 bg-tavern-surface/60 rounded py-0.5 mt-auto">
-        <span className="text-[10px]">🪙</span>
-        <span className="font-body text-xs font-bold">{card.value}</span>
+      {/* Bottom stats: Value and Penalty */}
+      <div className="flex items-center justify-between gap-1 bg-tavern-surface/80 rounded px-1.5 py-0.5 mt-auto text-[10px]">
+        <div className="flex items-center gap-0.5 text-gold font-bold" title={`Value: ${card.value} Gold`}>
+          <span>🪙</span>
+          <span>{card.value}</span>
+        </div>
+        <div className="flex items-center gap-0.5 text-crimson-light font-bold" title={`Penalty: ${card.penalty} Gold`}>
+          <span>🛡️</span>
+          <span>{card.penalty}</span>
+        </div>
       </div>
     </motion.div>
   );

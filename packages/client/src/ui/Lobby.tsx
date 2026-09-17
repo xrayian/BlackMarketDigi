@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore } from '../state/gameStore';
 import { network } from '../net/colyseus';
+import { SettingsModal } from './SettingsModal';
 
 type ViewState = 'menu' | 'create' | 'join' | 'room';
 
@@ -17,6 +18,7 @@ export function Lobby() {
   const [enableRoyalGoods, setEnableRoyalGoods] = useState(false);
   const [enableDeputies, setEnableDeputies] = useState(false);
   const [enableBlackMarket, setEnableBlackMarket] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const store = useGameStore();
 
@@ -452,6 +454,21 @@ export function Lobby() {
         {view === 'join' && renderJoin()}
         {view === 'room' && renderRoom()}
       </AnimatePresence>
+
+      {/* Floating Settings Button in Top Right */}
+      <button
+        type="button"
+        onClick={() => setIsSettingsOpen(true)}
+        className="fixed top-6 right-6 p-2.5 rounded-xl bg-tavern-surface/90 border border-tavern-border hover:border-gold/60 text-gold-muted hover:text-gold transition-colors shadow-lg z-20"
+        title="Game & Accessibility Settings"
+      >
+        ⚙️
+      </button>
+
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+      />
     </div>
   );
 }

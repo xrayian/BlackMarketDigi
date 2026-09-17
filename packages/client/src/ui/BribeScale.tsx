@@ -1,4 +1,7 @@
+import { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
+import { useGameStore } from '../state/gameStore';
+import { soundManager } from '../audio/soundManager';
 
 interface BribeScaleProps {
   goldAmount: number;
@@ -15,11 +18,26 @@ export function BribeScale({
   terms,
   isOfferPending,
 }: BribeScaleProps) {
+  const reducedMotion = useGameStore((s) => s.reducedMotion);
+
   // Compute total offer weight to drive scale angle
   // 1 gold = 1 unit weight, stand card = ~3 units, bag claim = ~3 units
   const totalWeight = goldAmount + standCardCount * 3 + bagClaimCount * 3;
   // Maximum tilt ±16 degrees
   const tiltAngle = Math.min(Math.max((totalWeight / 20) * 14, 0), 16);
+
+  const prevWeight = useRef(totalWeight);
+
+  useEffect(() => {
+    if (prevWeight.current !== totalWeight) {
+      if (totalWeight > 0) soundManager.playScaleTip();
+      prevWeight.current = totalWeight;
+    }
+  }, [totalWeight]);
+
+  const springTransition = reducedMotion
+    ? { duration: 0 }
+    : { type: 'spring' as const, stiffness: 120, damping: 14 };
 
   return (
     <div className="relative flex flex-col items-center select-none py-2">
@@ -39,7 +57,7 @@ export function BribeScale({
         {/* Tilting Balance Beam */}
         <motion.div
           animate={{ rotate: tiltAngle }}
-          transition={{ type: 'spring', stiffness: 120, damping: 14 }}
+          transition={springTransition}
           className="absolute top-8 w-44 h-2 bg-gradient-to-r from-gold-dark via-gold-light to-gold-dark rounded-full shadow-lg origin-center"
         >
           {/* Left Pan Chains & Plate (Merchant Offer) */}
@@ -47,7 +65,7 @@ export function BribeScale({
             <div className="w-[1px] h-10 bg-gold-light/70 shadow-sm" />
             <motion.div
               animate={{ rotate: -tiltAngle }}
-              transition={{ type: 'spring', stiffness: 120, damping: 14 }}
+              transition={springTransition}
               className="w-16 h-5 rounded-b-2xl bg-gradient-to-b from-gold/70 to-gold-dark/90 border border-gold shadow-md flex items-center justify-center text-[10px] font-bold text-tavern-bg font-display"
             >
               {totalWeight > 0 ? (
@@ -69,7 +87,7 @@ export function BribeScale({
             <div className="w-[1px] h-10 bg-gold-light/70 shadow-sm" />
             <motion.div
               animate={{ rotate: -tiltAngle }}
-              transition={{ type: 'spring', stiffness: 120, damping: 14 }}
+              transition={springTransition}
               className="w-16 h-5 rounded-b-2xl bg-gradient-to-b from-tavern-border to-tavern-card border border-gold-muted/50 shadow-md flex items-center justify-center text-[10px] text-gold-muted font-display"
             >
               <span>Sheriff</span>

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { GamePhase, InspectionResultMessage } from '@sheriff/shared';
+import { soundManager } from '../audio/soundManager';
 
 export interface ClientCard {
   id: string;
@@ -106,6 +107,11 @@ interface GameStore {
   lastInspectionResult: InspectionResultMessage | null;
   bribeReactionCooldown: boolean;
 
+  // Phase 7 Settings & Accessibility
+  reducedMotion: boolean;
+  soundEnabled: boolean;
+  ambientEnabled: boolean;
+
   setPhase: (phase: GamePhase) => void;
   setRoomId: (id: string) => void;
   setLocalPlayerId: (id: string) => void;
@@ -113,11 +119,16 @@ interface GameStore {
   updateGameState: (state: any) => void;
   updatePlayers: (players: Map<string, ClientPlayer>) => void;
   toggleCardSelection: (cardId: string) => void;
+  addCardToSelection: (cardId: string) => void;
+  removeCardFromSelection: (cardId: string) => void;
   clearSelection: () => void;
   setError: (message: string) => void;
   clearError: () => void;
   setLastInspectionResult: (result: InspectionResultMessage | null) => void;
   setBribeReactionCooldown: (cooldown: boolean) => void;
+  setReducedMotion: (enabled: boolean) => void;
+  setSoundEnabled: (enabled: boolean) => void;
+  setAmbientEnabled: (enabled: boolean) => void;
   reset: () => void;
 }
 
@@ -149,6 +160,9 @@ const initialState = {
   errorTimestamp: 0,
   lastInspectionResult: null as InspectionResultMessage | null,
   bribeReactionCooldown: false,
+  reducedMotion: false,
+  soundEnabled: true,
+  ambientEnabled: true,
 };
 
 function mapCard(c: any): ClientCard {
@@ -314,10 +328,28 @@ export const useGameStore = create<GameStore>((set) => ({
       }
       return { selectedCardIds: [...s.selectedCardIds, cardId] };
     }),
+  addCardToSelection: (cardId) =>
+    set((s) => {
+      if (s.selectedCardIds.includes(cardId) || s.selectedCardIds.length >= 5) return s;
+      return { selectedCardIds: [...s.selectedCardIds, cardId] };
+    }),
+  removeCardFromSelection: (cardId) =>
+    set((s) => ({
+      selectedCardIds: s.selectedCardIds.filter((id) => id !== cardId),
+    })),
   clearSelection: () => set({ selectedCardIds: [] }),
   setError: (message) => set({ errorMessage: message, errorTimestamp: Date.now() }),
   clearError: () => set({ errorMessage: null }),
   setLastInspectionResult: (result) => set({ lastInspectionResult: result }),
   setBribeReactionCooldown: (cooldown) => set({ bribeReactionCooldown: cooldown }),
+  setReducedMotion: (reducedMotion) => set({ reducedMotion }),
+  setSoundEnabled: (soundEnabled) => {
+    soundManager.setEnabled(soundEnabled);
+    set({ soundEnabled });
+  },
+  setAmbientEnabled: (ambientEnabled) => {
+    soundManager.setAmbientEnabled(ambientEnabled);
+    set({ ambientEnabled });
+  },
   reset: () => set(initialState),
 }));

@@ -1,46 +1,117 @@
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core';
 import { useGameStore } from '../state/gameStore';
+import type { ClientCard } from '../state/gameStore';
 import { network } from '../net/colyseus';
+import { soundManager } from '../audio/soundManager';
+import { HandCardFan } from './table2d/HandCardFan';
+import { MerchantBagDropZone } from './table2d/MerchantBagDropZone';
 import { CardDisplay } from './CardDisplay';
 
 export function BagLoadingPanel() {
-  const {
-    phase,
-    localPlayerId,
-    players,
-    selectedCardIds,
-    toggleCardSelection,
-    clearSelection
-  } = useGameStore();
+  const phase = useGameStore((s) => s.phase);
+  const localPlayerId = useGameStore((s) => s.localPlayerId);
+  const players = useGameStore((s) => s.players);
+  const selectedCardIds = useGameStore((s) => s.selectedCardIds);
+  const toggleCardSelection = useGameStore((s) => s.toggleCardSelection);
+  const addCardToSelection = useGameStore((s) => s.addCardToSelection);
+  const removeCardFromSelection = useGameStore((s) => s.removeCardFromSelection);
+
+  const [activeCard, setActiveCard] = useState<ClientCard | null>(null);
+
+  // Setup dnd-kit sensors: mouse/touch + keyboard for full accessibility
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 6, // Prevents clicks from accidentally starting drags
+      },
+    }),
+    useSensor(KeyboardSensor)
+  );
 
   if (phase !== 'LOAD_BAG') return null;
 
   const allPlayers = Array.from(players.values());
-  const localPlayer = allPlayers.find(p => p.id === localPlayerId);
+  const localPlayer = allPlayers.find((p) => p.id === localPlayerId);
   if (!localPlayer) return null;
 
   const isSheriff = localPlayer.isSheriff;
   const isSnapped = localPlayer.sealedBag?.isSnapped === true;
 
+  const loadedCards: ClientCard[] = isSnapped
+    ? (localPlayer.sealedBag?.cards && localPlayer.sealedBag.cards.length > 0)
+      ? localPlayer.sealedBag.cards
+      : localPlayer.hand.filter((c) => selectedCardIds.includes(c.id))
+    : localPlayer.hand.filter((c) => selectedCardIds.includes(c.id));
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const card = event.active.data.current?.card as ClientCard | undefined;
+    if (card) {
+      setActiveCard(card);
+    }
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { over } = event;
+    if (over && over.id === 'merchant-bag-dropzone' && activeCard) {
+      soundManager.playCardSlide();
+      addCardToSelection(activeCard.id);
+    }
+    setActiveCard(null);
+  };
+
+  const handleDragCancel = () => {
+    setActiveCard(null);
+  };
+
+  const handleCardClick = (card: ClientCard) => {
+    if (isSnapped) return;
+    soundManager.playCardSlide();
+    toggleCardSelection(card.id);
+  };
+
   const handleSnap = () => {
     if (selectedCardIds.length >= 1 && selectedCardIds.length <= 5) {
       network.send('load_bag', { cardIds: selectedCardIds });
-      clearSelection();
     }
   };
 
   const renderOtherMerchantsStatus = () => {
-    const merchants = allPlayers.filter(p => !p.isSheriff && p.id !== localPlayerId);
+    const merchants = allPlayers.filter((p) => !p.isSheriff && p.id !== localPlayerId);
     if (merchants.length === 0) return null;
-    
+
     return (
-      <div className="flex flex-col gap-2 mt-4 text-parchment font-body">
-        {merchants.map(m => {
+      <div className="flex flex-col gap-2 w-full max-w-md text-parchment font-body">
+        {merchants.map((m) => {
           const snapped = m.sealedBag?.isSnapped;
           return (
-            <div key={m.id} className="flex justify-between items-center bg-tavern-surface border border-tavern-border px-4 py-2 rounded">
-              <span>{m.name}</span>
-              <span>{snapped ? '✅ Snapped' : '⏳ Loading'}</span>
+            <div
+              key={m.id}
+              className="flex justify-between items-center bg-walnut-card/90 border border-tavern-border px-4 py-2 rounded-xl backdrop-blur-sm shadow-md"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-base">{snapped ? '💼' : '⏳'}</span>
+                <span className="font-display font-bold text-sm text-parchment">{m.name}</span>
+              </div>
+              <span
+                className={`text-xs font-display px-2.5 py-0.5 rounded-full border ${
+                  snapped
+                    ? 'bg-emerald/20 text-emerald border-emerald/50'
+                    : 'bg-amber-500/20 text-gold-light border-gold/40 animate-pulse'
+                }`}
+              >
+                {snapped ? 'Sealed & Locked' : 'Selecting Goods...'}
+              </span>
             </div>
           );
         })}
@@ -49,72 +120,109 @@ export function BagLoadingPanel() {
   };
 
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ y: '100%' }}
-        animate={{ y: 0 }}
-        exit={{ y: '100%' }}
-        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-        className="fixed bottom-0 left-0 w-full bg-tavern-bg/95 border-t border-tavern-border backdrop-blur-md p-6 z-50 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]"
-      >
-        <div className="max-w-4xl mx-auto flex flex-col gap-4">
-          
+    <DndContext
+      sensors={sensors}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
+    >
+      <AnimatePresence>
+        <motion.div
+          initial={{ y: '100%', opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: '100%', opacity: 0 }}
+          transition={{ type: 'spring', damping: 26, stiffness: 220 }}
+          className="fixed inset-x-0 bottom-0 z-40 bg-walnut-bg/95 border-t-2 border-gold/50 backdrop-blur-md px-6 py-5 shadow-[0_-15px_50px_rgba(0,0,0,0.7)] flex flex-col items-center"
+        >
           {isSheriff ? (
-            <div className="text-center">
-              <h2 className="text-2xl text-gold font-display mb-2">Merchants are loading their bags...</h2>
-              <div className="w-full max-w-md mx-auto">
-                {renderOtherMerchantsStatus()}
+            /* Sheriff View: Waiting for merchants */
+            <div className="flex flex-col items-center gap-4 py-3 text-center">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">⭐</span>
+                <h2 className="text-xl md:text-2xl font-display font-black text-gold tracking-wide">
+                  The Merchants Are Packing Their Bags...
+                </h2>
               </div>
+              <p className="text-xs md:text-sm text-parchment/80 max-w-lg font-body">
+                Keep a sharp eye on their movements. Honest wares or smuggled contraband will soon arrive at your gate!
+              </p>
+              {renderOtherMerchantsStatus()}
             </div>
           ) : isSnapped ? (
-            <div className="text-center flex flex-col items-center">
-              <h2 className="text-2xl text-emerald font-display mb-2">🔒 Bag Sealed!</h2>
-              <p className="text-parchment font-body mb-4">{localPlayer.sealedBag?.cardCount} cards in bag</p>
-              <h3 className="text-xl text-gold-light font-display">Waiting for other merchants...</h3>
-              <div className="w-full max-w-md mx-auto">
+            /* Merchant View: Already snapped bag */
+            <div className="flex flex-col items-center gap-4 py-2 text-center">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">🔒</span>
+                <h2 className="text-xl md:text-2xl font-display font-black text-emerald tracking-wide">
+                  Your Bag is Wax-Sealed & Locked!
+                </h2>
+              </div>
+              <p className="text-xs md:text-sm text-parchment/80 font-body">
+                {localPlayer.sealedBag?.cardCount || loadedCards.length} goods safely stowed. Prepare your declaration for the Sheriff!
+              </p>
+              <div className="my-1">
+                <MerchantBagDropZone
+                  loadedCards={loadedCards}
+                  onRemoveCard={() => {}}
+                  onSnapBag={() => {}}
+                  isSnapped={true}
+                  disabled={true}
+                />
+              </div>
+              <div className="w-full flex flex-col items-center">
+                <span className="text-xs font-display text-gold-muted mb-1.5 uppercase tracking-wider">
+                  Waiting for other merchants to finish:
+                </span>
                 {renderOtherMerchantsStatus()}
               </div>
             </div>
           ) : (
-            <div className="flex flex-col gap-4">
-              <div className="text-center">
-                <h2 className="text-2xl text-gold font-display mb-2">Load Your Merchant Bag</h2>
-                <p className="text-parchment font-body mb-4">Select 1-5 cards to place in your bag, then snap it shut!</p>
+            /* Merchant View: Loading Bag */
+            <div className="w-full max-w-5xl flex flex-col items-center gap-3">
+              {/* Header Title & Prompt */}
+              <div className="flex flex-col items-center text-center">
+                <h2 className="text-lg md:text-xl font-display font-black text-gold tracking-wide flex items-center gap-2">
+                  <span>💼</span>
+                  <span>Load Your Merchant Bag</span>
+                </h2>
+                <p className="text-xs text-parchment/80 font-body">
+                  Drag cards into your bag or click them to select (1 to 5 goods). Then snap it shut!
+                </p>
               </div>
 
-              <div className="flex overflow-x-auto py-4 gap-4 px-2 scroll-smooth">
-                {localPlayer.hand.map(card => (
-                  <div 
-                    key={card.id} 
-                    className="shrink-0 cursor-pointer" 
-                    onClick={() => toggleCardSelection(card.id)}
-                  >
-                    <CardDisplay
-                      card={card}
-                      selected={selectedCardIds.includes(card.id)}
-                    />
-                  </div>
-                ))}
-              </div>
+              {/* Central Bag Drop Target */}
+              <MerchantBagDropZone
+                loadedCards={loadedCards}
+                onRemoveCard={(cardId) => removeCardFromSelection(cardId)}
+                onSnapBag={handleSnap}
+                isSnapped={false}
+              />
 
-              <div className="flex justify-between items-center mt-2 border-t border-tavern-border pt-4">
-                <span className="text-gold-light font-body">
-                  {selectedCardIds.length} cards selected
+              {/* Hand Cards Fanned at Bottom */}
+              <div className="w-full flex flex-col items-center pt-1">
+                <span className="text-[11px] font-display text-parchment/60 uppercase tracking-widest">
+                  Your Hand ({localPlayer.hand.length} cards)
                 </span>
-                <motion.button
-                  whileHover={selectedCardIds.length >= 1 && selectedCardIds.length <= 5 ? { scale: 1.05 } : {}}
-                  whileTap={selectedCardIds.length >= 1 && selectedCardIds.length <= 5 ? { scale: 0.95 } : {}}
-                  className="btn-gold px-8 py-3 rounded text-lg disabled:opacity-50 disabled:cursor-not-allowed font-display"
-                  disabled={selectedCardIds.length < 1 || selectedCardIds.length > 5}
-                  onClick={handleSnap}
-                >
-                  Snap Bag Shut! 🔒
-                </motion.button>
+                <HandCardFan
+                  cards={localPlayer.hand}
+                  selectedCardIds={selectedCardIds}
+                  onCardClick={handleCardClick}
+                  isDraggable={true}
+                />
               </div>
             </div>
           )}
-        </div>
-      </motion.div>
-    </AnimatePresence>
+        </motion.div>
+      </AnimatePresence>
+
+      {/* Floating Drag Overlay */}
+      <DragOverlay dropAnimation={null}>
+        {activeCard ? (
+          <div className="rotate-6 scale-110 shadow-[0_15px_30px_rgba(0,0,0,0.8),0_0_20px_rgba(212,168,75,0.6)] cursor-grabbing pointer-events-none">
+            <CardDisplay card={activeCard} selected={true} />
+          </div>
+        ) : null}
+      </DragOverlay>
+    </DndContext>
   );
-};
+}
