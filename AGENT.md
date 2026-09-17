@@ -28,7 +28,7 @@ npm run dev          # starts both server (port 2567) and client (port 5173)
 - **Engine decoupled from networking:** All game logic in `packages/server/src/engine/` is pure functions with zero Colyseus imports, fully unit-testable.
 - **Numbers from specifications only:** Card counts, values, penalties come from `docs/architecture.md` and `docs/consultation-rulebook.md` — never from memory.
 
-## Current Phase: Phase 4 2D Core Loop Retrofit Completed — Ready for Phase 5 (Examination Desk 2D Retrofit) & Phase 8 (Anti-Cheat Hardening)
+## Current Phase: Phase 5 2D Retrofit Completed — Ready for Phase 8 (Anti-Cheat Hardening & Testing)
 - **Phase 0 (Scaffolding):** Monorepo with npm workspaces (`shared`, `server`, `client`), Colyseus 0.18 server, Vite 6 client, lobby UI.
 - **Phase 1 (Rules Engine):** Pure headless TypeScript rules engine in `packages/server/src/engine/`. 100% branch and statement coverage on `debtResolution.ts` and `scoring.ts`. 76 engine unit tests.
 - **Phase 2 (Colyseus Room):** Full engine wired into `NottinghamRoom` with Colyseus 0.18 and Schema 5.0. Zero-knowledge privacy filtering (`.view()`), atomic bribe buffer (`sequenceNumber`), and multi-player integration tests.
@@ -45,13 +45,13 @@ npm run dev          # starts both server (port 2567) and client (port 5173)
   - `@dnd-kit/core` Drag-and-Drop: Accessible via both pointer/touch and keyboard (`KeyboardSensor`).
   - `DeclarationPanel`: Compact inline parchment panel (non-blocking) with 4 legal good tokens (`GOOD_TOKENS`), auto-locked declared count equal to bag size, and wax-seal stamp animation on proclamation.
   - `MarketPanel`: Discard-and-draw market stalls using fanned hand card tray and tactile start player picker for Sheriff.
-- **Phase 5 (Inspection & Bribe Negotiation - "The Examination Desk"):**
-  - Procedural sound manager generating 1.2s tension sound ramp, mechanical bag snap, coin clink, gavel strike, and outcome stingers.
-  - `BribeScale`: Animated balance scale whose beam tilts dynamically using spring physics based on total bribe weight (coins, stand goods, bag claims).
-  - `UnsnapClasp`: Sheriff's 1.2s sustained hold interaction with tension audio ramp, release cancellation at <1.1s without state mutation, and snap crack at 1.2s.
-  - `BribeNegotiationPanel`: Bribe proposal builder with gold sliders, stand cards selection, promised goods, and 1.5s reaction buffer lock on modified offers.
-  - `InspectionOutcomeModal`: Visual feedback for Pass Unopened, Honest, and Dishonest outcomes, plus guided 4-step debt liquidation display.
-  - `ExaminationDesk`: Full orchestrator component connecting merchant interrogation, scale, negotiation, and inspection actions.
+- **Phase 5 (2D Examination Desk & Inspection Retrofit):**
+  - `ExaminationDesk`: Full-screen 2D overlay framing Sheriff/Deputy and Merchant portrait cards around a large central sealed bag and declaration banner.
+  - `BribeScale`: 2D illustrated brass balance beam with hanging pans, tilting proportionally via Framer Motion spring physics based on bribe weight, with tipping audio.
+  - `UnsnapClasp`: 2D radial SVG progress ring around a wax-seal clasp with exact 1.2s hold duration, tension audio ramp, and clean cancellation at <1.1s.
+  - `StaggeredCardReveal`: Staggered card flip reveal (~140ms delay) with radiant color-coded halos (emerald for legal, violet/crimson for contraband).
+  - `UnfurlingLedger`: Scroll-unfurl parchment receipt displaying statutory 4-step debt liquidation order (Gold → Stand Legal → Stand Contraband → Debt Forgiveness) with animated strikethroughs and checkmarks.
+  - `BribeNegotiationPanel`: Atomic proposal builder with 1.5s reaction buffer lock on modified offers.
 - **Phase 6 (Expansion Modules):**
   - **Royal Goods**: 12 royal cards (6 for 3p) filtered/shuffled into deck, treated as contraband through inspection, stored in private `standRoyal`, converted to legal equivalent counts for King/Queen bonus scoring plus face value scored.
   - **6-Player Deputies**: 2 deputies assigned per round, communal `bootyTile` collecting joint pass bribes and dishonesty fines, joint/solo pass/inspect decisions (`JOINT_PASS`, `JOINT_INSPECT`, `SOLO_PASS`, `SOLO_INSPECT`), equal booty split at round end (odd remainder discarded), game over at 9 rounds or 3 deck depletions.

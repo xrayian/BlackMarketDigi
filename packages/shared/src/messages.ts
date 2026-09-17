@@ -50,6 +50,17 @@ export interface SelectInspectMerchantMessage {
   targetPlayerId: string;
 }
 
+export interface RevealedCardInfo {
+  id: string;
+  name: string;
+  classification: 'LEGAL' | 'CONTRABAND' | 'ROYAL';
+  goodType?: string;
+  contrabandType?: string;
+  royalGoodType?: string;
+  value: number;
+  penalty: number;
+}
+
 export interface InspectionResultMessage {
   outcome: 'PASS' | 'HONEST' | 'DISHONEST';
   targetPlayerId: string;
@@ -66,6 +77,7 @@ export interface InspectionResultMessage {
   debtForgiven: number;
   liquidatedLegalCount?: number;
   liquidatedContrabandCount?: number;
+  revealedCards?: RevealedCardInfo[];
 }
 
 export interface UpdateLobbyOptionsMessage {

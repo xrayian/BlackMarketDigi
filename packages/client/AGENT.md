@@ -24,7 +24,7 @@
 - Centralized color tokens in `src/theme/tokens.ts` (walnut, parchment, gold, crimson, emerald, contraband, royal).
 - Font: Cinzel (`font-display`) for titles/badges/labels, Inter (`font-body`) for body text.
 
-## Current Phase: Phase 4 2D Core Loop Retrofit Completed
+## Current Phase: Phase 5 2D Retrofit Completed — Ready for Phase 8 (Anti-Cheat Hardening & Testing)
 - **Phase 3 (2D Table & Board Scene Retrofit):**
   - Replaced legacy 3D canvas with top-down 2D tabletop arena (`TableBoard2D`) supporting 3–6 seats with local player anchored in foreground.
   - `PlayerStand2D`: Nameplate, connection status, role badges, gold coin purse, legal goods bins, vaulted contraband count, royal goods count, and sealed bag indicator.
@@ -36,6 +36,13 @@
   - `@dnd-kit/core` Drag-and-Drop: Accessible via both pointer/touch and keyboard (`KeyboardSensor`).
   - `DeclarationPanel`: Compact inline parchment panel (non-blocking) with 4 legal good tokens (`GOOD_TOKENS`), auto-locked declared count equal to bag size, and wax-seal stamp animation on proclamation.
   - `MarketPanel`: Discard-and-draw market stalls using fanned hand card tray and tactile start player picker for Sheriff.
+- **Phase 5 (2D Examination Desk & Inspection Retrofit):**
+  - `ExaminationDesk`: Full-screen 2D overlay framing Sheriff/Deputy and Merchant portrait cards around a large central sealed bag and declaration banner.
+  - `BribeScale`: 2D illustrated brass balance beam with hanging pans, tilting proportionally via Framer Motion spring physics based on bribe weight, with tipping audio.
+  - `UnsnapClasp`: 2D radial SVG progress ring around a wax-seal clasp with exact 1.2s hold duration, tension audio ramp, and clean cancellation at <1.1s.
+  - `StaggeredCardReveal`: Staggered card flip reveal (~140ms delay) with radiant color-coded halos (emerald for legal, violet/crimson for contraband).
+  - `UnfurlingLedger`: Scroll-unfurl parchment receipt displaying statutory 4-step debt liquidation order (Gold → Stand Legal → Stand Contraband → Debt Forgiveness) with animated strikethroughs and checkmarks.
+  - `BribeNegotiationPanel`: Atomic proposal builder with 1.5s reaction buffer lock on modified offers.
 - **Phase 7 (Micro-interactions, Audio, Visual Polish & Accessibility):**
   - `soundManager.ts`: Procedural Web Audio API audio suite including continuous cozy tavern ambience loop (warm hearth fireplace rumble, ember micro-crackles, low resonant drone), tactile card slide SFX (`playCardSlide`), metallic scale hinge tipping sound (`playScaleTip`), bag latch snap (`playSnap`), and outcome fanfares/discord stingers.
   - `SettingsModal.tsx`: Dedicated UI modal accessible from Lobby and Game Scene offering audio controls (SFX on/off, Tavern Ambience on/off) and accessibility preferences (Reduced Motion on/off, Color-Independent Card Guide).

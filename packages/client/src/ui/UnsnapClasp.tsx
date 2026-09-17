@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, type PointerEvent } from 'react';
 import { motion } from 'framer-motion';
 import { soundManager } from '../audio/soundManager';
+import { useGameStore } from '../state/gameStore';
 
 interface UnsnapClaspProps {
   onInspect: () => void;
@@ -10,8 +11,10 @@ interface UnsnapClaspProps {
 
 const HOLD_DURATION_MS = 1200;
 const CANCEL_THRESHOLD_MS = 1100;
+const CIRCUMFERENCE = 2 * Math.PI * 40; // r = 40 => 251.327
 
 export function UnsnapClasp({ onInspect, onPass, disabled = false }: UnsnapClaspProps) {
+  const reducedMotion = useGameStore((s) => s.reducedMotion);
   const [progress, setProgress] = useState(0);
   const [isHolding, setIsHolding] = useState(false);
   const [isSnapping, setIsSnapping] = useState(false);
@@ -34,14 +37,14 @@ export function UnsnapClasp({ onInspect, onPass, disabled = false }: UnsnapClasp
     }
   }, [isSnapping]);
 
-  const handlePointerDown = (e: React.PointerEvent) => {
+  const handlePointerDown = (e: PointerEvent) => {
     if (disabled || isSnapping) return;
     (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
 
     setIsHolding(true);
     holdStartRef.current = performance.now();
 
-    // Start audio tension ramp
+    // Start 1.2s audio tension ramp
     stopAudioRef.current = soundManager.startTensionRamp(HOLD_DURATION_MS);
 
     const tick = () => {
@@ -50,7 +53,7 @@ export function UnsnapClasp({ onInspect, onPass, disabled = false }: UnsnapClasp
       setProgress(pct);
 
       if (elapsed >= HOLD_DURATION_MS) {
-        // Trigger irreversible snap!
+        // Trigger irreversible snap at 1.2s threshold
         setIsSnapping(true);
         setIsHolding(false);
         soundManager.playSnap();
@@ -75,7 +78,7 @@ export function UnsnapClasp({ onInspect, onPass, disabled = false }: UnsnapClasp
     if (isSnapping) return;
     const elapsed = performance.now() - holdStartRef.current;
     if (elapsed < CANCEL_THRESHOLD_MS) {
-      // Released early -> cancel without inspection
+      // Released before 1.1s threshold -> cleanly cancel with no state mutation
       handleCancel();
     }
     (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
@@ -88,62 +91,106 @@ export function UnsnapClasp({ onInspect, onPass, disabled = false }: UnsnapClasp
     };
   }, []);
 
+  const strokeDashoffset = CIRCUMFERENCE * (1 - progress);
+
   return (
-    <div className="flex items-center gap-4 select-none">
+    <div className="flex items-center gap-6 select-none justify-center">
       {/* Pass Unopened Button */}
-      <button
+      <motion.button
         type="button"
         disabled={disabled || isHolding || isSnapping}
         onClick={onPass}
-        className="px-5 py-3 rounded-xl bg-emerald/30 border border-emerald/60 text-emerald-300 hover:bg-emerald/40 hover:border-emerald font-display text-sm tracking-wider uppercase transition-all shadow-lg active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+        whileHover={!disabled ? { scale: 1.05 } : undefined}
+        whileTap={!disabled ? { scale: 0.95 } : undefined}
+        className="px-6 py-3.5 rounded-2xl bg-emerald/30 border-2 border-emerald/60 text-emerald-300 hover:bg-emerald/40 hover:border-emerald font-display text-sm tracking-wider uppercase font-bold transition-all shadow-[0_4px_20px_rgba(5,150,105,0.3)] disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer"
       >
-        Pass Unopened 🕊️
-      </button>
+        <span>🕊️</span>
+        <span>Pass Unopened</span>
+      </motion.button>
 
-      {/* Unsnap Bag Clasp: Press & Hold interaction */}
-      <div className="relative">
+      {/* 2D Radial Unsnap Clasp (Press & Hold) */}
+      <div className="relative flex flex-col items-center">
         <div
           onPointerDown={handlePointerDown}
           onPointerUp={handlePointerUp}
           onPointerCancel={handleCancel}
           onPointerLeave={handleCancel}
           className={`
-            relative flex items-center justify-center gap-2.5 px-7 py-3 rounded-xl border-2
-            font-display text-sm tracking-wider uppercase font-bold cursor-pointer overflow-hidden
-            transition-all duration-150 shadow-2xl
-            ${
-              disabled
-                ? 'opacity-40 cursor-not-allowed bg-tavern-card border-tavern-border text-gold-muted'
-                : isHolding
-                ? 'bg-crimson/90 border-red-400 text-white scale-[1.02] ring-4 ring-crimson/40 shadow-[0_0_25px_rgba(155,44,44,0.6)]'
-                : isSnapping
-                ? 'bg-red-700 border-white text-white scale-95 shadow-[0_0_35px_rgba(255,255,255,0.8)]'
-                : 'bg-gradient-to-b from-crimson/80 to-tavern-card border-crimson/80 text-parchment hover:border-red-400 hover:text-white'
-            }
+            relative w-24 h-24 rounded-full flex items-center justify-center cursor-pointer
+            transition-transform duration-100 shadow-2xl touch-none
+            ${disabled ? 'opacity-40 cursor-not-allowed' : 'active:scale-95'}
           `}
+          title="Press and hold for 1.2s to snap open the merchant's bag"
         >
-          {/* Progress fill bar */}
+          {/* Radial SVG Progress Ring */}
+          <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none" viewBox="0 0 96 96">
+            {/* Background Track */}
+            <circle
+              cx="48"
+              cy="48"
+              r="40"
+              stroke="#3b0764"
+              strokeWidth="6"
+              fill="none"
+              className="opacity-40"
+            />
+            {/* Animated Radial Fill Ring */}
+            <circle
+              cx="48"
+              cy="48"
+              r="40"
+              stroke={isHolding ? '#ef4444' : '#d4a84b'}
+              strokeWidth="6"
+              fill="none"
+              strokeDasharray={CIRCUMFERENCE}
+              strokeDashoffset={reducedMotion ? 0 : strokeDashoffset}
+              strokeLinecap="round"
+              className="transition-all duration-75 ease-linear"
+              style={{
+                filter: isHolding ? 'drop-shadow(0 0 8px rgba(239,68,68,0.8))' : 'none',
+              }}
+            />
+          </svg>
+
+          {/* Inner Wax Seal / Clasp Body */}
           <motion.div
-            className="absolute inset-0 bg-red-600/40 pointer-events-none origin-left"
-            style={{ width: `${progress * 100}%` }}
-          />
-
-          <span className="text-lg leading-none">
-            {isSnapping ? '💥' : isHolding ? '⚠️' : '🔓'}
-          </span>
-
-          <span className="relative z-10">
-            {isSnapping
-              ? 'SNAP!'
-              : isHolding
-              ? `Hold to Unsnap (${Math.round((1 - progress) * 1.2 * 10) / 10}s)`
-              : 'Hold to Unsnap Bag'}
-          </span>
+            animate={
+              isSnapping
+                ? { scale: [1, 1.3, 0.9, 1] }
+                : isHolding
+                ? { scale: [1, 1.05, 1] }
+                : { scale: 1 }
+            }
+            transition={isHolding ? { repeat: Infinity, duration: 0.3 } : undefined}
+            className={`
+              w-18 h-18 rounded-full border-2 flex flex-col items-center justify-center text-center z-10
+              ${
+                isSnapping
+                  ? 'bg-red-700 border-white text-white shadow-[0_0_30px_rgba(255,255,255,0.9)]'
+                  : isHolding
+                  ? 'bg-crimson border-red-300 text-white shadow-[0_0_25px_rgba(239,68,68,0.8)]'
+                  : 'bg-gradient-to-b from-crimson to-walnut-card border-gold text-parchment hover:border-gold-light'
+              }
+            `}
+          >
+            <span className="text-2xl leading-none">
+              {isSnapping ? '💥' : isHolding ? '⚠️' : '🔓'}
+            </span>
+            <span className="text-[10px] font-display font-black tracking-widest uppercase mt-0.5 leading-none">
+              {isSnapping ? 'SNAP!' : isHolding ? 'HOLD' : 'UNSNAP'}
+            </span>
+          </motion.div>
         </div>
 
-        {/* Small hold instruction hint */}
-        <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] text-parchment/60 font-body">
-          {isHolding ? 'Release now to cancel' : 'Press & hold 1.2s to inspect'}
+        {/* Hold Progress & Guidance Hint */}
+        <div className="absolute -bottom-6 whitespace-nowrap text-[11px] font-display">
+          {isHolding ? (
+            <span className="text-red-400 font-bold animate-pulse">
+              Hold {Math.max(0, Math.round((1 - progress) * 1.2 * 10) / 10)}s (Release to cancel)
+            </span>
+          ) : (
+            <span className="text-parchment/60">Press & hold 1.2s to inspect</span>
+          )}
         </div>
       </div>
     </div>

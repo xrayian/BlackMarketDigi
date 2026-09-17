@@ -336,7 +336,11 @@ burlap sack puff and squash-then-settle animations, and compact inline declarati
 
 ## 9. Phase 5 — Inspection & Bribe Negotiation ("The Examination Desk") (RETROFIT)
 
-**Status:** 🔧 Needs rework. Reference `docs/2d-design-overhaul.md` §4.4–§4.5.
+**Status:** ✅ Done. Full-screen 2D Examination Desk overlay with Sheriff/Deputies
+and Merchant framing portraits, 2D balance-scale with spring tilt, 2D radial progress
+ring Unsnap Clasp (`UnsnapClasp`) with exact 1.2s hold / 1.1s cancel timing, staggered
+card flip reveal with legal/contraband halos (`StaggeredCardReveal`), and unfurling
+parchment receipt (`UnfurlingLedger`) demonstrating the 4-step statutory liquidation order.
 
 **Tasks**
 - Replace the 3D examination viewport with the full-screen 2D overlay per §4.4:

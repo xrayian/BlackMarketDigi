@@ -4,6 +4,8 @@ import { network } from '../net/colyseus';
 import { BribeScale } from './BribeScale';
 import { UnsnapClasp } from './UnsnapClasp';
 import { BribeNegotiationPanel } from './BribeNegotiationPanel';
+import { GOOD_TOKENS } from '../theme/tokens';
+import type { GoodType } from '@sheriff/shared';
 
 export function ExaminationDesk() {
   const phase = useGameStore((s) => s.phase);
@@ -15,6 +17,7 @@ export function ExaminationDesk() {
   const activeMerchantId = useGameStore((s) => s.activeMerchantId);
   const playersMap = useGameStore((s) => s.players);
   const activeBribe = useGameStore((s) => s.activeBribe);
+  const reducedMotion = useGameStore((s) => s.reducedMotion);
 
   if (phase !== 'INSPECTION') return null;
 
@@ -62,99 +65,176 @@ export function ExaminationDesk() {
     });
   };
 
+  const declaredGoodToken = activeMerchant?.sealedBag?.declaredGood
+    ? GOOD_TOKENS[activeMerchant.sealedBag.declaredGood as GoodType]
+    : null;
+
   return (
     <AnimatePresence>
-      <div className="fixed inset-x-0 bottom-0 z-40 flex flex-col items-center pointer-events-none select-none">
-        {/* Main Examination Desk Overlay Panel */}
-        <motion.div
-          initial={{ y: 80, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: 80, opacity: 0 }}
-          transition={{ type: 'spring', damping: 26, stiffness: 220 }}
-          className="w-full max-w-5xl bg-tavern-bg/95 border-t-2 border-gold/50 backdrop-blur-md rounded-t-3xl p-5 shadow-[0_-15px_50px_rgba(0,0,0,0.7)] pointer-events-auto flex flex-col gap-4 text-parchment"
-        >
-          {/* Header Banner */}
-          <div className="flex items-center justify-between border-b border-tavern-border pb-3">
-            <div className="flex items-center gap-3 flex-wrap">
-              <span className="font-display font-black text-gold text-lg tracking-wider">
-                ⚖️ THE EXAMINATION DESK
+      {/* Full-Screen 2D Examination Desk Overlay (docs/2d-design-overhaul.md §4.4) */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: reducedMotion ? 0.05 : 0.25, ease: 'easeOut' }}
+        className="fixed inset-0 z-40 bg-walnut-bg/95 backdrop-blur-md flex flex-col justify-between p-4 md:p-6 text-parchment select-none overflow-y-auto"
+      >
+        {/* Top Header Bar */}
+        <div className="flex items-center justify-between border-b border-gold/40 pb-3 shrink-0">
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">⚖️</span>
+              <span className="font-display font-black text-gold text-lg md:text-xl tracking-wider uppercase">
+                The Examination Desk
               </span>
-              {enableDeputies ? (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-parchment/60 font-body">
-                    Deputies: <span className="font-bold text-white">{deputyPlayers.map((d) => d.name).join(' & ')}</span>
-                  </span>
-                  {bootyTile && (
-                    <span className="flex items-center gap-1.5 bg-tavern-card px-2.5 py-0.5 rounded-md border border-gold/40 text-xs text-gold">
-                      <span>💰 Booty:</span>
-                      <span className="font-bold text-white">{bootyTile.gold}g</span>
-                      {bootyTile.goodsCount > 0 && <span>({bootyTile.goodsCount} goods)</span>}
-                    </span>
-                  )}
-                </div>
-              ) : (
-                <span className="text-xs text-parchment/60 font-body">
-                  Sheriff: <span className="font-bold text-white">{sheriffPlayer.name}</span>
-                </span>
-              )}
             </div>
 
-            {activeMerchant && (
-              <div className="flex items-center gap-2 bg-tavern-card px-3 py-1 rounded-lg border border-gold/30 text-xs">
-                <span className="text-gold-muted">Interrogating:</span>
-                <span className="font-display font-bold text-white">{activeMerchant.name}</span>
-                <span className="text-emerald-400 font-bold ml-1">
-                  (Declared {activeMerchant.sealedBag?.declaredCount} {activeMerchant.sealedBag?.declaredGood})
+            {enableDeputies ? (
+              <div className="flex items-center gap-2">
+                <span className="text-xs bg-walnut-card px-2.5 py-1 rounded-lg border border-gold/30 font-display">
+                  🛡️ Deputies:{' '}
+                  <span className="font-bold text-white">
+                    {deputyPlayers.map((d) => d.name).join(' & ')}
+                  </span>
                 </span>
+                {bootyTile && (
+                  <span className="flex items-center gap-1.5 bg-walnut-card px-2.5 py-1 rounded-lg border border-gold/40 text-xs text-gold font-display font-bold">
+                    <span>💰 Communal Booty:</span>
+                    <span className="text-white">{bootyTile.gold}g</span>
+                    {bootyTile.goodsCount > 0 && <span>({bootyTile.goodsCount} goods)</span>}
+                  </span>
+                )}
               </div>
+            ) : (
+              <span className="text-xs bg-walnut-card px-2.5 py-1 rounded-lg border border-gold/30 font-display">
+                ⭐ Sheriff: <span className="font-bold text-white">{sheriffPlayer.name}</span>
+              </span>
             )}
           </div>
 
-          {/* State 1: No Merchant Selected Yet */}
-          {!activeMerchant ? (
-            <div className="flex flex-col items-center py-6 gap-4 text-center">
-              {canInspect ? (
-                <>
-                  <h3 className="font-display text-xl text-gold font-bold">
-                    Select a Merchant to Call to the Examination Desk
-                  </h3>
-                  <p className="text-xs text-parchment/70 max-w-md">
-                    Choose which merchant’s bag to scrutinize, weigh on the scale, and interrogate.
-                  </p>
-                  <div className="flex flex-wrap justify-center gap-3 mt-2">
-                    {uninspectedMerchants.map((m) => (
-                      <button
-                        key={m.id}
-                        type="button"
-                        onClick={() => handleSelectMerchant(m.id)}
-                        className="px-5 py-2.5 rounded-xl bg-tavern-card border border-gold/40 hover:border-gold hover:bg-gold/15 text-gold-light hover:text-white font-display text-sm tracking-wider font-bold transition-all shadow-md active:scale-95"
-                      >
-                        💼 {m.name} ({m.sealedBag?.declaredCount} {m.sealedBag?.declaredGood})
-                      </button>
-                    ))}
-                    {uninspectedMerchants.length === 0 && (
-                      <div className="text-sm text-gold-muted italic">
-                        All merchants have been examined for this round.
-                      </div>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <div className="space-y-2">
-                  <h3 className="font-display text-lg text-gold font-bold">
-                    Waiting for {enableDeputies ? 'Deputies' : `Sheriff ${sheriffPlayer.name}`}...
-                  </h3>
-                  <p className="text-xs text-parchment/70">
-                    The inspection team is reviewing declarations and selecting the next merchant to interrogate.
-                  </p>
-                </div>
+          {activeMerchant && (
+            <div className="flex items-center gap-2 bg-walnut-card px-3 py-1.5 rounded-xl border border-gold/40 text-xs font-display">
+              <span className="text-gold-muted uppercase tracking-wider">Interrogating:</span>
+              <span className="font-bold text-white">{activeMerchant.name}</span>
+              {declaredGoodToken && (
+                <span className="flex items-center gap-1 text-gold ml-1">
+                  <span>(Declared {activeMerchant.sealedBag?.declaredCount}</span>
+                  <span>{declaredGoodToken.icon}</span>
+                  <span>{declaredGoodToken.name})</span>
+                </span>
               )}
             </div>
-          ) : (
-            /* State 2: Active 1-on-1 Merchant Examination */
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
-              {/* Left Column: Bribe Balance Scale & Declaration details */}
-              <div className="flex flex-col items-center justify-center bg-tavern-card/60 rounded-2xl p-4 border border-tavern-border">
+          )}
+        </div>
+
+        {/* State 1: No Merchant Selected Yet */}
+        {!activeMerchant ? (
+          <div className="flex-1 flex flex-col items-center justify-center py-8 gap-5 text-center max-w-2xl mx-auto">
+            {canInspect ? (
+              <>
+                <div className="w-16 h-16 rounded-full bg-walnut-card border-2 border-gold flex items-center justify-center text-3xl shadow-xl">
+                  📜
+                </div>
+                <div className="space-y-1">
+                  <h3 className="font-display text-2xl text-gold font-black tracking-wide uppercase">
+                    Call a Merchant to the Desk
+                  </h3>
+                  <p className="text-xs md:text-sm text-parchment/80 font-body">
+                    Choose which merchant's sealed bag to inspect, interrogate on the balance scale, or wave through the gates.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap justify-center gap-3 mt-2 w-full">
+                  {uninspectedMerchants.map((m) => (
+                    <motion.button
+                      key={m.id}
+                      type="button"
+                      whileHover={{ scale: 1.04 }}
+                      whileTap={{ scale: 0.96 }}
+                      onClick={() => handleSelectMerchant(m.id)}
+                      className="px-5 py-3 rounded-2xl bg-walnut-card hover:bg-gold/20 border-2 border-gold/40 hover:border-gold text-gold-light font-display text-sm tracking-wider font-bold transition-all shadow-xl cursor-pointer flex items-center gap-2.5"
+                    >
+                      <span>💼</span>
+                      <span>{m.name}</span>
+                      <span className="text-xs text-parchment/70 font-normal">
+                        ({m.sealedBag?.declaredCount} {m.sealedBag?.declaredGood})
+                      </span>
+                    </motion.button>
+                  ))}
+
+                  {uninspectedMerchants.length === 0 && (
+                    <div className="text-sm font-display text-gold-muted italic py-4">
+                      All merchants have passed or been inspected for this round. Concluding inspection phase...
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="space-y-3 py-10">
+                <span className="text-4xl animate-pulse block">⏳</span>
+                <h3 className="font-display text-xl text-gold font-bold">
+                  Awaiting {enableDeputies ? 'Deputies' : `Sheriff ${sheriffPlayer.name}`}
+                </h3>
+                <p className="text-xs md:text-sm text-parchment/70 max-w-md font-body">
+                  The gate authorities are reviewing declarations and calling the next merchant forward. Stay composed!
+                </p>
+              </div>
+            )}
+          </div>
+        ) : (
+          /* State 2: Active 1-on-1 Merchant Interrogation (Framing Portraits + Bag + Scale) */
+          <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-6 items-start py-4 max-w-7xl mx-auto w-full">
+            {/* LEFT COLUMN: Crown Authority Portrait (Sheriff or Deputies) */}
+            <div className="lg:col-span-1 bg-walnut-card/90 border-2 border-gold/40 rounded-3xl p-4 shadow-xl flex flex-col items-center gap-3">
+              <div className="w-20 h-20 rounded-full bg-gradient-to-b from-amber-800 to-walnut-bg border-2 border-gold flex items-center justify-center text-3xl shadow-lg">
+                {enableDeputies ? '🛡️' : '⭐'}
+              </div>
+              <div className="text-center">
+                <span className="text-[10px] font-display uppercase tracking-widest text-gold-muted block">
+                  {enableDeputies ? 'Crown Deputies' : 'Sheriff of Nottingham'}
+                </span>
+                <h4 className="font-display font-black text-base text-white">
+                  {enableDeputies
+                    ? deputyPlayers.map((d) => d.name).join(' & ')
+                    : sheriffPlayer.name}
+                </h4>
+              </div>
+
+              {/* Sheriff Gold Purse */}
+              <div className="w-full bg-walnut-bg/80 border border-gold/20 rounded-xl px-3 py-1.5 flex justify-between items-center text-xs font-display">
+                <span className="text-gold-muted">Treasury:</span>
+                <span className="text-gold font-bold">🪙 {sheriffPlayer.gold} Gold</span>
+              </div>
+
+              {/* Status Note */}
+              <p className="text-[11px] text-parchment/70 italic text-center font-body">
+                "Honesty brings peace, but deceit pays a hefty toll."
+              </p>
+            </div>
+
+            {/* CENTER COLUMNS (2 cols): Sealed Bag + 2D Bribe Scale + Action Controls */}
+            <div className="lg:col-span-2 flex flex-col items-center gap-4">
+              {/* Central Sealed Bag Preview */}
+              <div className="w-full bg-walnut-surface/90 border-2 border-gold/50 rounded-3xl p-4 shadow-xl flex flex-col items-center gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">💼</span>
+                  <span className="font-display font-black text-sm uppercase tracking-wider text-gold">
+                    {activeMerchant.name}'s Sealed Bag
+                  </span>
+                </div>
+
+                {/* Proclamation Banner */}
+                {declaredGoodToken && (
+                  <div className="flex items-center gap-2 bg-walnut-card border border-gold/50 px-4 py-1.5 rounded-full text-xs font-display shadow-md">
+                    <span className="text-parchment/70">Declared Proclamation:</span>
+                    <span className="text-xl">{declaredGoodToken.icon}</span>
+                    <span className="font-bold text-gold">
+                      {activeMerchant.sealedBag?.declaredCount} {declaredGoodToken.name}
+                    </span>
+                  </div>
+                )}
+
+                {/* 2D Illustrated Balance Scale */}
                 <BribeScale
                   goldAmount={activeBribe?.gold || 0}
                   standCardCount={activeBribe?.standCardIds.length || 0}
@@ -164,63 +244,63 @@ export function ExaminationDesk() {
                 />
               </div>
 
-              {/* Right Column: Negotiation & Action Controls */}
-              <div className="flex flex-col gap-4 items-center">
-                <BribeNegotiationPanel sheriff={sheriffPlayer} merchant={activeMerchant} />
+              {/* Bribe Negotiation Proposal Builder */}
+              <BribeNegotiationPanel sheriff={sheriffPlayer} merchant={activeMerchant} />
 
-                {/* Actions */}
+              {/* Action Controls: Unsnap Clasp or Deputy Decisions */}
+              <div className="w-full flex flex-col items-center pt-2">
                 {enableDeputies ? (
                   isLocalDeputy ? (
-                    <div className="w-full flex flex-col gap-2 pt-2">
-                      <div className="text-xs text-center text-gold-muted font-display uppercase tracking-wider mb-0.5">
-                        Deputy Decisions
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 w-full">
+                    <div className="w-full flex flex-col gap-2">
+                      <span className="text-xs text-center text-gold-muted font-display uppercase tracking-widest">
+                        Deputy Inspection Actions
+                      </span>
+                      <div className="grid grid-cols-2 gap-2.5 w-full">
                         <button
                           type="button"
                           onClick={() => handleDeputyAction('JOINT_PASS', activeMerchant.id)}
-                          className="p-2.5 rounded-xl bg-emerald/20 border border-emerald/60 hover:bg-emerald/30 text-emerald-200 text-left transition-all group"
+                          className="p-3 rounded-2xl bg-emerald/20 border-2 border-emerald/50 hover:bg-emerald/30 text-emerald-200 text-left transition-all cursor-pointer shadow-lg"
                         >
-                          <div className="font-display font-bold text-xs flex items-center gap-1.5 text-emerald-300">
+                          <div className="font-display font-black text-xs flex items-center gap-1.5 text-emerald-300">
                             🤝 Joint Pass
                           </div>
                           <div className="text-[10px] text-parchment/70 mt-0.5 leading-tight">
-                            Pass unopened; bribes go to communal Booty Tile
+                            Pass bag; tribute shared into Booty Tile
                           </div>
                         </button>
 
                         <button
                           type="button"
                           onClick={() => handleDeputyAction('JOINT_INSPECT', activeMerchant.id)}
-                          className="p-2.5 rounded-xl bg-crimson/20 border border-crimson/60 hover:bg-crimson/30 text-red-200 text-left transition-all group"
+                          className="p-3 rounded-2xl bg-crimson/20 border-2 border-crimson/60 hover:bg-crimson/30 text-red-200 text-left transition-all cursor-pointer shadow-lg"
                         >
-                          <div className="font-display font-bold text-xs flex items-center gap-1.5 text-red-300">
+                          <div className="font-display font-black text-xs flex items-center gap-1.5 text-red-300">
                             🔍 Joint Inspect
                           </div>
                           <div className="text-[10px] text-parchment/70 mt-0.5 leading-tight">
-                            Inspect together; split penalty / fine to Booty
+                            Inspect together; split risk & fines
                           </div>
                         </button>
 
                         <button
                           type="button"
                           onClick={() => handleDeputyAction('SOLO_PASS', activeMerchant.id)}
-                          className="p-2.5 rounded-xl bg-tavern-surface border border-gold/40 hover:border-gold hover:bg-gold/15 text-gold-light text-left transition-all group"
+                          className="p-3 rounded-2xl bg-walnut-card border-2 border-gold/40 hover:border-gold text-gold-light text-left transition-all cursor-pointer shadow-lg"
                         >
-                          <div className="font-display font-bold text-xs flex items-center gap-1.5 text-gold">
+                          <div className="font-display font-black text-xs flex items-center gap-1.5 text-gold">
                             🤫 Solo Pass
                           </div>
                           <div className="text-[10px] text-parchment/70 mt-0.5 leading-tight">
-                            Pass alone; collect bribe into personal purse
+                            Pass alone; collect tribute to personal purse
                           </div>
                         </button>
 
                         <button
                           type="button"
                           onClick={() => handleDeputyAction('SOLO_INSPECT', activeMerchant.id)}
-                          className="p-2.5 rounded-xl bg-tavern-surface border border-gold/40 hover:border-gold hover:bg-gold/15 text-gold-light text-left transition-all group"
+                          className="p-3 rounded-2xl bg-walnut-card border-2 border-gold/40 hover:border-gold text-gold-light text-left transition-all cursor-pointer shadow-lg"
                         >
-                          <div className="font-display font-bold text-xs flex items-center gap-1.5 text-gold">
+                          <div className="font-display font-black text-xs flex items-center gap-1.5 text-gold">
                             ⚡ Solo Inspect
                           </div>
                           <div className="text-[10px] text-parchment/70 mt-0.5 leading-tight">
@@ -230,31 +310,78 @@ export function ExaminationDesk() {
                       </div>
                     </div>
                   ) : (
-                    <div className="text-center text-xs text-gold-muted italic py-2">
+                    <div className="text-center text-xs text-gold-muted italic py-2 font-body">
                       {localPlayer?.id === activeMerchant.id
-                        ? 'You are at the Examination Desk. Bluff, negotiate, or let the Deputies decide!'
+                        ? 'You stand at the Examination Desk. Negotiate with the Deputies or let them decide!'
                         : `${activeMerchant.name} is negotiating with the Deputies...`}
                     </div>
                   )
                 ) : isLocalSheriff ? (
-                  <div className="w-full flex justify-center pt-2">
+                  <div className="w-full flex justify-center">
                     <UnsnapClasp
                       onInspect={() => handleInspect(activeMerchant.id)}
                       onPass={() => handlePass(activeMerchant.id)}
                     />
                   </div>
                 ) : (
-                  <div className="text-center text-xs text-gold-muted italic py-2">
+                  <div className="text-center text-xs text-gold-muted italic py-2 font-body">
                     {localPlayer?.id === activeMerchant.id
-                      ? 'You are at the Examination Desk. Bluff, negotiate, or let the Sheriff decide!'
-                      : `${activeMerchant.name} is negotiating with the Sheriff...`}
+                      ? "You are before the Sheriff. Offer tribute, look them in the eye, or wait for the clasp to snap!"
+                      : `${activeMerchant.name} is being scrutinized by Sheriff ${sheriffPlayer.name}...`}
                   </div>
                 )}
               </div>
             </div>
-          )}
-        </motion.div>
-      </div>
+
+            {/* RIGHT COLUMN: Merchant Portrait & Stand Wares */}
+            <div className="lg:col-span-1 bg-walnut-card/90 border-2 border-gold/40 rounded-3xl p-4 shadow-xl flex flex-col items-center gap-3">
+              <div className="w-20 h-20 rounded-full bg-gradient-to-b from-amber-950 to-walnut-bg border-2 border-gold flex items-center justify-center text-3xl shadow-lg">
+                💼
+              </div>
+              <div className="text-center">
+                <span className="text-[10px] font-display uppercase tracking-widest text-gold-muted block">
+                  Merchant at Gate
+                </span>
+                <h4 className="font-display font-black text-base text-white">
+                  {activeMerchant.name}
+                </h4>
+              </div>
+
+              {/* Merchant Gold Purse */}
+              <div className="w-full bg-walnut-bg/80 border border-gold/20 rounded-xl px-3 py-1.5 flex justify-between items-center text-xs font-display">
+                <span className="text-gold-muted">Purse:</span>
+                <span className="text-gold font-bold">🪙 {activeMerchant.gold} Gold</span>
+              </div>
+
+              {/* Merchant Stand Wares */}
+              <div className="w-full flex flex-col gap-1.5 bg-walnut-bg/60 p-2.5 rounded-xl border border-tavern-border text-xs">
+                <span className="text-[10px] font-display text-gold-muted uppercase tracking-wider block border-b border-tavern-border pb-1">
+                  Stand Wares
+                </span>
+                <div className="flex justify-between">
+                  <span className="text-parchment/70">Legal Goods:</span>
+                  <span className="font-bold text-white">{activeMerchant.standLegal.length}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-parchment/70">Contraband Vault:</span>
+                  <span className="font-bold text-contraband-light">⚜️ {activeMerchant.standContrabandCount}</span>
+                </div>
+                {activeMerchant.standRoyalCount > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-parchment/70">Royal Wares:</span>
+                    <span className="font-bold text-royal-light">👑 {activeMerchant.standRoyalCount}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Footer Note */}
+        <div className="text-center text-[11px] text-parchment/50 pt-2 border-t border-tavern-border/50 font-body shrink-0">
+          Nottingham Gate Examination • Truthful declarations are compensated by the Crown; contraband is forfeit with statutory penalty.
+        </div>
+      </motion.div>
     </AnimatePresence>
   );
 }

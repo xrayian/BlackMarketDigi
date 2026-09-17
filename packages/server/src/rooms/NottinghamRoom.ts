@@ -767,6 +767,7 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
       debtSettled: true,
       debtPaidGold: result.merchantPaidGold,
       debtForgiven: 0,
+      revealedCards: bagCards,
     });
 
     this.checkInspectionCompletion();
@@ -855,6 +856,7 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
         debtSettled: true,
         debtPaidGold: result.merchantPaidGold,
         debtForgiven: 0,
+        revealedCards: bagCards,
       });
 
       this.checkInspectionCompletion();
@@ -909,6 +911,7 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
         debtSettled: true,
         debtPaidGold: result.merchantPaidGold,
         debtForgiven: 0,
+        revealedCards: bagCards,
       });
 
       this.checkInspectionCompletion();
@@ -973,6 +976,7 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
         debtSettled: true,
         debtPaidGold: result.penaltyAmount,
         debtForgiven: 0,
+        revealedCards: bagCards,
       });
 
       this.checkInspectionCompletion();
@@ -1021,6 +1025,7 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
         debtSettled: true,
         debtPaidGold: result.penaltyAmount,
         debtForgiven: 0,
+        revealedCards: bagCards,
       });
 
       this.checkInspectionCompletion();
@@ -1130,6 +1135,7 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
       debtForgiven,
       liquidatedLegalCount: liquidatedLegal,
       liquidatedContrabandCount: liquidatedContraband,
+      revealedCards: bagCards,
     });
 
     this.checkInspectionCompletion();
