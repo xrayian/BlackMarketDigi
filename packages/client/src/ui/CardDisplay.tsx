@@ -29,18 +29,18 @@ export function getCardEmoji(card: ClientCard): string {
 
 export function getCardColor(card: ClientCard): { bg: string; border: string } {
   if (card.classification === 'ROYAL') {
-    return { bg: 'bg-royal/80', border: 'border-purple-400' };
+    return { bg: 'bg-[#4a154b]', border: 'border-purple-400' };
   }
   if (card.classification === 'CONTRABAND') {
-    return { bg: 'bg-crimson/80', border: 'border-red-500' };
+    return { bg: 'bg-[#7f1d1d]', border: 'border-red-500' };
   }
 
   switch (card.goodType) {
-    case 'APPLE': return { bg: 'bg-emerald-800/80', border: 'border-emerald-600' };
-    case 'CHEESE': return { bg: 'bg-amber-700/80', border: 'border-amber-500' };
-    case 'BREAD': return { bg: 'bg-orange-800/80', border: 'border-orange-600' };
-    case 'CHICKEN': return { bg: 'bg-yellow-700/80', border: 'border-yellow-500' };
-    default: return { bg: 'bg-gray-800/80', border: 'border-gray-500' };
+    case 'APPLE': return { bg: 'bg-[#14532d]', border: 'border-emerald-500' };
+    case 'CHEESE': return { bg: 'bg-[#78350f]', border: 'border-amber-400' };
+    case 'BREAD': return { bg: 'bg-[#7c2d12]', border: 'border-orange-500' };
+    case 'CHICKEN': return { bg: 'bg-[#0f4c81]', border: 'border-sky-400' };
+    default: return { bg: 'bg-[#1f2937]', border: 'border-gray-500' };
   }
 }
 
@@ -73,32 +73,32 @@ export function CardDisplay({ card, selected, disabled, onClick }: CardDisplayPr
         relative flex flex-col justify-between
         w-[84px] h-[118px] rounded-xl border-2
         ${colors.bg} ${colors.border}
-        ${selected ? 'ring-2 ring-gold shadow-[0_0_15px_rgba(212,168,75,0.4)]' : ''}
-        ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+        ${selected ? 'ring-2 ring-gold shadow-[0_0_15px_rgba(212,168,75,0.6)]' : 'shadow-md'}
+        ${disabled ? 'brightness-75 cursor-not-allowed' : 'cursor-pointer'}
         p-1.5 select-none overflow-hidden text-parchment
       `}
     >
       {/* Top Header: Classification Icon Badge (Color-independent indicator) */}
       <div className="flex items-center justify-between px-0.5">
         <span
-          className="text-[10px] bg-tavern-bg/80 px-1 py-0.2 rounded border border-white/20 font-display font-bold leading-none"
+          className="text-[10px] bg-[#0f0d0a] px-1 py-0.5 rounded border border-[#453324] font-display font-bold leading-none shadow-sm"
           title={`${classificationBadge.label} Good`}
         >
           {classificationBadge.icon}
         </span>
-        <span className="text-[9px] text-parchment/60 font-display uppercase tracking-tighter">
+        <span className="text-[9px] text-parchment font-display font-bold uppercase tracking-tighter">
           {card.classification[0]}
         </span>
       </div>
 
-      <div className="text-2xl text-center leading-none mt-0.5">{emoji}</div>
+      <div className="text-2xl text-center leading-none mt-0.5 filter drop-shadow">{emoji}</div>
       
-      <div className="font-display text-[11px] font-bold text-center leading-tight break-words flex-1 flex items-center justify-center px-0.5">
+      <div className="font-display text-[11px] font-bold text-center leading-tight break-words flex-1 flex items-center justify-center px-0.5 text-parchment">
         {card.name}
       </div>
       
       {/* Bottom stats: Value and Penalty */}
-      <div className="flex items-center justify-between gap-1 bg-tavern-surface/80 rounded px-1.5 py-0.5 mt-auto text-[10px]">
+      <div className="flex items-center justify-between gap-1 bg-[#1a1714] border border-[#453324] rounded px-1.5 py-0.5 mt-auto text-[10px] shadow-sm">
         <div className="flex items-center gap-0.5 text-gold font-bold" title={`Value: ${card.value} Gold`}>
           <span>🪙</span>
           <span>{card.value}</span>

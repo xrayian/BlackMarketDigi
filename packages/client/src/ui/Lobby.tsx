@@ -78,6 +78,14 @@ export function Lobby() {
       <button onClick={() => setView('join')} className="btn-outline">
         Join Game
       </button>
+      <button
+        type="button"
+        onClick={() => store.openRulebook()}
+        className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-tavern-surface/90 border border-gold/40 hover:border-gold hover:bg-tavern-surface text-gold font-display font-bold text-sm tracking-wider uppercase transition-all shadow-md cursor-pointer"
+      >
+        <span>📖</span>
+        <span>How to Play (Rulebook)</span>
+      </button>
     </motion.div>
   );
 
@@ -455,15 +463,36 @@ export function Lobby() {
         {view === 'room' && renderRoom()}
       </AnimatePresence>
 
-      {/* Floating Settings Button in Top Right */}
-      <button
-        type="button"
-        onClick={() => setIsSettingsOpen(true)}
-        className="fixed top-6 right-6 p-2.5 rounded-xl bg-tavern-surface/90 border border-tavern-border hover:border-gold/60 text-gold-muted hover:text-gold transition-colors shadow-lg z-20"
-        title="Game & Accessibility Settings"
-      >
-        ⚙️
-      </button>
+      {/* Floating Action Controls in Top Right */}
+      <div className="fixed top-6 right-6 flex items-center gap-2 z-20">
+        <button
+          type="button"
+          onClick={() => store.openRulebook()}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-tavern-surface/90 border border-gold/40 hover:border-gold text-gold hover:text-white transition-colors shadow-lg font-display text-xs tracking-wider uppercase cursor-pointer"
+          title="Open Nottingham Codex & Rulebook (?)"
+        >
+          <span>📖</span>
+          <span className="hidden sm:inline">Rules</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => store.toggleFullscreen()}
+          className="p-2.5 rounded-xl bg-tavern-surface/90 border border-tavern-border hover:border-gold/60 text-gold-muted hover:text-gold transition-colors shadow-lg cursor-pointer"
+          title={store.isFullscreen ? 'Exit Immersive Fullscreen Mode' : 'Enter Immersive Fullscreen Mode'}
+        >
+          <span className="text-sm">{store.isFullscreen ? '🗗' : '⛶'}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setIsSettingsOpen(true)}
+          className="p-2.5 rounded-xl bg-tavern-surface/90 border border-tavern-border hover:border-gold/60 text-gold-muted hover:text-gold transition-colors shadow-lg cursor-pointer"
+          title="Game & Accessibility Settings"
+        >
+          ⚙️
+        </button>
+      </div>
 
       <SettingsModal
         isOpen={isSettingsOpen}

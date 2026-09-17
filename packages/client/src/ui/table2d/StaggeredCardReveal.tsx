@@ -57,30 +57,30 @@ export function StaggeredCardReveal({
               <div
                 className={`
                   relative flex flex-col justify-between w-[76px] h-[106px] rounded-xl border-2 p-1.5
-                  ${colors.bg} ${haloClass} text-parchment overflow-hidden transition-all
+                  ${colors.bg} ${haloClass} text-parchment overflow-hidden shadow-lg transition-all
                 `}
               >
                 {/* Classification Badge */}
                 <div className="flex items-center justify-between text-[9px] font-display font-bold">
-                  <span className="bg-black/60 px-1 py-0.5 rounded border border-white/20">
+                  <span className="bg-[#0f0d0a] px-1 py-0.5 rounded border border-[#453324] shadow-sm">
                     {card.classification === 'ROYAL'
                       ? '👑'
                       : card.classification === 'CONTRABAND'
                       ? '⚜️'
                       : '⚖️'}
                   </span>
-                  <span className="text-[8px] text-parchment/60 uppercase">
+                  <span className="text-[8px] text-parchment font-bold uppercase">
                     {card.classification[0]}
                   </span>
                 </div>
 
-                <div className="text-xl text-center leading-none my-0.5">{emoji}</div>
+                <div className="text-xl text-center leading-none my-0.5 filter drop-shadow">{emoji}</div>
 
-                <div className="font-display text-[10px] font-bold text-center leading-tight break-words px-0.5">
+                <div className="font-display text-[10px] font-bold text-center leading-tight break-words px-0.5 text-parchment">
                   {card.name}
                 </div>
 
-                <div className="flex items-center justify-between text-[8px] text-parchment/80 border-t border-white/20 pt-0.5 font-display">
+                <div className="flex items-center justify-between text-[8px] text-parchment bg-[#1a1714] border border-[#453324] px-1 py-0.5 rounded font-display shadow-sm">
                   <span>🪙 {card.value}</span>
                   <span className="text-red-300">⚠️ {card.penalty}</span>
                 </div>
@@ -91,10 +91,10 @@ export function StaggeredCardReveal({
                 initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: delay + 0.18 }}
-                className={`text-[9px] font-display font-bold px-1.5 py-0.5 rounded-full border leading-tight ${
+                className={`text-[9px] font-display font-bold px-1.5 py-0.5 rounded-full border leading-tight shadow-md ${
                   isKept
-                    ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500'
-                    : 'bg-red-950/80 text-red-300 border-red-500'
+                    ? 'bg-emerald-950 text-emerald-300 border-emerald-500'
+                    : 'bg-red-950 text-red-300 border-red-500'
                 }`}
               >
                 {isKept ? '✓ Kept' : '✕ Seized'}

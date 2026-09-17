@@ -178,6 +178,15 @@ interface GameStore {
   soundEnabled: boolean;
   ambientEnabled: boolean;
 
+  // Immersive Fullscreen & Rulebook
+  isFullscreen: boolean;
+  setIsFullscreen: (fullscreen: boolean) => void;
+  toggleFullscreen: () => void;
+  isRulebookOpen: boolean;
+  rulebookActiveChapter: number;
+  openRulebook: (chapterIndex?: number) => void;
+  closeRulebook: () => void;
+
   setPhase: (phase: GamePhase) => void;
   setRoomId: (id: string) => void;
   setLocalPlayerId: (id: string) => void;
@@ -239,7 +248,29 @@ const initialState = {
   reducedMotion: false,
   soundEnabled: true,
   ambientEnabled: true,
+  isFullscreen: false,
+  isRulebookOpen: false,
+  rulebookActiveChapter: 0,
 };
+
+export function toggleBrowserFullscreen() {
+  if (typeof document === 'undefined') return;
+  const isFull = Boolean(document.fullscreenElement || (document as any).webkitFullscreenElement);
+  if (!isFull) {
+    const elem = document.documentElement;
+    if (elem.requestFullscreen) {
+      elem.requestFullscreen().catch(() => {});
+    } else if ((elem as any).webkitRequestFullscreen) {
+      (elem as any).webkitRequestFullscreen();
+    }
+  } else {
+    if (document.exitFullscreen) {
+      document.exitFullscreen().catch(() => {});
+    } else if ((document as any).webkitExitFullscreen) {
+      (document as any).webkitExitFullscreen();
+    }
+  }
+}
 
 function mapCard(c: any): ClientCard {
   return {
@@ -476,5 +507,11 @@ export const useGameStore = create<GameStore>((set) => ({
     soundManager.setAmbientEnabled(ambientEnabled);
     set({ ambientEnabled });
   },
+  setIsFullscreen: (isFullscreen) => set({ isFullscreen }),
+  toggleFullscreen: () => {
+    toggleBrowserFullscreen();
+  },
+  openRulebook: (chapterIndex = 0) => set({ isRulebookOpen: true, rulebookActiveChapter: chapterIndex }),
+  closeRulebook: () => set({ isRulebookOpen: false }),
   reset: () => set(initialState),
 }));

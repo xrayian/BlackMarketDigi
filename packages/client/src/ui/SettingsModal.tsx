@@ -14,6 +14,9 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const setSoundEnabled = useGameStore((s) => s.setSoundEnabled);
   const setAmbientEnabled = useGameStore((s) => s.setAmbientEnabled);
   const setReducedMotion = useGameStore((s) => s.setReducedMotion);
+  const isFullscreen = useGameStore((s) => s.isFullscreen);
+  const toggleFullscreen = useGameStore((s) => s.toggleFullscreen);
+  const openRulebook = useGameStore((s) => s.openRulebook);
 
   if (!isOpen) return null;
 
@@ -75,11 +78,26 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             </label>
           </div>
 
-          {/* Accessibility Section */}
+          {/* Accessibility & Display Section */}
           <div className="space-y-3">
             <h3 className="font-display text-xs text-gold-muted uppercase tracking-wider font-bold">
-              Accessibility & Comfort
+              Display, Accessibility & Guides
             </h3>
+
+            <label className="flex items-center justify-between p-3 rounded-xl bg-tavern-surface/80 border border-tavern-border cursor-pointer hover:border-gold/40 transition-colors">
+              <div>
+                <div className="font-display font-bold text-sm text-gold-light">⛶ Immersive Fullscreen Mode</div>
+                <div className="text-xs text-parchment/60">
+                  Fills your entire screen, hiding browser chrome and taskbars
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                checked={isFullscreen}
+                onChange={() => toggleFullscreen()}
+                className="accent-gold h-5 w-5 rounded cursor-pointer"
+              />
+            </label>
 
             <label className="flex items-center justify-between p-3 rounded-xl bg-tavern-surface/80 border border-tavern-border cursor-pointer hover:border-gold/40 transition-colors">
               <div>
@@ -92,9 +110,27 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 type="checkbox"
                 checked={reducedMotion}
                 onChange={(e) => setReducedMotion(e.target.checked)}
-                className="accent-gold h-5 w-5 rounded"
+                className="accent-gold h-5 w-5 rounded cursor-pointer"
               />
             </label>
+
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                openRulebook();
+              }}
+              className="w-full flex items-center justify-between p-3 rounded-xl bg-[#2a1d13] border border-gold/40 hover:border-gold hover:bg-[#382619] transition-all cursor-pointer text-left shadow-md"
+            >
+              <div className="flex items-center gap-2.5">
+                <span className="text-xl">📖</span>
+                <div>
+                  <div className="font-display font-bold text-sm text-gold">Nottingham Codex & Rulebook</div>
+                  <div className="text-xs text-parchment/70">Complete beginner guide, turn phases, penalties, and tips</div>
+                </div>
+              </div>
+              <span className="text-gold font-bold text-sm">Read →</span>
+            </button>
           </div>
 
           {/* Color-Blind / Indicator Guide */}
