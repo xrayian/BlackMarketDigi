@@ -1,0 +1,13 @@
+node_modules
+**/node_modules
+dist
+**/dist
+.git
+.github
+.gemini
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+coverage
+**/coverage

@@ -3,7 +3,23 @@ import type { InspectionResultMessage } from '@sheriff/shared';
 import { useGameStore } from '../state/gameStore';
 import { soundManager } from '../audio/soundManager';
 
-const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:2567';
+function getWsUrl(): string {
+  if (import.meta.env.VITE_WS_URL) {
+    return import.meta.env.VITE_WS_URL;
+  }
+  if (typeof window !== 'undefined') {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    // If running in development (e.g. Vite dev server on 5173 or 3000), connect to port 2567
+    if (window.location.port === '5173' || window.location.port === '3000') {
+      return `${protocol}//${window.location.hostname}:2567`;
+    }
+    // In production behind reverse proxy (port 80 / 443), connect through current host and protocol
+    return `${protocol}//${window.location.host}`;
+  }
+  return 'ws://localhost:2567';
+}
+
+const WS_URL = getWsUrl();
 
 class NetworkManager {
   private client: Client;

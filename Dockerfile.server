@@ -1,0 +1,48 @@
+# --- Stage 1: Build ---
+FROM node:22-alpine AS builder
+
+WORKDIR /app
+
+# Copy root and package manifests for workspace dependency resolution
+COPY package*.json ./
+COPY packages/shared/package*.json ./packages/shared/
+COPY packages/server/package*.json ./packages/server/
+COPY packages/client/package*.json ./packages/client/
+
+# Install all dependencies (including devDependencies needed for build)
+RUN npm ci
+
+# Copy source files
+COPY tsconfig.json ./
+COPY packages/shared ./packages/shared
+COPY packages/server ./packages/server
+
+# Build shared package then server package
+RUN npm run build --workspace=packages/shared
+RUN npm run build --workspace=packages/server
+
+# --- Stage 2: Production Runtime ---
+FROM node:22-alpine AS runner
+
+WORKDIR /app
+ENV NODE_ENV=production
+ENV SERVER_PORT=2567
+
+# Copy package manifests
+COPY package*.json ./
+COPY packages/shared/package*.json ./packages/shared/
+COPY packages/server/package*.json ./packages/server/
+
+# Install only production dependencies
+RUN npm ci --omit=dev
+
+# Copy compiled artifacts from builder stage
+COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
+COPY --from=builder /app/packages/server/dist ./packages/server/dist
+
+# Non-root user for security hardening
+USER node
+
+EXPOSE 2567
+
+CMD ["node", "packages/server/dist/index.js"]

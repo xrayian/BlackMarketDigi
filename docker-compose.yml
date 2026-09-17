@@ -1,26 +1,39 @@
 services:
   server:
-    image: node:20-alpine
-    working_dir: /app
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    container_name: sheriff_server
+    restart: unless-stopped
     ports:
       - "2567:2567"
-    volumes:
-      - .:/app
-    command: npm run dev:server
     environment:
+      - NODE_ENV=production
       - SERVER_PORT=2567
-      - NODE_ENV=development
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:2567', () => process.exit(0)).on('error', () => process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - sheriff_net
 
-  # postgres:
-  #   image: postgres:15
-  #   ports:
-  #     - "5432:5432"
-  #   environment:
-  #     - POSTGRES_USER=postgres
-  #     - POSTGRES_PASSWORD=postgres
-  #     - POSTGRES_DB=sheriff
-  #   volumes:
-  #     - pgdata:/var/lib/postgresql/data
+  client:
+    build:
+      context: .
+      dockerfile: Dockerfile.client
+    container_name: sheriff_client
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      server:
+        condition: service_healthy
+    networks:
+      - sheriff_net
 
-# volumes:
-#   pgdata:
+networks:
+  sheriff_net:
+    driver: bridge

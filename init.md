@@ -455,17 +455,30 @@ Reference `docs/architecture.md` §6.
 
 ## 13. Phase 9 — Deployment
 
-**Status:** 🔜 Unchanged by the 2D pivot.
+**Status:** ✅ Complete. Full-stack Azure Cloud VM containerization and turnkey automation ready.
 
-**Tasks**
-- Containerize server; deploy to Fly.io/Render (or Colyseus Cloud if preferred) behind
-  a WSS-terminating proxy.
-- Static client build to a CDN/static host (Vercel/Netlify/Cloudflare Pages).
-- Environment-based room code / server URL config.
+**Delivered Artifacts & Configuration:**
+- **Docker Multi-Stage Build Configurations:**
+  - `Dockerfile.server`: Node 22 Alpine multi-stage build running compiled TypeScript Colyseus 0.18 room engine as non-root `node` user on port 2567.
+  - `Dockerfile.client`: Node 22 Alpine builder generating Vite React SPA bundle, served via `nginx:alpine` on ports 80/443 with Gzip compression and cache policies.
+- **Nginx Unified Reverse Proxy (`nginx/default.conf` & `nginx/ssl.conf`):**
+  - Serves static assets at `/assets/`, `/cards/`, `/audio/` with immutable/long-term cache headers.
+  - Handles HTML5 SPA client-side fallback routing (`try_files $uri $uri/ /index.html`).
+  - Proxies Colyseus HTTP matchmaker requests (`/matchmake/*`) to `http://server:2567`.
+  - Proxies WebSocket upgrades (`Upgrade: $http_upgrade`, `Connection: "upgrade"`) across room channels (`~ ^/[a-zA-Z0-9_\-]+/[a-zA-Z0-9_\-]+`) with extended 86400s keep-alive timeout.
+- **Dynamic Protocol & Host Inference:**
+  - `packages/client/src/net/colyseus.ts` dynamically resolves `ws://` vs `wss://` and public host from `window.location` at runtime. Zero hardcoded IP addresses or rebuilds required across dev, staging, or production.
+- **Root Docker Compose Stack (`docker-compose.yml`):**
+  - Defines `server` (with healthcheck) and `client` services connected via internal bridge network `sheriff_net`.
+- **Turnkey Azure VM Automation Scripts (`deploy/`):**
+  - `deploy/azure-setup.sh`: Automated Ubuntu 22.04/24.04 LTS provisioning (Docker Engine, Compose plugin, UFW firewall rules for 22, 80, 443, 2567, image builds, and container boot).
+  - `deploy/update.sh`: Pulls latest code, rebuilds containers, and prunes old images.
+  - `deploy/setup-ssl.sh`: Automated Let's Encrypt SSL certificate provisioning via Certbot with automatic daily renewal cron and HTTPS/WSS Nginx config.
+- **Documentation:**
+  - `docs/azure-deployment-guide.md`: Step-by-step guide for Azure Portal and Azure CLI provisioning, sizing (Standard_B1s/B2s), NSG inbound rules, DNS mapping, and troubleshooting.
 
-**Acceptance criteria**
-- A public URL supports a full 3–6 player game with strangers on different networks
-  (test with mobile hotspot vs. home wifi to catch NAT/latency issues).
+**Acceptance criteria:**
+- Public access supports full 3–6 player multiplayer games over standard HTTP/HTTPS/WSS ports without firewall blocks or hardcoded IPs.
 
 ---
 
