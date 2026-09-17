@@ -15,7 +15,7 @@ npm run dev          # starts both server (port 2567) and client (port 5173)
 
 ## Repository Layout
 ```
-/docs           — GDD (source of truth for rules/numbers), architecture notes
+/docs           — GDD.md (CMON rulebook), architecture.md (Digital GDD & technical specs)
 /packages
   /shared       — types, constants, card definitions, message interfaces
   /server       — Colyseus server, room, schema, pure game engine
@@ -26,7 +26,7 @@ npm run dev          # starts both server (port 2567) and client (port 5173)
 - **Colyseus over NestJS+Redis:** Schema `@filter` gives us hidden-information security as a decorator, not a hand-rolled sanitization layer. See init.md §1 for details.
 - **No physics engine for MVP:** Spring animations (react-spring) provide tactile feel without cross-client non-determinism.
 - **Engine decoupled from networking:** All game logic in `packages/server/src/engine/` is pure functions with zero Colyseus imports, fully unit-testable.
-- **Numbers from GDD only:** Card counts, values, penalties come from `docs/GDD.md` — never from memory.
+- **Numbers from specifications only:** Card counts, values, penalties come from `docs/architecture.md` and `docs/GDD.md` — never from memory.
 
 ## Current Phase: Phase 4 Completed — Ready for Phase 5 (Inspection & Bribe Negotiation)
 - **Phase 0 (Scaffolding):** Monorepo with npm workspaces (`shared`, `server`, `client`), Colyseus 0.18 server, Vite 6 client, lobby UI.

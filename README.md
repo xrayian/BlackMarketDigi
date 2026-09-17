@@ -40,7 +40,7 @@ BlackMarketDigi/
 │       ├── src/net/           # Colyseus SDK 0.18 client connection service
 │       ├── src/state/         # Zustand client game store
 │       └── src/audio/         # Howler.js audio management
-├── docs/                      # Game design document (GDD) and specifications
+├── docs/                      # GDD.md (CMON rulebook) & architecture.md (Digital GDD)
 ├── init.md                    # Project development plan and phase roadmap
 └── docker-compose.yml         # Local development environment config
 ```
@@ -49,22 +49,22 @@ BlackMarketDigi/
 
 ## 🎲 Rulebook & Engine Highlights
 
-* **Exact Card Counts & Deck Composition (GDD §2.1 & §16):**
+* **Exact Card Counts & Deck Composition (`docs/architecture.md` §2.1):**
   * **3-Player Base Deck:** 156 cards (108 Legal Goods: 48 Apples, 36 Cheese, 0 Bread, 24 Chickens; 48 Contraband: 18 Pepper, 16 Mead, 9 Silk, 5 Crossbow).
   * **3-Player with Royal Goods:** 162 cards (6 Royal Goods included; 6 marked 4+ removed).
   * **4–6 Player Base Deck:** 204 cards (144 Legal Goods: 48 Apples, 36 Cheese, 36 Bread, 24 Chickens; 60 Contraband: 22 Pepper, 21 Mead, 12 Silk, 5 Crossbow).
   * **4–6 Player with Royal Goods:** 216 cards (all 12 Royal Goods included).
-* **Zero-Knowledge Privacy:** Merchant bag contents and player hands are serialized authoritatively on the server; non-owning clients only receive card counts until bags are formally opened.
-* **4-Step Debt Liquidation Order (GDD §2.2):**
+* **Zero-Knowledge Privacy (`docs/architecture.md` §6.1):** Merchant bag contents and player hands are serialized authoritatively on the server; non-owning clients only receive card counts until bags are formally opened.
+* **4-Step Debt Liquidation Order (`docs/architecture.md` §2.2):**
   1. Cash on hand.
   2. Legal goods from merchant stand.
   3. Contraband goods from merchant stand (revealed).
   4. Empty stand wipes debt: if stand is completely exhausted, any remaining penalty debt is forgiven.
   * *Overpayment rule strictly enforced: surrendering a card with value exceeding the debt does not return change.*
-* **King & Queen Bonuses (GDD §2.3):**
+* **King & Queen Bonuses (`docs/architecture.md` §2.3):**
   * Floored integer division on ties: Tied King adds King + Queen bonuses, divides equally between tied players (floored), and skips the Queen bonus. Tied Queen divides Queen bonus equally between tied players (floored).
   * Multi-tier tiebreakers: Total Score → Most Legal Goods → Most Contraband → Shared Victory.
-* **Expansion Modules (GDD §3):** Royal Goods, 6th Player Deputies & Booty Tile, and Black Market order fulfillment.
+* **Expansion Modules (`docs/architecture.md` §3):** Royal Goods, 6th Player Deputies & Booty Tile, and Black Market order fulfillment.
 
 ---
 

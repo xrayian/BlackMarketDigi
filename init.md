@@ -9,12 +9,10 @@ until the previous phase's acceptance criteria are met. Commit after each phase.
 If a phase's acceptance criteria can't be verified automatically, write a manual test
 script into `docs/manual-tests.md` and flag it before moving on.
 
-**Companion document:** the full rules, card tables, scoring math, and JSON schemas
-this game is based on are in `docs/GDD.md`. Copy the provided design document into
-that path before starting Phase 1. Every phase below references specific GDD sections
-— read them before implementing that phase. Do not re-derive rules from memory or
-guesswork; the GDD is the single source of truth for numbers (card counts, values,
-penalties, bonuses).
+**Companion documents:**
+- **`docs/architecture.md` (*Game Design & Technical Architecture Document*):** The primary **Digital GDD** containing the structured rule engine specifications (§2), expansion modules (§3), TypeScript state models & JSON schemas (§4), digital UI/UX paradigms & micro-interactions (§5), and system security & zero-knowledge specs (§6) referenced by section number throughout this build plan.
+- **`docs/GDD.md` (*CMON 2nd Edition Rules*):** The verbatim physical board game rulebook (Sergio Halaban & André Zatz / CMON 2020), serving as the baseline for card flavor, original box rules, and physical component counts.
+- Every phase below references specific sections — read them before implementing that phase. Do not re-derive rules from memory or guesswork.
 
 **IP note:** implement the mechanics only. Do not source or embed official card
 artwork, box art, or trademarked logos — use original or licensed-free art assets and
@@ -66,7 +64,8 @@ with more surface area for bugs (and for cheating).
 ```
 /sheriff-of-nottingham
   /docs
-    GDD.md                  # the provided design doc — source of truth
+    GDD.md                  # official CMON physical board game rulebook (card counts, base rules)
+    architecture.md         # digital game design doc (GDD) & technical architecture (§1–§6)
     manual-tests.md
   /packages
     /server
@@ -112,7 +111,7 @@ with more surface area for bugs (and for cheating).
 
 ## 3. Server-Authoritative State Model (Colyseus Schema)
 
-Convert the GDD's TypeScript interfaces (§4.1) into Colyseus `Schema` classes. Sketch:
+Convert the digital GDD's TypeScript interfaces (`docs/architecture.md` §4.1) into Colyseus `Schema` classes. Sketch:
 
 ```typescript
 import { Schema, MapSchema, ArraySchema, type, filter } from "@colyseus/schema";
@@ -160,11 +159,11 @@ class GameStateSchema extends Schema {
   @type("string") activeMerchantId?: string;
   @type({ map: PlayerStateSchema }) players = new MapSchema<PlayerStateSchema>();
   @type([CardSchema]) discardPile = new ArraySchema<CardSchema>();
-  // activeBribe, bootyTile: same pattern, see GDD §4.1
+  // activeBribe, bootyTile: same pattern, see docs/architecture.md §4.1
 }
 ```
 
-This gives you the GDD's "Zero-Knowledge Serialization" (§6.1) for free: a client only
+This gives you the digital GDD's "Zero-Knowledge Serialization" (`docs/architecture.md` §6.1) for free: a client only
 ever receives decrypted `cards` arrays for bags/hands it owns; everyone else sees the
 public counts. No manual payload-sanitizing gatekeeper required.
 
@@ -190,32 +189,32 @@ public counts. No manual payload-sanitizing gatekeeper required.
 ## 5. Phase 1 — Rules Engine (headless, server-only, test-driven)
 
 Build this with **zero networking and zero rendering** — pure functions/state machine,
-fully unit-testable. Reference GDD §2.
+fully unit-testable. Reference `docs/architecture.md` §2 (and `docs/GDD.md`).
 
 **Tasks**
 - `deck.ts`: build the correct deck per player count (3 vs 4–6), including the
-  Royal Goods filtration rule (GDD §2.1) when that module is active.
+  Royal Goods filtration rule (`docs/architecture.md` §2.1) when that module is active.
 - `phases/market.ts`: discard-and-redraw logic, sheriff picks start player, sweep to
   discard, reshuffle-on-empty.
 - `phases/loadBag.ts`: validate 1–5 cards, immutable snap.
 - `phases/declaration.ts`: validate `declared_count === bag.length`, `declared_good`
   is one of the four legal goods, sequencing from Sheriff's left.
 - `phases/inspection.ts`: pass-unopened / inspected-honest / inspected-dishonest
-  outcomes exactly as specified in GDD §2.2 Phase 4, including partial-honesty
+  outcomes exactly as specified in `docs/architecture.md` §2.2 Phase 4 (and `docs/GDD.md` Phase 4), including partial-honesty
   (declared goods stay, undeclared confiscated).
-- `debtResolution.ts`: implement the 4-step liquidation order from GDD §2.2 exactly,
+- `debtResolution.ts`: implement the 4-step liquidation order from `docs/architecture.md` §2.2 (and `docs/GDD.md`) exactly,
   including "overpayment does not return change" and "empty stand wipes debt."
 - `scoring.ts`: King/Queen bonuses, tie-breaking (tied king, tied queen, overall game
-  ties) per GDD §2.3.
+  ties) per `docs/architecture.md` §2.3 (and `docs/GDD.md`).
 - `modules/royalGoods.ts`, `modules/deputies.ts`, `modules/blackMarket.ts`: implement
-  per GDD §3, but keep them **behind feature flags** — don't wire into base rules yet.
+  per `docs/architecture.md` §3, but keep them **behind feature flags** — don't wire into base rules yet.
 
 **Acceptance criteria**
 - Vitest suite covering: every card-count table value for both 3-player and 4–6-player
   decks; every inspection outcome branch; debt resolution across all 4 steps including
   the "stand fully empty" edge case; every tie-break rule with a constructed example.
 - 100% branch coverage on `debtResolution.ts` and `scoring.ts` specifically — these are
-  the rules most likely to have off-by-one or rounding bugs (note the GDD's explicit
+  the rules most likely to have off-by-one or rounding bugs (note `docs/architecture.md`'s explicit
   "floored" division rules).
 
 ---
@@ -225,10 +224,10 @@ fully unit-testable. Reference GDD §2.
 **Tasks**
 - Implement `NottinghamRoom` using the schema from §3 and the engine from Phase 1.
 - Map each engine phase transition to room state changes broadcast to clients.
-- Implement the reconnection flow (GDD §6.2): on reconnect, resend a snapshot filtered
+- Implement the reconnection flow (`docs/architecture.md` §6.2): on reconnect, resend a snapshot filtered
   to the reconnecting client's authorization only.
 - Implement the bribe offer flow as an atomic action: reject a stale "Accept" if the
-  underlying offer changed (GDD §6.2's 1.5s reaction buffer) — model this as a
+  underlying offer changed (`docs/architecture.md` §6.2's 1.5s reaction buffer) — model this as a
   version/sequence number on `BribeOffer` rather than a hard timer, so it's correct
   regardless of network jitter, and add the UI-side cooldown as a presentation detail
   in Phase 5.
@@ -244,7 +243,7 @@ fully unit-testable. Reference GDD §2.
 
 ## 7. Phase 3 — 3D Table & Scene
 
-Reference GDD §5.1.
+Reference `docs/architecture.md` §5.1.
 
 **Tasks**
 - `Table.tsx`: circular/horseshoe seating for 3–6 players, camera positioned for the
@@ -270,11 +269,11 @@ Reference GDD §5.1.
 **Tasks**
 - Hand tray (2D overlay) with drag-to-discard for Market phase.
 - Bag-loading UI: drag cards from hand into a 3D bag mesh; "Snap Bag" action per
-  GDD §5.2 — physics-flavored insertion via spring animation, then a locking
+  `docs/architecture.md` §5.2 — physics-flavored insertion via spring animation, then a locking
   "snap" animation + Howler sound that makes the selection immutable client-side
   (server is authoritative regardless).
 - Declaration UI: count + single-good picker, sequenced by turn order, with the
-  server rejecting invalid declarations (contraband, multi-good) per GDD §2.2 Phase 3.
+  server rejecting invalid declarations (contraband, multi-good) per `docs/architecture.md` §2.2 Phase 3 (and `docs/GDD.md` Phase 3).
 
 **Acceptance criteria**
 - A full Market → Load Bag → Declaration cycle is playable across 4 connected clients
@@ -285,7 +284,7 @@ Reference GDD §5.1.
 
 ## 9. Phase 5 — Inspection & Bribe Negotiation ("The Examination Desk")
 
-Reference GDD §5.1–§5.2 for the intended feel.
+Reference `docs/architecture.md` §5.1–§5.2 for the intended feel.
 
 **Tasks**
 - Viewport transition into the 1-on-1 examination layout when the Sheriff selects a
@@ -293,7 +292,7 @@ Reference GDD §5.1–§5.2 for the intended feel.
 - Bribe Scale component: gold/cards populate a balance-scale visualization; weight
   driven by summed value, animated with springs.
 - "Unsnap Bag" clasp: press-and-hold interaction, 1.2s threshold, cancelable up to
-  1.1s, tension sound ramp via Howler, per GDD §5.2.
+  1.1s, tension sound ramp via Howler, per `docs/architecture.md` §5.2.
 - Reflect the three inspection outcomes (pass-unopened / honest / dishonest) visually:
   goods moving to stand, gold changing hands, confiscated cards to discard.
 - Debt resolution UI: when a player can't cover a penalty, walk them through the
@@ -310,15 +309,15 @@ Reference GDD §5.1–§5.2 for the intended feel.
 
 ## 10. Phase 6 — Expansion Modules
 
-Reference GDD §3. Ship as togglable lobby settings, each independently testable.
+Reference `docs/architecture.md` §3 (and `docs/GDD.md`). Ship as togglable lobby settings, each independently testable.
 
 **Tasks**
 - Royal Goods: shuffle into deck, treat as contraband through inspection, convert to
-  legal-equivalent counts at scoring per GDD §3.1.
+  legal-equivalent counts at scoring per `docs/architecture.md` §3.1 (and `docs/GDD.md`).
 - 6-Player Deputies: Deputy assignment, joint pass/inspect/split-decision logic,
-  Booty tile split at phase end, per GDD §3.2.
+  Booty tile split at phase end, per `docs/architecture.md` §3.2 (and `docs/GDD.md`).
 - Black Market: 3-matching-contraband trade-in, 1-claim-per-merchant-per-round limit,
-  per GDD §3.3.
+  per `docs/architecture.md` §3.3 (and `docs/GDD.md`).
 
 **Acceptance criteria**
 - Each module has its own engine unit tests (extending Phase 1's suite) and a room
@@ -331,7 +330,7 @@ Reference GDD §3. Ship as togglable lobby settings, each independently testable
 ## 11. Phase 7 — Micro-interactions, Audio, Visual Polish
 
 **Tasks**
-- Full pass on the tactile interactions listed in GDD §5.2 (bag insertion sound,
+- Full pass on the tactile interactions listed in `docs/architecture.md` §5.2 (bag insertion sound,
   snap latch, tension ramp, scale tipping) with final audio assets.
 - Ambient ombience loop, per-action SFX (card slide, coin clink, gavel/inspection
   stinger).
@@ -348,7 +347,7 @@ Reference GDD §3. Ship as togglable lobby settings, each independently testable
 
 ## 12. Phase 8 — Anti-Cheat Hardening & Testing
 
-Reference GDD §6.
+Reference `docs/architecture.md` §6.
 
 **Tasks**
 - Server-side re-validation of every client action already covered by Phase 1/2 tests
@@ -386,7 +385,7 @@ Reference GDD §6.
   re-validated server-side even if the UI already disabled the invalid option.
 - **Hidden information never touches the wire** for unauthorized clients — enforced
   by schema `@filter`, verified by an automated test, not by code review alone.
-- **Numbers come from `docs/GDD.md`**, not from memory of the physical game — card
+- **Numbers come from `docs/architecture.md` and `docs/GDD.md`**, not from memory of the physical game — card
   counts, values, and penalties differ from the real box in subtle ways per the
   provided doc; don't "correct" them without checking the doc first.
 - Target **60fps** on a mid-tier laptop GPU for the Table View; the Examination Desk
@@ -478,7 +477,7 @@ respectively — but note the gap in the relevant `AGENT.md` so it's not forgott
 - **Small, single-purpose commits**, not one commit per phase. Each commit should be
   revertible on its own without breaking the build.
 - **Tests alongside implementation, not after.** For the rules engine especially
-  (Phase 1), write the test for a rule from the GDD *before* implementing it — the GDD's
+  (Phase 1), write the test for a rule from the specifications (`docs/architecture.md` / `docs/GDD.md`) *before* implementing it — the
   numbers are precise enough that this catches transcription errors immediately.
 - **No silent error handling.** A caught exception that doesn't re-throw, log, or
   surface to the room's error state is a bug waiting to be invisible. This matters more
@@ -487,7 +486,7 @@ respectively — but note the gap in the relevant `AGENT.md` so it's not forgott
 - **Don't gold-plate beyond a phase's acceptance criteria.** It's tempting to add
   "nice to have" polish while inside a file — note it as a TODO in the relevant
   `AGENT.md` instead and keep moving; Phase 7 exists for polish on purpose.
-- **When the GDD is ambiguous or silent on an edge case**, don't invent a plausible
+- **When the specifications are ambiguous or silent on an edge case**, don't invent a plausible
   ruling and move on silently — implement the most literal reading, write a test that
   documents the assumption, and flag it in `docs/manual-tests.md` for the user to
   confirm rather than letting an invented rule become load-bearing.
