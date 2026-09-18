@@ -70,7 +70,7 @@ export function ActionLedger() {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed top-20 right-0 z-30 flex items-center gap-1.5 px-3 py-2 rounded-l-xl bg-tavern-surface/95 border-y border-l border-gold/50 backdrop-blur-md shadow-xl text-gold hover:text-white transition-all font-display text-xs font-bold"
+        className="fixed top-20 right-0 z-30 flex items-center gap-1.5 px-3 py-2 rounded-l-xl bg-tavern-surface/95 border-y border-l border-gold/50 backdrop-blur-md shadow-xl text-gold hover:text-white transition-all font-display text-xs font-bold cursor-pointer"
         title="Town Ledger & Negotiation Feed"
       >
         <span>{phase === 'INSPECTION' ? '🤝' : '📜'}</span>

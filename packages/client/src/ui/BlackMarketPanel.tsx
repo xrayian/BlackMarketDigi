@@ -43,12 +43,12 @@ export function BlackMarketPanel() {
   const totalAvailable = pepperPile.length + meadPile.length + silkPile.length;
 
   return (
-    <div className="fixed top-20 right-4 z-30 flex flex-col items-end pointer-events-auto">
+    <div className="fixed top-32 right-4 z-30 flex flex-col items-end pointer-events-auto">
       {/* Floating Toggle Button */}
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-tavern-bg/95 border border-gold/50 backdrop-blur-md shadow-2xl hover:border-gold hover:bg-gold/15 transition-all text-xs font-display tracking-wider uppercase font-bold text-gold"
+        className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-tavern-bg/95 border border-gold/50 backdrop-blur-md shadow-2xl hover:border-gold hover:bg-gold/15 transition-all text-xs font-display tracking-wider uppercase font-bold text-gold cursor-pointer"
       >
         <span>🗡️ Black Market</span>
         <span className="px-1.5 py-0.5 rounded bg-gold/20 text-gold-light text-[10px]">
@@ -64,7 +64,7 @@ export function BlackMarketPanel() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
             transition={{ duration: 0.15 }}
-            className="mt-2 w-80 bg-tavern-bg/95 border border-gold/60 backdrop-blur-md rounded-2xl p-4 shadow-[0_10px_35px_rgba(0,0,0,0.8)] text-parchment flex flex-col gap-3"
+            className="mt-2 w-80 max-h-[calc(100vh-10rem)] overflow-y-auto bg-tavern-bg/95 border border-gold/60 backdrop-blur-md rounded-2xl p-4 shadow-[0_10px_35px_rgba(0,0,0,0.8)] text-parchment flex flex-col gap-3"
           >
             <div className="flex items-center justify-between border-b border-tavern-border pb-2">
               <span className="font-display font-bold text-sm text-gold">Black Market Orders</span>
