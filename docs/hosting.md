@@ -44,7 +44,7 @@ Sheriff of Nottingham is packaged as a two-tier containerized stack orchestrated
 ### Option 1: Microsoft Azure Cloud VM (Recommended)
 For an automated, production-ready cloud deployment with high reliability, use Azure Cloud:
 
-* **Recommended VM Size:** `Standard_B1s` (1 vCPU, 1 GiB RAM - free-tier eligible) or `Standard_B2s` (2 vCPUs, 4 GiB RAM, ~$15/mo).
+* **Recommended VM Size:** `Standard_B2ats_v2` (2 vCPUs, 1 GiB RAM), `Standard_B1s` (1 vCPU, 1 GiB RAM - free-tier eligible), or `Standard_B2s` (2 vCPUs, 4 GiB RAM, ~$15/mo). The setup script automatically configures swap space to support low-RAM VMs.
 * **OS:** Ubuntu 22.04 LTS or 24.04 LTS x64.
 * **Full Step-by-Step Guide:** Refer to [`docs/azure-deployment-guide.md`](file:///C:/projects/BlackMarketDigi/docs/azure-deployment-guide.md) for Azure Portal GUI and Azure CLI deployment walkthroughs.
 * **Turnkey Setup:**

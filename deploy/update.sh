@@ -14,11 +14,18 @@ echo "============================================================"
 echo "🔄 Updating Sheriff of Nottingham Server & Client..."
 echo "============================================================"
 
+# Ensure swap remains active if configured
+if [ -f /swapfile ] && ! swapon --show | grep -q '/swapfile'; then
+  swapon /swapfile 2>/dev/null || true
+fi
+
 echo "[1/4] Pulling latest commits from git..."
 git pull origin main
 
-echo "[2/4] Rebuilding and launching updated containers..."
-docker compose up -d --build
+echo "[2/4] Rebuilding and launching updated containers sequentially..."
+docker compose build server
+docker compose build client
+docker compose up -d
 
 echo "[3/4] Pruning old dangling images..."
 docker image prune -f

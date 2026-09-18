@@ -37,7 +37,8 @@ flowchart LR
 ### Key Advantages
 - **Single Port Simplicity:** Nginx handles static asset delivery (HTML/JS/CSS/audio) AND proxies Colyseus matchmaking HTTP requests and WebSocket streams over standard port 80 / 443. Players behind strict enterprise firewalls can connect without blocking port 2567.
 - **Dynamic Connection Discovery:** The client's [`colyseus.ts`](file:///C:/projects/BlackMarketDigi/packages/client/src/net/colyseus.ts) inspects `window.location` at runtime, supporting direct IP access (`http://<ip>`), standard domain (`https://game.example.com`), and automatic upgrade to `wss://`.
-- **Ultra Cost-Effective:** Can run comfortably on Azure's **Standard_B1s** (1 vCPU, 1 GB RAM, free-tier eligible) or **Standard_B2s** (2 vCPU, 4 GB RAM, ~$15/month).
+- **Ultra Cost-Effective:** Can run comfortably on Azure's budget VMs such as **Standard_B2ats_v2** (2 vCPUs, 1 GiB RAM), **Standard_B1s** (1 vCPU, 1 GiB RAM), or **Standard_B2s** (2 vCPUs, 4 GiB RAM).
+- **Automated Memory Hardening:** Built-in automated 4GB swap space provisioning and sequential image builds ensure smooth compilation on 1 GiB RAM instances without OOM freezes.
 
 ---
 
@@ -63,7 +64,7 @@ flowchart LR
    - **Security type:** `Standard`.
    - **Image:** **Ubuntu Server 22.04 LTS - x64 Gen2** (or 24.04 LTS).
    - **Size:**
-     - Budget / Test: `Standard_B1s` (1 vCPU, 1 GiB memory)
+     - Budget / Test: `Standard_B2ats_v2` (2 vCPUs, 1 GiB memory) or `Standard_B1s` (1 vCPU, 1 GiB memory)
      - Recommended Production: `Standard_B2s` (2 vCPUs, 4 GiB memory)
    - **Authentication type:** `SSH public key`.
    - **Username:** `azureuser`.
@@ -150,11 +151,12 @@ sudo ./deploy/azure-setup.sh
 
 **What the script automates:**
 1. Installs latest system security updates.
-2. Installs Docker Engine & official Docker Compose plugin.
-3. Configures host UFW firewall (allowing 22, 80, 443, 2567).
-4. Multi-stage builds both the Node 22 server container and the Nginx client container.
-5. Launches containers with automatic restart policies.
-6. Displays the public IP and live health status.
+2. Automatically creates and mounts a persistent 4GB swapfile (`/swapfile`) with optimized swappiness to prevent Out-Of-Memory (OOM) kernel freezes on low-memory VMs (e.g. Standard_B2ats_v2 or Standard_B1s).
+3. Installs Docker Engine & official Docker Compose plugin.
+4. Configures host UFW firewall (allowing 22, 80, 443, 2567).
+5. Sequentially builds both the Node 22 server container and Nginx client container with capped Node memory limits (`--max-old-space-size=512`).
+6. Launches containers with automatic restart policies.
+7. Displays the public IP and live health status.
 
 ---
 
