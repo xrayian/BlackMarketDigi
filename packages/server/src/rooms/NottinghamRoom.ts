@@ -34,6 +34,7 @@ import {
   BlackMarketOrderState,
   NegotiationOfferState,
   PendingCommitmentState,
+  DiscardLogEntryState,
 } from '../schema/GameState';
 import {
   buildDeck,
@@ -338,6 +339,24 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
         }
       }
       player.handCount = result.newHand.length;
+
+      // Record who discarded what cards per turn for the Town Ledger
+      const discardEntry = new DiscardLogEntryState();
+      discardEntry.id = `discard_${client.sessionId}_${this.state.round}_${Date.now()}`;
+      discardEntry.round = this.state.round;
+      discardEntry.playerId = client.sessionId;
+      discardEntry.playerName = player.name;
+      discardEntry.cardCount = result.discardedCards.length;
+      discardEntry.timestamp = Date.now();
+      for (const card of result.discardedCards) {
+        discardEntry.cardNames.push(card.name);
+      }
+      this.state.discardLog.push(discardEntry);
+
+      // Immediately add the discarded cards to the public discard pile so players can inspect them
+      for (const card of result.discardedCards) {
+        this.state.discardPile.push(cardToState(card));
+      }
 
       if (result.isMarketComplete) {
         const { finalDiscardPile } = finalizeMarketPhase(this.marketState, this.internalDiscardPile);

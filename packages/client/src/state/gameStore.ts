@@ -50,6 +50,16 @@ export interface DealStruckBanner {
   timestamp: number;
 }
 
+export interface ClientDiscardLogEntry {
+  id: string;
+  round: number;
+  playerId: string;
+  playerName: string;
+  cardNames: string[];
+  cardCount: number;
+  timestamp: number;
+}
+
 export interface ClientCard {
   id: string;
   name: string;
@@ -187,6 +197,12 @@ interface GameStore {
   openRulebook: (chapterIndex?: number) => void;
   closeRulebook: () => void;
 
+  // Discard Pile & Discard Log
+  discardLog: ClientDiscardLogEntry[];
+  isDiscardPileOpen: boolean;
+  openDiscardPile: () => void;
+  closeDiscardPile: () => void;
+
   setPhase: (phase: GamePhase) => void;
   setRoomId: (id: string) => void;
   setLocalPlayerId: (id: string) => void;
@@ -218,6 +234,8 @@ const initialState = {
   activeMerchantId: null as string | null,
   drawPileCount: 0,
   discardPile: [] as ClientCard[],
+  discardLog: [] as ClientDiscardLogEntry[],
+  isDiscardPileOpen: false,
   connected: false,
   activeBribe: undefined as ClientBribeOffer | undefined,
   bribeOffers: [] as ClientBribeOffer[],
@@ -346,6 +364,18 @@ export const useGameStore = create<GameStore>((set) => ({
       ? Array.from(state.discardPile).map(mapCard)
       : [];
 
+    const discardLog: ClientDiscardLogEntry[] = state.discardLog
+      ? Array.from(state.discardLog).map((entry: any) => ({
+          id: entry.id,
+          round: entry.round ?? 1,
+          playerId: entry.playerId || '',
+          playerName: entry.playerName || 'Merchant',
+          cardNames: entry.cardNames ? Array.from(entry.cardNames) : [],
+          cardCount: entry.cardCount ?? (entry.cardNames ? entry.cardNames.length : 0),
+          timestamp: entry.timestamp || 0,
+        }))
+      : [];
+
     const mapBribe = (b: any): ClientBribeOffer => ({
       id: b.id,
       sequenceNumber: b.sequenceNumber || 1,
@@ -440,6 +470,7 @@ export const useGameStore = create<GameStore>((set) => ({
       activeMerchantId: state.activeMerchantId || null,
       drawPileCount: state.drawPileCount || 0,
       discardPile,
+      discardLog,
       players,
       activeBribe,
       bribeOffers,
@@ -513,5 +544,7 @@ export const useGameStore = create<GameStore>((set) => ({
   },
   openRulebook: (chapterIndex = 0) => set({ isRulebookOpen: true, rulebookActiveChapter: chapterIndex }),
   closeRulebook: () => set({ isRulebookOpen: false }),
+  openDiscardPile: () => set({ isDiscardPileOpen: true }),
+  closeDiscardPile: () => set({ isDiscardPileOpen: false }),
   reset: () => set(initialState),
 }));

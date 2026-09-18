@@ -17,6 +17,7 @@ export function MarketPanel() {
   const clearSelection = useGameStore((s) => s.clearSelection);
   const drawPileCount = useGameStore((s) => s.drawPileCount);
   const discardPile = useGameStore((s) => s.discardPile);
+  const openDiscardPile = useGameStore((s) => s.openDiscardPile);
 
   if (phase !== 'MARKET' || !localPlayerId) return null;
 
@@ -195,10 +196,16 @@ export function MarketPanel() {
             <span>📦 Draw:</span>
             <span className="font-bold text-gold">{drawPileCount}</span>
           </div>
-          <div className="flex items-center gap-1.5 text-parchment/80">
+          <button
+            type="button"
+            onClick={openDiscardPile}
+            className="flex items-center gap-1.5 text-parchment/80 hover:text-gold transition-colors cursor-pointer bg-walnut-surface/70 px-2 py-0.5 rounded-lg border border-gold/20 hover:border-gold/50"
+            title="Click to view all cards in the Discard Pile"
+          >
             <span>🗑️ Discard:</span>
             <span className="font-bold text-gold">{discardPile.length}</span>
-          </div>
+            <span className="text-[10px] text-gold-muted underline ml-0.5">view</span>
+          </button>
         </div>
 
         {/* Minimize Button */}

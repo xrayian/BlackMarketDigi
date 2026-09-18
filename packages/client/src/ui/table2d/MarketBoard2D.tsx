@@ -12,6 +12,8 @@ export function MarketBoard2D({ drawPileCount, discardPileTop }: MarketBoard2DPr
   const activeMerchantId = useGameStore((s) => s.activeMerchantId);
   const localPlayerId = useGameStore((s) => s.localPlayerId);
   const reducedMotion = useGameStore((s) => s.reducedMotion);
+  const openDiscardPile = useGameStore((s) => s.openDiscardPile);
+  const discardPile = useGameStore((s) => s.discardPile);
 
   const isMyMarketTurn = phase === 'MARKET' && activeMerchantId === localPlayerId;
   const transition = reducedMotion ? MOTION_PRESETS.instant : MOTION_PRESETS.settle;
@@ -63,9 +65,13 @@ export function MarketBoard2D({ drawPileCount, discardPileTop }: MarketBoard2DPr
           <span className="text-[11px] font-display text-parchment/60 mt-1">Deck</span>
         </div>
 
-        {/* Discard Pile */}
-        <div className="flex flex-col items-center gap-1.5">
-          <div className="relative w-20 h-28 rounded-xl bg-tavern-bg/95 border-2 border-tavern-border shadow-lg flex flex-col items-center justify-between p-2 overflow-hidden">
+        {/* Discard Pile (Clickable) */}
+        <div
+          onClick={openDiscardPile}
+          className="flex flex-col items-center gap-1.5 cursor-pointer group"
+          title="Click to view all cards in the Discard Pile"
+        >
+          <div className="relative w-20 h-28 rounded-xl bg-tavern-bg/95 border-2 border-tavern-border group-hover:border-gold group-hover:scale-105 shadow-lg flex flex-col items-center justify-between p-2 overflow-hidden transition-all">
             {discardPileTop ? (
               <>
                 <div className="text-[10px] font-display font-bold text-center text-parchment leading-tight truncate w-full">
@@ -90,7 +96,14 @@ export function MarketBoard2D({ drawPileCount, discardPileTop }: MarketBoard2DPr
               </div>
             )}
           </div>
-          <span className="text-[11px] font-display text-parchment/60 mt-1">Discards</span>
+          <span className="text-[11px] font-display text-parchment/60 group-hover:text-gold transition-colors mt-1 flex items-center gap-1">
+            <span>Discards</span>
+            {discardPile.length > 0 && (
+              <span className="text-[9px] bg-gold/20 text-gold-light px-1 rounded font-bold">
+                {discardPile.length}
+              </span>
+            )}
+          </span>
         </div>
       </div>
 

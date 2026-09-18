@@ -63,6 +63,17 @@ export const PendingCommitmentState = schema({
 }, 'PendingCommitmentState');
 export type PendingCommitmentState = InstanceType<typeof PendingCommitmentState>;
 
+export const DiscardLogEntryState = schema({
+  id: t.string(),
+  round: t.number().default(1),
+  playerId: t.string(),
+  playerName: t.string(),
+  cardNames: t.array('string'),
+  cardCount: t.number().default(0),
+  timestamp: t.number().default(0),
+}, 'DiscardLogEntryState');
+export type DiscardLogEntryState = InstanceType<typeof DiscardLogEntryState>;
+
 export const PlayerScoreState = schema({
   playerId: t.string(),
   name: t.string(),
@@ -123,6 +134,7 @@ export const GameState = schema({
   activeMerchantId: t.string().default(''),
   drawPileCount: t.number().default(0),
   discardPile: t.array(CardState),
+  discardLog: t.array(DiscardLogEntryState),
   players: t.map(PlayerState),
   activeBribe: t.ref(BribeOfferState).optional(),
   bribeOffers: t.array(BribeOfferState),

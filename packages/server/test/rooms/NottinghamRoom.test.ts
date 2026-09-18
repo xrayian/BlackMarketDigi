@@ -235,4 +235,65 @@ describe('NottinghamRoom (Colyseus 0.18)', () => {
     await room3.leave();
     await room4.leave();
   });
+
+  it('records who discarded what cards per turn in discardLog and updates discardPile in real time', async () => {
+    const room1 = await client1.create('nottingham', { playerName: 'Robin' });
+    const room2 = await client2.joinById(room1.roomId, { playerName: 'Marian' });
+    const room3 = await client3.joinById(room1.roomId, { playerName: 'LittleJohn' });
+
+    await delay(100);
+
+    // Ready up
+    room1.send('ready');
+    room2.send('ready');
+    room3.send('ready');
+    await delay(200);
+
+    const serverRoom = matchMaker.getLocalRoomById(room1.roomId) as NottinghamRoom;
+    expect(serverRoom.state.phase).toBe('MARKET');
+
+    const roomsMap: Record<string, any> = {
+      [room1.sessionId]: room1,
+      [room2.sessionId]: room2,
+      [room3.sessionId]: room3,
+    };
+
+    // First merchant turn
+    const firstMerchantId = serverRoom.state.activeMerchantId;
+    const firstRoom = roomsMap[firstMerchantId];
+    const firstPlayerState = serverRoom.state.players.get(firstMerchantId)!;
+    const cardsToDiscard = [firstPlayerState.hand[0].id, firstPlayerState.hand[1].id];
+    const discardedCardNames = [firstPlayerState.hand[0].name, firstPlayerState.hand[1].name];
+
+    firstRoom.send('market_exchange', { cardIds: cardsToDiscard });
+    await delay(150);
+
+    // Verify first discard entry in discardLog
+    expect(serverRoom.state.discardLog.length).toBe(1);
+    const log1 = serverRoom.state.discardLog[0];
+    expect(log1.playerName).toBe(firstPlayerState.name);
+    expect(log1.cardCount).toBe(2);
+    expect(Array.from(log1.cardNames)).toEqual(discardedCardNames);
+
+    // Verify discardPile updated
+    expect(serverRoom.state.discardPile.length).toBeGreaterThanOrEqual(2);
+
+    // Second merchant keeps hand (0 discards)
+    const secondMerchantId = serverRoom.state.activeMerchantId;
+    const secondRoom = roomsMap[secondMerchantId];
+    const secondPlayerState = serverRoom.state.players.get(secondMerchantId)!;
+
+    secondRoom.send('market_exchange', { cardIds: [] });
+    await delay(150);
+
+    expect(serverRoom.state.discardLog.length).toBe(2);
+    const log2 = serverRoom.state.discardLog[1];
+    expect(log2.playerName).toBe(secondPlayerState.name);
+    expect(log2.cardCount).toBe(0);
+    expect(log2.cardNames.length).toBe(0);
+
+    await room1.leave();
+    await room2.leave();
+    await room3.leave();
+  });
 });

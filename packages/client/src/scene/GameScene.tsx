@@ -14,6 +14,7 @@ import { BlackMarketPanel } from '../ui/BlackMarketPanel';
 import { SettingsModal } from '../ui/SettingsModal';
 import { NegotiationOfferModal } from '../ui/NegotiationOfferModal';
 import { NegotiationFeedback } from '../ui/NegotiationFeedback';
+import { DiscardPileModal } from '../ui/DiscardPileModal';
 
 export function GameScene() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -157,6 +158,9 @@ export function GameScene() {
 
       {/* Black Market Expansion Panel */}
       <BlackMarketPanel />
+
+      {/* Discard Pile Viewer Modal */}
+      <DiscardPileModal />
 
       {/* Settings & Accessibility Modal */}
       <SettingsModal
