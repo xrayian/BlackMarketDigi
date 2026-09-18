@@ -8,6 +8,7 @@ set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_DIR"
+git config --global --add safe.directory "$REPO_DIR" 2>/dev/null || true
 
 echo "============================================================"
 echo "🔄 Updating Sheriff of Nottingham Server & Client..."

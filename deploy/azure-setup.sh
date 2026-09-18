@@ -64,6 +64,7 @@ echo "[5/6] Building and launching game containers with Docker Compose..."
 # Resolve script directory to repository root
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_DIR"
+git config --global --add safe.directory "$REPO_DIR" 2>/dev/null || true
 
 docker compose up -d --build
 
@@ -71,7 +72,7 @@ echo "[6/6] Verifying service health..."
 sleep 5
 docker compose ps
 
-PUBLIC_IP=$(curl -s https://api.ipify.org || echo "<YOUR_AZURE_PUBLIC_IP>")
+PUBLIC_IP=$(curl -s --connect-timeout 3 https://api.ipify.org 2>/dev/null || curl -s --connect-timeout 3 -H Metadata:true "http://169.254.169.254/metadata/instance/network/interface/0/ipv4/ipAddress/0/publicIpAddress?api-version=2021-02-01&format=text" 2>/dev/null || hostname -I 2>/dev/null | awk '{print $1}' || echo "<YOUR_AZURE_PUBLIC_IP>")
 
 echo ""
 echo "============================================================"

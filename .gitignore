@@ -8,3 +8,5 @@ dist
 !.vscode/settings.json
 coverage
 .pre_initialization/
+nginx/ssl.conf
+docker-compose.override.yml

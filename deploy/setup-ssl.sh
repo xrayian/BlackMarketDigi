@@ -22,6 +22,14 @@ if [ -z "$EMAIL" ]; then
   read -rp "Enter your email address for Let's Encrypt certificate notices: " EMAIL
 fi
 
+if [ -n "$DOMAIN" ]; then
+  # Strip protocol (http:// or https://), trailing slashes, whitespace, and lowercase
+  DOMAIN="${DOMAIN#http://}"
+  DOMAIN="${DOMAIN#https://}"
+  DOMAIN="${DOMAIN%%/*}"
+  DOMAIN="$(echo "$DOMAIN" | tr '[:upper:]' '[:lower:]' | xargs)"
+fi
+
 if [ -z "$DOMAIN" ] || [ -z "$EMAIL" ]; then
   echo "[-] Domain and Email are required to provision Let's Encrypt SSL certificates."
   exit 1
@@ -33,6 +41,7 @@ echo "============================================================"
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_DIR"
+git config --global --add safe.directory "$REPO_DIR" 2>/dev/null || true
 
 echo "[1/5] Installing Certbot..."
 apt-get update -y
@@ -42,19 +51,24 @@ echo "[2/5] Stopping container on port 80 to allow Let's Encrypt ACME challenge.
 docker compose stop client || true
 
 echo "[3/5] Obtaining SSL certificate via Certbot standalone..."
-certbot certonly --standalone \
+if ! certbot certonly --standalone \
   --preferred-challenges http \
   -d "$DOMAIN" \
   --non-interactive \
   --agree-tos \
-  -m "$EMAIL"
+  -m "$EMAIL"; then
+  echo "[-] Certificate generation failed. Please ensure DNS for ${DOMAIN} points to this server's public IP."
+  echo "[+] Restoring client container on port 80..."
+  docker compose start client 2>/dev/null || docker compose up -d client || true
+  exit 1
+fi
 
 CERT_PATH="/etc/letsencrypt/live/${DOMAIN}/fullchain.pem"
 KEY_PATH="/etc/letsencrypt/live/${DOMAIN}/privkey.pem"
 
 if [ ! -f "$CERT_PATH" ]; then
-  echo "[-] Certificate generation failed. Please ensure DNS for ${DOMAIN} points to this server's public IP."
-  docker compose start client || true
+  echo "[-] Certificate file not found at ${CERT_PATH}."
+  docker compose start client 2>/dev/null || docker compose up -d client || true
   exit 1
 fi
 
@@ -69,7 +83,7 @@ map \$http_upgrade \$connection_upgrade {
 server {
     listen 80;
     listen [::]:80;
-    server_name ${DOMAIN};
+    server_name ${DOMAIN} _;
     return 301 https://\$host\$request_uri;
 }
 
@@ -172,8 +186,14 @@ echo "[5/5] Restarting containers with SSL configuration..."
 docker compose up -d
 
 # Setup automated certificate renewal cron job
-CRON_JOB="0 3 * * * certbot renew --quiet --post-hook 'cd $REPO_DIR && docker compose restart client'"
-(crontab -l 2>/dev/null | grep -Fv "certbot renew" ; echo "$CRON_JOB") | crontab -
+# Note: Certbot standalone renewal needs port 80 freed, so pre-hook stops client and post-hook brings it up
+CRON_JOB="0 3 * * * certbot renew --quiet --pre-hook 'cd $REPO_DIR && docker compose stop client' --post-hook 'cd $REPO_DIR && docker compose up -d client'"
+EXISTING_CRON=$(crontab -l 2>/dev/null | grep -Fv "certbot renew" || true)
+if [ -n "$EXISTING_CRON" ]; then
+  printf "%s\n%s\n" "$EXISTING_CRON" "$CRON_JOB" | crontab -
+else
+  printf "%s\n" "$CRON_JOB" | crontab -
+fi
 
 echo ""
 echo "============================================================"
