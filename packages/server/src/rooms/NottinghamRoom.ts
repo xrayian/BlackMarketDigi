@@ -201,18 +201,28 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
         player.connected = true;
         // Re-grant client view permissions on reconnect with complete zero-knowledge isolation
         if (client.view) {
-          client.view.add(player);
-          client.view.subscribe(player.hand);
-          client.view.subscribe(player.standContraband);
-          client.view.subscribe(player.standRoyal);
-          for (const card of player.hand) client.view.add(card);
-          for (const card of player.standContraband) client.view.add(card);
-          for (const card of player.standRoyal) client.view.add(card);
+          const view = client.view;
+          view.add(player);
+          view.subscribe(player.hand);
+          view.subscribe(player.standContraband);
+          view.subscribe(player.standRoyal);
+          for (const card of player.hand) view.add(card);
+          for (const card of player.standContraband) view.add(card);
+          for (const card of player.standRoyal) view.add(card);
           if (player.sealedBag) {
-            client.view.add(player.sealedBag);
-            client.view.subscribe(player.sealedBag.cards);
-            for (const card of player.sealedBag.cards) client.view.add(card);
+            view.add(player.sealedBag);
+            view.subscribe(player.sealedBag.cards);
+            for (const card of player.sealedBag.cards) view.add(card);
           }
+          this.state.players.forEach((otherP) => {
+            if (otherP.id !== player.id && otherP.sealedBag) {
+              view.add(otherP.sealedBag);
+              if (otherP.sealedBag.isRevealed) {
+                view.subscribe(otherP.sealedBag.cards);
+                for (const card of otherP.sealedBag.cards) view.add(card);
+              }
+            }
+          });
         }
       } catch {
         player.connected = false;
@@ -427,9 +437,15 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
 
       player.sealedBag = bagState;
 
-      // Grant owning client private view permission for their bag cards
+      // Add bagState to all clients' views so everyone sees that the merchant bag is sealed & count is visible
+      this.clients.forEach((c) => {
+        if (c.view) {
+          c.view.add(bagState);
+        }
+      });
+
+      // Grant owning client private view permission for their secret bag cards
       if (client.view) {
-        client.view.add(bagState);
         client.view.subscribe(bagState.cards);
       }
 
@@ -441,13 +457,15 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
         }
       }
 
-      // Check if all merchants snapped bags
-      let allSnapped = true;
-      this.state.players.forEach((p) => {
-        if (p.id !== this.state.sheriffId && (!p.sealedBag || !p.sealedBag.isSnapped)) {
-          allSnapped = false;
-        }
-      });
+      // Check if all active merchants have snapped bags
+      const activeMerchants = this.tableSeatIds
+        .filter((id) => id !== this.state.sheriffId && !this.state.deputyIds.includes(id))
+        .map((id) => this.state.players.get(id))
+        .filter((p): p is PlayerState => Boolean(p && p.connected !== false));
+
+      const allSnapped =
+        activeMerchants.length > 0 &&
+        activeMerchants.every((p) => Boolean(p.sealedBag?.isSnapped));
 
       if (allSnapped) {
         this.startDeclarationPhase();
@@ -477,29 +495,35 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
         return;
       }
 
+      const declaredCount = Number(message.declaredCount) || player.sealedBag.cards.length;
       const bagCards = player.sealedBag.cards.map(stateToCard);
 
-      const validation = validateDeclaration(bagCards, message.declaredCount, message.declaredGood);
+      const validation = validateDeclaration(bagCards, declaredCount, message.declaredGood);
       if (!validation.valid) {
         client.send('error', { message: validation.error });
         return;
       }
 
       player.sealedBag.declaredGood = message.declaredGood;
-      player.sealedBag.declaredCount = message.declaredCount;
+      player.sealedBag.declaredCount = declaredCount;
 
       this.broadcast('merchant_declaration_announced', {
         merchantId: client.sessionId,
         merchantName: player.name,
         declaredGood: message.declaredGood,
-        declaredCount: message.declaredCount,
+        declaredCount,
       });
 
-      // Check if all merchants (non-Sheriff, non-deputy players with bags) have declared
-      const merchants = Array.from(this.state.players.values()).filter(
-        (p) => p.id !== this.state.sheriffId && !this.state.deputyIds.includes(p.id)
-      );
-      const allDeclared = merchants.every((m) => Boolean(m.sealedBag?.declaredGood));
+      // Check if all active merchants (non-Sheriff, non-deputy players with bags) have declared
+      const activeMerchants = this.tableSeatIds
+        .filter((id) => id !== this.state.sheriffId && !this.state.deputyIds.includes(id))
+        .map((id) => this.state.players.get(id))
+        .filter((p): p is PlayerState => Boolean(p && p.connected !== false));
+
+      const allDeclared =
+        activeMerchants.length > 0 &&
+        activeMerchants.every((m) => Boolean(m.sealedBag?.declaredGood));
+
       if (allDeclared) {
         this.startInspectionPhase();
       }

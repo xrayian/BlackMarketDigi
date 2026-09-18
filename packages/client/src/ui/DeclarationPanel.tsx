@@ -26,16 +26,15 @@ export function DeclarationPanel() {
   const bagCardCount =
     localPlayer.sealedBag?.cardCount ||
     localPlayer.sealedBag?.cards?.length ||
-    localPlayer.handCount ||
-    0;
+    (localPlayer.handCount ? Math.max(1, 6 - localPlayer.handCount) : 1);
 
   const totalPlayers = playersMap.size || playerCount || 4;
-  const isBagSnapped = Boolean(localPlayer.sealedBag?.isSnapped);
   const availableGoods =
     totalPlayers <= 3 ? LEGAL_GOODS.filter((g) => g !== 'BREAD') : LEGAL_GOODS;
 
   const handleDeclare = () => {
-    if (!selectedGood || bagCardCount === 0 || isStamping) return;
+    const count = bagCardCount || localPlayer.sealedBag?.cardCount || 1;
+    if (!selectedGood || isStamping) return;
 
     soundManager.playSnap();
     setIsStamping(true);
@@ -43,13 +42,13 @@ export function DeclarationPanel() {
     setTimeout(() => {
       network.send('declaration', {
         declaredGood: selectedGood,
-        declaredCount: bagCardCount,
+        declaredCount: count,
       });
       setIsStamping(false);
     }, 450);
   };
 
-  const merchants = allPlayers.filter((p) => !p.isSheriff);
+  const merchants = allPlayers.filter((p) => !p.isSheriff && !p.isDeputy);
   const declaredMerchantsCount = merchants.filter((m) => Boolean(m.sealedBag?.declaredGood)).length;
 
   return (
@@ -140,17 +139,6 @@ export function DeclarationPanel() {
                   ? `Waiting for remaining merchants (${declaredMerchantsCount}/${merchants.length} declared)...`
                   : 'All declarations received! Sheriff will inspect shortly...'}
               </span>
-            </div>
-          ) : !isBagSnapped ? (
-            /* Merchant View: Bag not snapped yet */
-            <div className="flex flex-col items-center gap-2 py-2 text-center">
-              <span className="text-2xl">🔒</span>
-              <h2 className="text-sm font-display font-bold text-gold">
-                Snap Your Bag First
-              </h2>
-              <p className="text-xs text-parchment/70 font-body">
-                Please snap your merchant bag clasp to begin your declaration.
-              </p>
             </div>
           ) : (
             /* Merchant View: Bag snapped, can declare in parallel */

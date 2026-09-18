@@ -293,4 +293,87 @@ describe('NottinghamRoom (Colyseus 0.18)', () => {
     await room2.leave();
     await room3.leave();
   });
+
+  it('runs complete 3-player game flow from LOBBY through LOAD_BAG and DECLARATION into INSPECTION', async () => {
+    const room1 = await client1.create('nottingham', { playerName: 'Robin' });
+    const room2 = await client2.joinById(room1.roomId, { playerName: 'Marian' });
+    const room3 = await client3.joinById(room1.roomId, { playerName: 'LittleJohn' });
+
+    await delay(100);
+
+    room1.send('ready');
+    room2.send('ready');
+    room3.send('ready');
+    await delay(200);
+
+    const serverRoom = matchMaker.getLocalRoomById(room1.roomId) as NottinghamRoom;
+    expect(serverRoom.state.phase).toBe('MARKET');
+    expect(serverRoom.state.players.size).toBe(3);
+
+    const roomsMap: Record<string, Room> = {
+      [room1.sessionId]: room1,
+      [room2.sessionId]: room2,
+      [room3.sessionId]: room3,
+    };
+
+    // Both merchants pass market phase
+    for (let i = 0; i < 2; i++) {
+      const activeId = serverRoom.state.activeMerchantId;
+      expect(activeId).toBeTruthy();
+      const activeRoom = roomsMap[activeId];
+      activeRoom.send('market_exchange', { cardIds: [] });
+      await delay(100);
+    }
+
+    // Now in LOAD_BAG phase
+    expect(serverRoom.state.phase).toBe('LOAD_BAG');
+    expect(room1.state.phase).toBe('LOAD_BAG');
+    expect(room2.state.phase).toBe('LOAD_BAG');
+    expect(room3.state.phase).toBe('LOAD_BAG');
+
+    // Marian (room2) snaps bag
+    const marianState = serverRoom.state.players.get(room2.sessionId)!;
+    room2.send('load_bag', { cardIds: [marianState.hand[0].id, marianState.hand[1].id] });
+    await delay(100);
+
+    // Phase should STILL be LOAD_BAG because LittleJohn has not snapped yet
+    expect(serverRoom.state.phase).toBe('LOAD_BAG');
+
+    // LittleJohn (room3) snaps bag
+    const johnState = serverRoom.state.players.get(room3.sessionId)!;
+    room3.send('load_bag', { cardIds: [johnState.hand[0].id, johnState.hand[1].id] });
+    await delay(100);
+
+    // Phase MUST now be DECLARATION!
+    expect(serverRoom.state.phase).toBe('DECLARATION');
+    expect(room1.state.phase).toBe('DECLARATION');
+    expect(room2.state.phase).toBe('DECLARATION');
+    expect(room3.state.phase).toBe('DECLARATION');
+
+    expect(room1.state.players.get(room2.sessionId)?.sealedBag?.isSnapped).toBe(true);
+    expect(room2.state.players.get(room2.sessionId)?.sealedBag?.isSnapped).toBe(true);
+    expect(room2.state.players.get(room3.sessionId)?.sealedBag?.isSnapped).toBe(true);
+
+    // Now Marian declares
+    room2.send('declaration', { declaredGood: 'APPLE', declaredCount: 2 });
+    await delay(100);
+
+    expect(serverRoom.state.phase).toBe('DECLARATION');
+    expect(serverRoom.state.players.get(room2.sessionId)!.sealedBag!.declaredGood).toBe('APPLE');
+
+    // LittleJohn declares
+    room3.send('declaration', { declaredGood: 'CHEESE', declaredCount: 2 });
+    await delay(100);
+
+    // Both declared -> must advance to INSPECTION!
+    expect(serverRoom.state.phase).toBe('INSPECTION');
+    expect(room1.state.phase).toBe('INSPECTION');
+    expect(room2.state.phase).toBe('INSPECTION');
+    expect(room3.state.phase).toBe('INSPECTION');
+
+    await room1.leave();
+    await room2.leave();
+    await room3.leave();
+  });
 });
+

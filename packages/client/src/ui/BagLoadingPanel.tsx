@@ -46,7 +46,7 @@ export function BagLoadingPanel() {
   const localPlayer = allPlayers.find((p) => p.id === localPlayerId);
   if (!localPlayer) return null;
 
-  const isSheriff = localPlayer.isSheriff;
+  const isSheriff = localPlayer.isSheriff || localPlayer.isDeputy;
   const isSnapped = localPlayer.sealedBag?.isSnapped === true;
 
   const loadedCards: ClientCard[] = isSnapped
@@ -88,7 +88,7 @@ export function BagLoadingPanel() {
   };
 
   const renderOtherMerchantsStatus = () => {
-    const merchants = allPlayers.filter((p) => !p.isSheriff && p.id !== localPlayerId);
+    const merchants = allPlayers.filter((p) => !p.isSheriff && !p.isDeputy && p.id !== localPlayerId);
     if (merchants.length === 0) return null;
 
     return (
