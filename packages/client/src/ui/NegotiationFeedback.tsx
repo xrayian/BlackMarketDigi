@@ -31,7 +31,7 @@ export function NegotiationFeedback() {
               <span className="font-bold text-white">{crossBagToast.goldOffered} Gold</span>{' '}
               to{' '}
               <span className="font-bold text-crimson-300">
-                {crossBagToast.intendedOutcome === 'FORCE_INSPECT' ? 'guarantee inspection of' : 'guarantee safe pass for'}{' '}
+                {crossBagToast.intendedOutcome === 'FORCE_INSPECT' ? 'inspect' : 'pass'}{' '}
                 {crossBagToast.targetPlayerName}'s bag
               </span>
               !
@@ -79,8 +79,8 @@ export function NegotiationFeedback() {
                   : 'bg-emerald/60 text-emerald-100 border-emerald-400'
               }`}>
                 {dealStruckBanner.forcedOutcome === 'FORCE_INSPECT'
-                  ? `🔨 DEAL ACCEPTED: CHECKING ${playersMap.get(dealStruckBanner.targetBagOwnerId)?.name || 'MERCHANT'}'S POT NOW!`
-                  : `🛡️ DEAL ACCEPTED: PASSING ${playersMap.get(dealStruckBanner.targetBagOwnerId)?.name || 'MERCHANT'}'S GOODS UNOPENED!`}
+                  ? `🔨 DEAL ACCEPTED: CHECKING ${playersMap.get(dealStruckBanner.targetBagOwnerId)?.name || 'MERCHANT'}`
+                  : `🛡️ DEAL ACCEPTED: PASSING ${playersMap.get(dealStruckBanner.targetBagOwnerId)?.name || 'MERCHANT'}`}
               </div>
             </div>
           </motion.div>

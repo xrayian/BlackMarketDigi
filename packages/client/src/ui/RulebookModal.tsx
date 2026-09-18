@@ -62,10 +62,10 @@ export function RulebookModal() {
               <span className="text-2xl filter drop-shadow">📜</span>
               <div>
                 <h2 className="font-display font-black text-lg md:text-xl text-gold tracking-wide flex items-center gap-2 leading-none">
-                  NOTTINGHAM CODEX & RULEBOOK
+                  RULEBOOK
                 </h2>
                 <span className="text-[11px] font-body text-gold-muted">
-                  Official Merchant Regulations & 2nd Edition Rules
+                  2nd Edition Rules
                 </span>
               </div>
             </div>

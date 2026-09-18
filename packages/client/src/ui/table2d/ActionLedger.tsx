@@ -96,7 +96,7 @@ export function ActionLedger() {
             <div className="flex items-center justify-between border-b border-tavern-border pb-2.5 mb-2.5">
               <div className="flex items-center gap-2 font-display font-black text-gold text-sm tracking-wider uppercase">
                 <span>📜</span>
-                <span>Nottingham Town Ledger</span>
+                <span>Town Ledger</span>
               </div>
               <button
                 type="button"
@@ -168,7 +168,7 @@ export function ActionLedger() {
 
             {/* Footer Summary */}
             <div className="border-t border-tavern-border pt-2 text-[10px] text-center text-parchment/50 italic">
-              Official records kept under the authority of Nottingham.
+              Official records.
             </div>
           </motion.div>
         )}

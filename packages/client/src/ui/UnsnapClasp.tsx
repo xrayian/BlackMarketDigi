@@ -120,7 +120,7 @@ export function UnsnapClasp({ onInspect, onPass, disabled = false }: UnsnapClasp
             transition-transform duration-100 shadow-2xl touch-none
             ${disabled ? 'opacity-40 cursor-not-allowed' : 'active:scale-95'}
           `}
-          title="Press and hold for 1.2s to snap open the merchant's bag"
+          title="Hold 1.2s to inspect"
         >
           {/* Radial SVG Progress Ring */}
           <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none" viewBox="0 0 96 96">
@@ -189,7 +189,7 @@ export function UnsnapClasp({ onInspect, onPass, disabled = false }: UnsnapClasp
               Hold {Math.max(0, Math.round((1 - progress) * 1.2 * 10) / 10)}s (Release to cancel)
             </span>
           ) : (
-            <span className="text-parchment/60">Press & hold 1.2s to inspect</span>
+            <span className="text-parchment/60">Hold to inspect</span>
           )}
         </div>
       </div>

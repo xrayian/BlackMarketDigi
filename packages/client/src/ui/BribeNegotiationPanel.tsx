@@ -204,7 +204,7 @@ export function BribeNegotiationPanel({ sheriff, merchant }: BribeNegotiationPan
             className="flex-1 h-9 px-3.5 rounded-xl bg-gold/20 hover:bg-gold/35 border border-gold/60 text-gold-light hover:text-white font-display text-xs tracking-wider uppercase font-bold transition-all shadow-md active:scale-95 inline-flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
           >
             <span>🤝</span>
-            <span>{hasOpenOffersInFeed ? 'Counter with Full Terms' : 'Detailed Bribe Proposal'}</span>
+            <span>{hasOpenOffersInFeed ? 'Counter Terms' : 'Full Proposal'}</span>
           </button>
           <button
             type="button"
@@ -212,14 +212,14 @@ export function BribeNegotiationPanel({ sheriff, merchant }: BribeNegotiationPan
             className="h-9 px-3.5 rounded-xl bg-walnut-card hover:bg-gold/10 border border-gold/30 hover:border-gold text-gold-muted hover:text-white font-display text-xs tracking-wider uppercase transition-all shadow-md cursor-pointer inline-flex items-center justify-center gap-1.5 whitespace-nowrap"
           >
             <span>⚡</span>
-            <span>{hasOpenOffersInFeed ? 'Quick Counter' : 'Quick Bribe'}</span>
+            <span>{hasOpenOffersInFeed ? 'Quick Counter' : 'Quick Offer'}</span>
           </button>
         </div>
       ) : (
         <div className="flex flex-col gap-3 pt-2 border-t border-tavern-border">
           <div className="flex justify-between items-center text-xs font-display">
             <span className="text-gold font-bold">
-              {hasOpenOffersInFeed ? 'Construct Counter-Offer' : 'Construct Bribe Offer'}
+              {hasOpenOffersInFeed ? 'Counter-Offer' : 'New Offer'}
             </span>
             <button
               type="button"
@@ -345,7 +345,7 @@ export function BribeNegotiationPanel({ sheriff, merchant }: BribeNegotiationPan
             className="w-full h-9 rounded-xl btn-gold font-display text-xs tracking-wider uppercase font-bold inline-flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
           >
             <span>🤝</span>
-            <span>Transmit Bribe Offer</span>
+            <span>Send Offer</span>
           </button>
         </div>
       )}

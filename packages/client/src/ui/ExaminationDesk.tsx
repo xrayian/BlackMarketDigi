@@ -156,7 +156,7 @@ export function ExaminationDesk() {
               <div className="flex items-center gap-2">
                 <span className="text-2xl">⚖️</span>
                 <span className="font-display font-black text-gold text-lg md:text-xl tracking-wider uppercase">
-                  The Examination Desk
+                  Examination Desk
                 </span>
                 <button
                   type="button"
@@ -265,10 +265,10 @@ export function ExaminationDesk() {
                 </div>
                 <div className="space-y-1">
                   <h3 className="font-display text-2xl text-gold font-black tracking-wide uppercase">
-                    Call a Merchant to the Desk
+                    Call Merchant
                   </h3>
                   <p className="text-xs md:text-sm text-parchment/80 font-body">
-                    Choose which merchant's sealed bag to inspect, interrogate on the balance scale, or wave through the gates.
+                    Select a merchant to inspect or pass.
                   </p>
                 </div>
 
@@ -306,7 +306,7 @@ export function ExaminationDesk() {
 
                   {uninspectedMerchants.length === 0 && (
                     <div className="text-sm font-display text-gold-muted italic py-4">
-                      All merchants have passed or been inspected for this round. Concluding inspection phase...
+                      All bags resolved. Concluding phase...
                     </div>
                   )}
                 </div>
@@ -318,7 +318,7 @@ export function ExaminationDesk() {
                   Awaiting {enableDeputies ? 'Deputies' : `Sheriff ${sheriffPlayer.name}`}
                 </h3>
                 <p className="text-xs md:text-sm text-parchment/70 max-w-md font-body">
-                  The gate authorities are reviewing declarations and calling the next merchant forward. Stay composed!
+                  The Sheriff is reviewing declarations.
                 </p>
               </div>
             )}
@@ -370,13 +370,13 @@ export function ExaminationDesk() {
                     <div>
                       <div className="text-white font-black text-xs uppercase tracking-wide">
                         {activeCommitment.forcedOutcome === 'FORCE_INSPECT'
-                          ? 'BINDING DEAL: SHERIFF MUST INSPECT THIS BAG'
-                          : 'BINDING DEAL: SHERIFF MUST PASS THIS BAG UNOPENED'}
+                          ? 'DEAL: MUST INSPECT'
+                          : 'DEAL: MUST PASS'}
                       </div>
                       <div className="text-[11px] text-parchment/80 font-normal font-body">
                         {activeCommitment.forcedOutcome === 'FORCE_INSPECT'
-                          ? `A bribe was accepted to CHECK ${activeMerchant.name}'s pot! Inspection is legally guaranteed.`
-                          : `A bribe was accepted for safe passage. ${activeMerchant.name}'s goods must pass unopened.`}
+                          ? `Accepted bribe guarantees inspection of ${activeMerchant.name}'s bag.`
+                          : `Accepted bribe guarantees safe passage for ${activeMerchant.name}.`}
                       </div>
                     </div>
                   </div>
@@ -398,7 +398,7 @@ export function ExaminationDesk() {
                 {/* Proclamation Banner */}
                 {declaredGoodToken && (
                   <div className="flex items-center gap-2 bg-walnut-card border border-gold/50 px-4 py-1.5 rounded-full text-xs font-display shadow-md">
-                    <span className="text-parchment/70">Declared Proclamation:</span>
+                    <span className="text-parchment/70">Declared:</span>
                     <span className="text-xl">{declaredGoodToken.icon}</span>
                     <span className="font-bold text-gold">
                       {activeMerchant.sealedBag?.declaredCount} {declaredGoodToken.name}
@@ -422,7 +422,7 @@ export function ExaminationDesk() {
                   <div className="flex items-center justify-between border-b border-tavern-border pb-1.5">
                     <span className="text-xs font-display font-black text-gold uppercase tracking-wider flex items-center gap-1.5">
                       <span>🤝</span>
-                      <span>Live Bribe Proposals for this Bag:</span>
+                      <span>Active Proposals:</span>
                     </span>
                     <span className="text-[10px] text-parchment/60 font-display">
                       {openBribesForThisMerchant.length} active
@@ -456,11 +456,11 @@ export function ExaminationDesk() {
                               <span>
                                 {isOfferFromAuthority
                                   ? isRivalInspect
-                                    ? '🔨 SHERIFF PROPOSAL (CHECK POT):'
-                                    : '🛡️ SHERIFF PROPOSAL (SAFE PASSAGE):'
+                                    ? '🔨 SHERIFF OFFER:'
+                                    : '🛡️ SHERIFF OFFER:'
                                   : isRivalInspect
-                                  ? '🔨 RIVAL BRIBE (CHECK POT):'
-                                  : '🛡️ SAFE PASSAGE BRIBE:'}
+                                  ? '🔨 RIVAL OFFER:'
+                                  : '🛡️ PASSAGE OFFER:'}
                               </span>
                               <span className="text-white">{fromName}</span>
                               <span>offers</span>
@@ -472,11 +472,11 @@ export function ExaminationDesk() {
                             <div className="text-[11px] text-parchment/80 font-body">
                               {isOfferFromAuthority
                                 ? isRivalInspect
-                                  ? `Sheriff proposes to immediately INSPECT & CHECK ${activeMerchant.name}'s bag!`
-                                  : `Sheriff proposes to immediately PASS ${activeMerchant.name}'s goods unopened!`
+                                  ? `Inspect ${activeMerchant.name}'s bag`
+                                  : `Pass ${activeMerchant.name}'s bag`
                                 : isRivalInspect
-                                ? `Paying for the Sheriff to immediately INSPECT & CHECK ${activeMerchant.name}'s bag!`
-                                : `Paying for the Sheriff to immediately PASS ${activeMerchant.name}'s goods unopened!`}
+                                ? `Inspect ${activeMerchant.name}'s bag`
+                                : `Pass ${activeMerchant.name}'s bag`}
                             </div>
                           </div>
 
@@ -588,7 +588,7 @@ export function ExaminationDesk() {
                   ) : (
                     <div className="text-center text-xs text-gold-muted italic py-2 font-body">
                       {localPlayer?.id === activeMerchant.id
-                        ? 'You stand at the Examination Desk. Negotiate with the Deputies or let them decide!'
+                        ? 'Negotiate with Deputies or wait for their decision.'
                         : `${activeMerchant.name} is negotiating with the Deputies...`}
                     </div>
                   )
@@ -602,7 +602,7 @@ export function ExaminationDesk() {
                           className="w-full max-w-md h-12 py-3 px-6 rounded-2xl bg-crimson hover:bg-crimson-light text-white font-display font-black text-sm uppercase tracking-wider border-2 border-red-400 shadow-xl cursor-pointer inline-flex items-center justify-center gap-2 transition-transform active:scale-95"
                         >
                           <span>🔨</span>
-                          <span>Execute Inspection (Check {activeMerchant.name}&apos;s Pot)</span>
+                          <span>Inspect Bag</span>
                         </button>
                       ) : (
                         <button
@@ -611,11 +611,11 @@ export function ExaminationDesk() {
                           className="w-full max-w-md h-12 py-3 px-6 rounded-2xl bg-emerald-700 hover:bg-emerald-600 text-white font-display font-black text-sm uppercase tracking-wider border-2 border-emerald-400 shadow-xl cursor-pointer inline-flex items-center justify-center gap-2 transition-transform active:scale-95"
                         >
                           <span>🛡️</span>
-                          <span>Execute Safe Passage (Wave Goods Through)</span>
+                          <span>Pass Bag</span>
                         </button>
                       )}
                       <span className="text-[11px] text-parchment/70 italic font-body">
-                        Deal struck! The accepted bribe binds this decision.
+                        Bound by accepted deal.
                       </span>
                     </div>
                   ) : (
@@ -629,7 +629,7 @@ export function ExaminationDesk() {
                 ) : (
                   <div className="text-center text-xs text-gold-muted italic py-2 font-body">
                     {localPlayer?.id === activeMerchant.id
-                      ? "You are before the Sheriff. Offer tribute, look them in the eye, or wait for the clasp to snap!"
+                      ? "Negotiate with the Sheriff or await their decision."
                       : `${activeMerchant.name} is being scrutinized by Sheriff ${sheriffPlayer.name}...`}
                   </div>
                 )}
@@ -682,7 +682,7 @@ export function ExaminationDesk() {
 
         {/* Footer Note */}
         <div className="text-center text-[11px] text-parchment/50 pt-2 border-t border-tavern-border/50 font-body shrink-0">
-          Nottingham Gate Examination • Truthful declarations are compensated by the Crown; contraband is forfeit with statutory penalty.
+          Gate Examination • Honest = Sheriff pays. Dishonest = confiscation + penalty.
         </div>
       </motion.div>
     </div>

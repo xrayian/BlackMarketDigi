@@ -106,7 +106,7 @@ export function GameScene() {
             type="button"
             onClick={() => openRulebook()}
             className="h-8 px-3 rounded-lg bg-tavern-bg/95 border border-gold/40 text-gold hover:text-white hover:border-gold transition-colors font-display text-xs tracking-wider uppercase backdrop-blur-md shadow-lg cursor-pointer inline-flex items-center justify-center gap-1.5"
-            title="Open Nottingham Codex & Rulebook (?)"
+            title="Rulebook"
           >
             <span>📖</span>
             <span className="hidden sm:inline">Rules</span>
@@ -115,10 +115,10 @@ export function GameScene() {
             type="button"
             onClick={toggleFullscreen}
             className="h-8 px-3 rounded-lg bg-tavern-bg/95 border border-tavern-border text-gold-muted hover:text-gold hover:border-gold/60 transition-colors font-display text-xs tracking-wider uppercase backdrop-blur-md shadow-lg cursor-pointer inline-flex items-center justify-center gap-1.5"
-            title={isFullscreen ? 'Exit Immersive Fullscreen Mode' : 'Enter Immersive Fullscreen Mode'}
+            title="Toggle Fullscreen"
           >
             <span className="text-sm">{isFullscreen ? '🗗' : '⛶'}</span>
-            <span className="hidden md:inline">{isFullscreen ? 'Exit Full' : 'Immersive'}</span>
+            <span className="hidden md:inline">{isFullscreen ? 'Windowed' : 'Fullscreen'}</span>
           </button>
           <button
             type="button"
@@ -173,11 +173,11 @@ export function GameScene() {
           </div>
           <div className="flex items-center gap-1 text-gold font-display font-bold text-xs">
             <span>🪙</span>
-            <span>{localPlayer.gold} Gold</span>
+            <span>{localPlayer.gold}g</span>
           </div>
           <div className="flex items-center gap-1 text-parchment font-display text-xs">
             <span>🃏</span>
-            <span>{localPlayer.handCount} Cards in Hand</span>
+            <span>{localPlayer.handCount} cards</span>
           </div>
         </div>
       )}

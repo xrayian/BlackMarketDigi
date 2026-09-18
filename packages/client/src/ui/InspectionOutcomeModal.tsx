@@ -131,7 +131,7 @@ export function InspectionOutcomeModal() {
             onClick={() => clearLastResult(null)}
             className="w-full py-3 rounded-2xl bg-gradient-to-r from-gold-dark via-gold to-gold-light text-walnut-bg font-display font-black text-sm uppercase tracking-wider shadow-xl border border-gold-light cursor-pointer"
           >
-            Acknowledge & Continue
+            Continue
           </motion.button>
         </motion.div>
       </div>

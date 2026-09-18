@@ -103,10 +103,10 @@ export function NegotiationOfferModal() {
               <span className="text-2xl">🤝</span>
               <div>
                 <h3 className="text-gold font-black text-lg tracking-wide uppercase">
-                  Propose Bribe & Negotiation
+                  Propose Terms
                 </h3>
                 <p className="text-xs text-parchment/70">
-                  Negotiate freely with the Sheriff regarding any sealed bag.
+                  Negotiate regarding any sealed bag.
                 </p>
               </div>
             </div>
@@ -192,7 +192,7 @@ export function NegotiationOfferModal() {
                           : 'border-tavern-border bg-tavern-surface text-parchment/70'
                       }`}
                     >
-                      🔨 Force Inspection! (Rival)
+                      🔨 Force Inspect
                     </button>
                     <button
                       type="button"
@@ -203,7 +203,7 @@ export function NegotiationOfferModal() {
                           : 'border-tavern-border bg-tavern-surface text-parchment/70'
                       }`}
                     >
-                      🛡️ Force Pass (Ally)
+                      🛡️ Force Pass
                     </button>
                   </>
                 )}
@@ -220,21 +220,21 @@ export function NegotiationOfferModal() {
                 {isTargetingOwnBag ? (
                   intendedOutcome === 'PASS' ? (
                     <div>
-                      🛡️ <strong>Safe Passage Bribe:</strong> You are offering tribute to convince the Sheriff to wave your bag through unopened without inspection.
+                      🛡️ <strong>Safe Passage:</strong> Offering tribute for the Sheriff to pass your bag unopened.
                     </div>
                   ) : (
                     <div>
-                      ⚔️ <strong>Dare / Double Bluff:</strong> You are daring the Sheriff to open your bag. (If your bag is honest, the Sheriff will be forced to pay you fines!).
+                      ⚔️ <strong>Dare Bluff:</strong> Daring the Sheriff to inspect. If honest, they pay you!
                     </div>
                   )
                 ) : (
                   intendedOutcome === 'FORCE_INSPECT' ? (
                     <div>
-                      🔨 <strong>Rival Bribe (Check Pot):</strong> You are paying the Sheriff to <strong>INSPECT & CHECK {eligibleMerchants.find(m => m.id === selectedTargetId)?.name || 'this merchant'}'s bag</strong> immediately!
+                      🔨 <strong>Rival Inspect:</strong> Pay Sheriff to inspect {eligibleMerchants.find(m => m.id === selectedTargetId)?.name || 'this merchant'}'s bag.
                     </div>
                   ) : (
                     <div>
-                      🛡️ <strong>Ally Bribe (Safe Passage):</strong> You are paying the Sheriff to let {eligibleMerchants.find(m => m.id === selectedTargetId)?.name || 'this merchant'}'s bag pass through unopened.
+                      🛡️ <strong>Ally Pass:</strong> Pay Sheriff to pass {eligibleMerchants.find(m => m.id === selectedTargetId)?.name || 'this merchant'}'s bag unopened.
                     </div>
                   )
                 )}
@@ -277,7 +277,7 @@ export function NegotiationOfferModal() {
             {localPlayer.standLegal.length > 0 && (
               <div className="flex flex-col gap-1.5 bg-tavern-surface/70 p-3 rounded-2xl border border-tavern-border">
                 <span className="text-gold font-bold text-[11px] uppercase tracking-wider">
-                  🛒 Legal Goods from your Stand:
+                  🛒 Stand Goods:
                 </span>
                 <div className="flex flex-wrap gap-1.5">
                   {localPlayer.standLegal.map((card) => {
@@ -308,10 +308,10 @@ export function NegotiationOfferModal() {
               <div className="flex items-center justify-between">
                 <div>
                   <span className="text-crimson-300 font-bold text-[11px] uppercase tracking-wider">
-                    ⚜️ Secret Stand Contraband:
+                    ⚜️ Contraband:
                   </span>
                   <p className="text-[10px] text-parchment/60 font-normal">
-                    Honor Among Thieves: Only genuine contraband is transferred at resolution.
+                    Only genuine contraband transfers at resolution.
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -340,10 +340,10 @@ export function NegotiationOfferModal() {
                 <div className="flex items-center justify-between">
                   <div>
                     <span className="text-emerald-300 font-bold text-[11px] uppercase tracking-wider">
-                      💼 Goods from within your Sealed Bag:
+                      💼 Bag Goods:
                     </span>
                     <p className="text-[10px] text-parchment/60 font-normal">
-                      Surrendered if bag passes unopened. Phantom cards are voided.
+                      Surrendered if bag passes. Phantom cards voided.
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -400,7 +400,7 @@ export function NegotiationOfferModal() {
                 type="submit"
                 className="px-5 py-2 rounded-xl bg-gradient-to-r from-gold via-amber-400 to-gold text-tavern-bg font-black text-xs uppercase tracking-wider shadow-lg hover:brightness-110 active:scale-95 transition-all"
               >
-                Send Proposal 🤝
+                Send Offer 🤝
               </button>
             </div>
           </form>

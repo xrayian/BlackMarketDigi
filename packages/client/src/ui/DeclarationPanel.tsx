@@ -65,12 +65,12 @@ export function DeclarationPanel() {
               <div className="flex items-center gap-2">
                 <span className="text-xl">⭐</span>
                 <h2 className="text-lg font-display font-black text-gold tracking-wide">
-                  Listening to Declarations
+                  Declarations
                 </h2>
               </div>
               <p className="text-xs text-parchment/70 font-body">
                 {activeMerchant
-                  ? `${activeMerchant.name} is making their declaration before you. Watch their posture!`
+                  ? `${activeMerchant.name} is declaring now.`
                   : 'Awaiting next merchant declaration...'}
               </p>
 
@@ -121,11 +121,11 @@ export function DeclarationPanel() {
               <div className="flex items-center gap-2">
                 <span className="text-xl">📜</span>
                 <h2 className="text-lg font-display font-black text-gold tracking-wide">
-                  Proclaim Your Wares to the Sheriff
+                  Declare Your Wares
                 </h2>
               </div>
               <p className="text-xs text-parchment/80 font-body">
-                You carry <span className="font-bold text-gold">{bagCardCount} goods</span> in your sealed bag. Declare what legal wares you bring!
+                You carry <span className="font-bold text-gold">{bagCardCount} goods</span> in your bag. Choose a legal good type.
               </p>
 
               {/* 4 Legal Goods Picker in a Row */}
@@ -157,7 +157,6 @@ export function DeclarationPanel() {
                       <span className="font-display font-black text-xs text-parchment mt-1">
                         {token.name}
                       </span>
-                      <span className="text-[10px] text-parchment/60 font-body">Legal</span>
 
                       {/* Stamped Wax Seal Animation on Selected Good */}
                       <AnimatePresence>
@@ -181,7 +180,7 @@ export function DeclarationPanel() {
               {/* Declaration Statement & Confirm Button */}
               <div className="w-full flex items-center justify-between gap-3 mt-1 pt-2 border-t border-tavern-border">
                 <div className="text-left text-xs font-display">
-                  <span className="text-parchment/60 block text-[10px] uppercase">Proclamation:</span>
+                  <span className="text-parchment/60 block text-[10px] uppercase">Declaration:</span>
                   <span className="text-gold font-bold">
                     {selectedGood
                       ? `I declare ${bagCardCount} ${GOOD_TOKENS[selectedGood].name}!`
@@ -205,7 +204,7 @@ export function DeclarationPanel() {
                   `}
                 >
                   <span>📜</span>
-                  <span>{isStamping ? 'Sealing...' : 'Declare to Sheriff'}</span>
+                  <span>{isStamping ? 'Sealing...' : 'Declare'}</span>
                 </motion.button>
               </div>
             </div>
@@ -215,23 +214,22 @@ export function DeclarationPanel() {
               <div className="flex items-center gap-2 text-emerald">
                 <span className="text-xl">✅</span>
                 <h2 className="text-base font-display font-black tracking-wide">
-                  Declaration Recorded
+                  Declared ✓
                 </h2>
               </div>
               <p className="text-xs text-parchment font-body">
-                You formally declared{' '}
+                Declared{' '}
                 <span className="font-bold text-gold">
                   {localPlayer.sealedBag?.declaredCount}{' '}
                   {localPlayer.sealedBag?.declaredGood
                     ? GOOD_TOKENS[localPlayer.sealedBag.declaredGood as GoodType]?.name ||
                       localPlayer.sealedBag.declaredGood
                     : ''}
-                </span>{' '}
-                to the Sheriff.
+                </span>
               </p>
               <span className="text-[11px] text-parchment/60 font-body animate-pulse">
                 {activeMerchant
-                  ? `Waiting while ${activeMerchant.name} makes their declaration...`
+                  ? `${activeMerchant.name} is declaring...`
                   : 'Sheriff will inspect the bags shortly!'}
               </span>
             </div>
@@ -243,7 +241,7 @@ export function DeclarationPanel() {
                 Waiting for {activeMerchant?.name || 'next merchant'} to declare...
               </h2>
               <p className="text-xs text-parchment/60 font-body">
-                Your turn to speak with the Sheriff will come shortly. Keep a straight face!
+                Your turn to declare is coming.
               </p>
             </div>
           )}

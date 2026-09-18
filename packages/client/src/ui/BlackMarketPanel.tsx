@@ -73,7 +73,7 @@ export function BlackMarketPanel() {
 
             {hasClaimedThisRound && (
               <div className="p-2 rounded-lg bg-emerald/15 border border-emerald/40 text-emerald-300 text-xs text-center font-display">
-                ✓ You claimed an order this round (max 1/round)
+                ✓ Claimed (1/round)
               </div>
             )}
 
@@ -127,7 +127,7 @@ export function BlackMarketPanel() {
             </div>
 
             <div className="text-[10px] text-center text-parchment/50 border-t border-tavern-border pt-2">
-              Orders score as bonus contraband at endgame. Trade occurs after receiving your bag.
+              Scores as bonus contraband. Trades post-bag.
             </div>
           </motion.div>
         )}

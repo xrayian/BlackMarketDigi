@@ -54,11 +54,11 @@ export function MarketPanel() {
         <div className="flex items-center gap-2">
           <span className="text-xl">⭐</span>
           <h2 className="text-lg md:text-xl font-display font-black text-gold tracking-wide">
-            Sheriff's Decree: Select Starting Merchant
+            Select Starting Merchant
           </h2>
         </div>
         <p className="text-xs text-parchment/80 font-body max-w-md">
-          Choose which merchant will begin exchanging their wares at the market stalls.
+          Pick a merchant to start the market phase.
         </p>
         <div className="flex flex-wrap gap-2.5 justify-center mt-2">
           {nonSheriffPlayers.map((p) => (
@@ -93,10 +93,10 @@ export function MarketPanel() {
         <div className="flex flex-col items-center text-center">
           <h2 className="text-lg md:text-xl font-display font-black text-gold tracking-wide flex items-center gap-2">
             <span>🏪</span>
-            <span>Your Market Turn: Discard & Draw</span>
+            <span>Market: Discard & Draw</span>
           </h2>
           <p className="text-xs text-parchment/80 font-body">
-            Select up to 5 cards to discard into the open market, or keep your hand as is.
+            Select up to 5 cards to discard, or keep your hand.
           </p>
         </div>
 
@@ -123,7 +123,7 @@ export function MarketPanel() {
             onClick={handleConfirmExchange}
             className="px-7 py-2.5 rounded-xl bg-gradient-to-r from-gold-dark via-gold to-gold-light text-walnut-bg font-display font-black text-xs md:text-sm tracking-wider uppercase shadow-[0_0_20px_rgba(212,168,75,0.4)] border border-gold-light cursor-pointer"
           >
-            {selectedCardIds.length > 0 ? 'Exchange Cards' : 'Keep Hand (0 Discards)'}
+            {selectedCardIds.length > 0 ? 'Exchange Cards' : 'Keep Hand'}
           </motion.button>
         </div>
       </div>
@@ -136,7 +136,7 @@ export function MarketPanel() {
           {activeMerchantName} is Trading at Market
         </h3>
         <p className="text-xs text-parchment/70 font-body animate-pulse">
-          Reviewing their hand and making exchanges. Your turn is coming up!
+          Your turn is coming up.
         </p>
       </div>
     );
@@ -148,7 +148,7 @@ export function MarketPanel() {
           Observing Market Exchanges
         </h3>
         <p className="text-xs text-parchment/80 font-body">
-          {activeMerchantName} is currently exchanging cards. Pay attention to how many cards they cycle!
+          {activeMerchantName} is exchanging cards. Watch closely!
         </p>
       </div>
     );
@@ -208,7 +208,6 @@ export function MarketPanel() {
           className="absolute top-3 right-6 text-xs text-gold-muted hover:text-gold bg-walnut-surface hover:bg-gold/10 border border-gold/30 px-3 py-1 rounded-xl font-display font-bold cursor-pointer flex items-center gap-1 transition-all"
           title="Minimize tray to view your stand and table"
         >
-          <span>Minimize</span>
           <span>▼</span>
         </button>
 

@@ -1,34 +1,57 @@
-This is a file that contains issues that are actively being tracked and reported.
-Agents should read this file after all implementation is complete.
+# Sheriff of Nottingham — Issues & Compliance Audit
 
-NOTE: THIS FILE WAS GENERATED MID IMPLEMENTATION. ALL REPORTED ISSUES HAVE BEEN RESOLVED AND TESTED:
+> Generated: 2026-09-18 | Audited against **Sheriff of Nottingham 2nd Edition Official Rules**
 
-- [x] **Sheriff currently can accept a bribe he himself set, but it must be accepted by the Merchant:**
-  - *Resolution:* Proposer cannot respond to own bribe (`fromPlayerId === client.sessionId` check on server). Fixed recipient extraction when Sheriff makes counter-offer so pass-unopened executes on the target merchant rather than treating Sheriff as merchant. Only recipient sees Accept/Reject controls in `BribeNegotiationPanel.tsx`.
+---
 
-- [x] **Sheriff should be able to see other players bribe offers:**
-  - *Resolution:* Added `bribeOffers: t.array(BribeOfferState)` to `GameState` schema and server. Added real-time merchant queue bar in `ExaminationDesk.tsx` showing each merchant's bribe amount and allowing instant 1-click switching.
+## 🔴 Critical Issues
 
-- [x] **Cards in the UI have some z-index issues:**
-  - *Resolution:* Fixed CSS stacking context trap in `HandCardFan.tsx` by elevating the outer parent container's `zIndex` to 100 on hover.
+### ISSUE-001: Debt Resolution — No Debtor Player Choice on Goods Liquidation
+**File:** [`packages/server/src/engine/debtResolution.ts`](file:///C:/projects/BlackMarketDigi/packages/server/src/engine/debtResolution.ts), [`packages/server/src/rooms/NottinghamRoom.ts`](file:///C:/projects/BlackMarketDigi/packages/server/src/rooms/NottinghamRoom.ts)
+**Rule:** If a player lacks sufficient gold coins to pay a penalty (either Sheriff paying merchant for false accusation or Merchant paying Sheriff for smuggled goods), they must confiscate goods from their stand to pay the fine. The official rulebook states that the **debtor chooses** which goods to give to the creditor, and overpayment does not yield change.
+**Current:** `resolveDebt` supports an optional `preferredLegalCardIds` array, but `NottinghamRoom.ts` calls `resolveDebt` synchronously during `executeInspect`. Goods are auto-liquidated based on array order (`pool.shift()`) rather than prompting the debtor player.
+**Impact:** Removes player agency during penalty payments when a player is short on gold.
+**Suggested Fix:** Break `executeInspect` into a two-step flow when gold is insufficient. Introduce a prompt / message to the debtor (`debt_choice_required`), allowing them to send `liquidate_goods` with their selected goods before the round continues.
 
-- [x] **The open seal button has UI issue, the button should be designed properly:**
-  - *Resolution:* Replaced invalid Tailwind class `w-18 h-18` with fixed `w-[76px] h-[76px]`, rich wax seal styling, clear status indicators, and prominent typography in `UnsnapClasp.tsx`.
+---
 
-- [x] **The merchant bag loading tray should be minimizable:**
-  - *Resolution:* Added a minimize/expand toggle button and floating pill status bar in `BagLoadingPanel.tsx`.
+## 🟡 Medium Issues
 
-- [x] **Card discarding discard count not reset when next turn starts:**
-  - *Resolution:* Fixed `updateGameState` in `gameStore.ts` so `selectedCardIds` is automatically reset to `[]` whenever the phase or active merchant changes.
+### ISSUE-002: Inconsistent Button Heights
+**Files:** Various UI components in `packages/client/src/ui/`
+**Summary:** Utility buttons alternate between `h-7`, `h-8`, and `h-9` across components. While primary execution and desk buttons have been standardized, smaller feed utility buttons (`h-7`) are slightly under the recommended minimum touch target for mobile/touchscreen players.
+**Suggested Fix:** Standardize action buttons to `h-8` minimum (`32px`), preferring `h-9` (`36px`) for primary player actions.
 
-- [x] **Observing market state bottom bar blocks current player from seeing their player stand:**
-  - *Resolution:* Added minimize/expand toggle and floating pill bar in `MarketPanel.tsx`.
+---
 
-- [x] **All bottomsheets should be minimizable:**
-  - *Resolution:* Both `MarketPanel.tsx` and `BagLoadingPanel.tsx` now feature minimize headers and sleek floating status pills.
+## 🟢 Low Issues
 
-- [x] **Internal game state issues causing card availability mismatch:**
-  - *Resolution:* Root caused to stale `selectedCardIds` retaining previously discarded card IDs across turns/phases; fixed by resetting selections on phase/turn transitions and syncing client view permissions.
+### ISSUE-003: Color Contrast — Contraband vs Royal Goods Palette
+**File:** [`packages/client/src/theme/tokens.ts`](file:///C:/projects/BlackMarketDigi/packages/client/src/theme/tokens.ts)
+**Summary:** Contraband (`#a855f7`) and Royal goods (`#c084fc`) colors have similar purple hues. Distinction currently relies heavily on iconography (`⚜️` vs `👑`), which is functional but could be enhanced for colorblind users.
+**Suggested Fix:** Increase hue separation or add distinct border styling/patterns for Royal goods.
 
-- [x] **The whole bribe mechanism needs to be reworked:**
-  - *Resolution:* Server-side validation rejects non-integer/negative gold, gold > balance, unauthorized stand cards, and self-acceptance. Initial offer vs counter-offer flows implemented with clear offerer/accepter states and 1.5s reaction cooldown.
+---
+
+## 🛠️ Resolved / Addressed Issues
+
+### RESOLVED-001: UI Verbosity & Clutter Across Game Panels
+**Files:** `packages/client/src/ui/` (MarketPanel, BagLoadingPanel, DeclarationPanel, ExaminationDesk, BribeNegotiationPanel, NegotiationLedger, NegotiationOfferModal, SettingsModal, GameScene, UnsnapClasp, etc.)
+**Resolution:** Replaced clunky, overly verbose phrases with concise labels and clear medieval/table icons (e.g. `🔨` for Inspect/Check Pot, `🛡️` for Safe Passage, simplified declaration and loading banners, condensed status chips, and streamlined button actions) without altering any underlying game logic or state management.
+
+---
+
+## ✅ Fully Compliant Areas
+
+| Rule Area | Status | Notes |
+|-----------|--------|-------|
+| Market Phase (2nd Edition) | ✅ | Discard up to 5 cards and draw back to 6; draw pile and discard pile tracking compliant |
+| Bag Loading (1-5 cards) | ✅ | `MIN_BAG_CARDS` (1) and `MAX_BAG_CARDS` (5) enforced, allows any mix of legal and contraband |
+| Declaration (one legal good type) | ✅ | Must declare exactly one legal good; quantity must equal sealed bag card count |
+| Inspection Penalties (honest/dishonest) | ✅ | Honest = Sheriff pays full penalty to Merchant; Dishonest = Merchant pays penalty on confiscated contraband/undeclared goods |
+| Scoring (Gold + goods + King/Queen bonuses) | ✅ | Accurate King/Queen bonuses, King ties combine King+Queen split equally and skip Queen |
+| Royal Goods (2nd Edition) | ✅ | Scored as contraband value plus bonus counts toward legal King/Queen standings |
+| Deputies (6-Player) | ✅ | Two deputies share inspection, Booty Tile collects shared tributes, solo vs joint options |
+| Black Market Orders | ✅ | 3 matching contraband sets, bonus points awarded, max 1 order claim per round |
+| Sheriff Rotation | ✅ | Passes clockwise at the end of each round |
+| Multi-Player Negotiation | ✅ | All players can participate simultaneously during inspection with binding table commitments |

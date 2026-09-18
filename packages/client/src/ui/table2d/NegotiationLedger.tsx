@@ -71,7 +71,7 @@ export function NegotiationLedger() {
         <div className="flex flex-col gap-1.5 p-2.5 rounded-xl bg-tavern-surface/90 border border-emerald-500/40 text-emerald-300">
           <span className="font-bold text-[11px] uppercase tracking-wider flex items-center gap-1">
             <span>⚖️</span>
-            <span>Resolution Ledger (Honor Among Thieves):</span>
+            <span>Resolution Ledger:</span>
           </span>
           <div className="space-y-1 text-[11px] text-parchment/90">
             {reconciliationRecords.map((r, i) => (
@@ -176,12 +176,12 @@ export function NegotiationLedger() {
                   {offer.intendedOutcome === 'FORCE_INSPECT' || offer.intendedOutcome === 'INSPECT' ? (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-crimson/40 border border-red-500 text-[10px] text-red-100 font-bold">
                       <span>🔨</span>
-                      <span>BRIBE TO CHECK BAG: Inspect {targetPlayer}'s Bag</span>
+                      <span>Inspect {targetPlayer}'s Bag</span>
                     </span>
                   ) : (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald/40 border border-emerald-500 text-[10px] text-emerald-100 font-bold">
                       <span>🛡️</span>
-                      <span>BRIBE TO PASS: Pass {isTargetOwnBag ? 'own bag' : `${targetPlayer}'s bag`} unopened</span>
+                      <span>Pass {isTargetOwnBag ? 'own bag' : `${targetPlayer}'s bag`}</span>
                     </span>
                   )}
                 </div>
@@ -225,8 +225,8 @@ export function NegotiationLedger() {
                           }`}
                         >
                           {offer.intendedOutcome === 'FORCE_INSPECT' || offer.intendedOutcome === 'INSPECT'
-                            ? '🔨 Accept & Inspect Bag'
-                            : '🛡️ Accept & Pass Bag'}
+                            ? '🔨 Accept & Inspect'
+                            : '🛡️ Accept & Pass'}
                         </button>
                       </>
                     )}

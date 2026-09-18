@@ -111,7 +111,7 @@ export function BagLoadingPanel() {
                     : 'bg-amber-500/20 text-gold-light border-gold/40 animate-pulse'
                 }`}
               >
-                {snapped ? 'Sealed & Locked' : 'Selecting Goods...'}
+                {snapped ? 'Sealed' : 'Loading...'}
               </span>
             </div>
           );
@@ -168,7 +168,6 @@ export function BagLoadingPanel() {
             className="absolute top-3 right-6 text-xs text-gold-muted hover:text-gold bg-walnut-surface hover:bg-gold/10 border border-gold/30 px-3 py-1 rounded-xl font-display font-bold cursor-pointer flex items-center gap-1 transition-all"
             title="Minimize tray to view your stand and table"
           >
-            <span>Minimize</span>
             <span>▼</span>
           </button>
 
@@ -178,11 +177,11 @@ export function BagLoadingPanel() {
               <div className="flex items-center gap-2">
                 <span className="text-2xl">⭐</span>
                 <h2 className="text-xl md:text-2xl font-display font-black text-gold tracking-wide">
-                  The Merchants Are Packing Their Bags...
+                  Merchants Loading Bags...
                 </h2>
               </div>
               <p className="text-xs md:text-sm text-parchment/80 max-w-lg font-body">
-                Keep a sharp eye on their movements. Honest wares or smuggled contraband will soon arrive at your gate!
+                Watch their movements. Goods will arrive at your gate soon!
               </p>
               {renderOtherMerchantsStatus()}
             </div>
@@ -192,11 +191,11 @@ export function BagLoadingPanel() {
               <div className="flex items-center gap-2">
                 <span className="text-2xl">🔒</span>
                 <h2 className="text-xl md:text-2xl font-display font-black text-emerald tracking-wide">
-                  Your Bag is Wax-Sealed & Locked!
+                  Bag Sealed & Locked
                 </h2>
               </div>
               <p className="text-xs md:text-sm text-parchment/80 font-body">
-                {localPlayer.sealedBag?.cardCount || loadedCards.length} goods safely stowed. Prepare your declaration for the Sheriff!
+                {localPlayer.sealedBag?.cardCount || loadedCards.length} goods packed. Declaration phase next!
               </p>
               <div className="my-1">
                 <MerchantBagDropZone
@@ -209,7 +208,7 @@ export function BagLoadingPanel() {
               </div>
               <div className="w-full flex flex-col items-center">
                 <span className="text-xs font-display text-gold-muted mb-1.5 uppercase tracking-wider">
-                  Waiting for other merchants to finish:
+                  Other merchants:
                 </span>
                 {renderOtherMerchantsStatus()}
               </div>
@@ -221,10 +220,10 @@ export function BagLoadingPanel() {
               <div className="flex flex-col items-center text-center">
                 <h2 className="text-lg md:text-xl font-display font-black text-gold tracking-wide flex items-center gap-2">
                   <span>💼</span>
-                  <span>Load Your Merchant Bag</span>
+                  <span>Load Bag</span>
                 </h2>
                 <p className="text-xs text-parchment/80 font-body">
-                  Drag cards into your bag or click them to select (1 to 5 goods). Then snap it shut!
+                  Select 1–5 cards, then snap shut.
                 </p>
               </div>
 

@@ -56,7 +56,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               <label className="flex items-center justify-between p-3 rounded-xl bg-tavern-surface/80 border border-tavern-border cursor-pointer hover:border-gold/40 transition-colors">
                 <div>
                   <div className="font-display font-bold text-sm text-gold-light">🔊 Sound Effects</div>
-                  <div className="text-xs text-parchment/60">Bag snap, tension ramp, coin clinks, gavel</div>
+                  <div className="text-xs text-parchment/60">Game sounds</div>
                 </div>
                 <input
                   type="checkbox"
@@ -69,7 +69,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               <label className="flex items-center justify-between p-3 rounded-xl bg-tavern-surface/80 border border-tavern-border cursor-pointer hover:border-gold/40 transition-colors">
                 <div>
                   <div className="font-display font-bold text-sm text-gold-light">🕯️ Tavern Hearth Ambience</div>
-                  <div className="text-xs text-parchment/60">Crackling fireplace and atmospheric low drone</div>
+                  <div className="text-xs text-parchment/60">Ambient audio</div>
                 </div>
                 <input
                   type="checkbox"
@@ -88,7 +88,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
               <label className="flex items-center justify-between p-3 rounded-xl bg-tavern-surface/80 border border-tavern-border cursor-pointer hover:border-gold/40 transition-colors">
                 <div>
-                  <div className="font-display font-bold text-sm text-gold-light">⛶ Immersive Fullscreen Mode</div>
+                  <div className="font-display font-bold text-sm text-gold-light">⛶ Fullscreen</div>
                   <div className="text-xs text-parchment/60">
                     Fills entire screen, hiding browser chrome &amp; taskbar
                   </div>
@@ -105,7 +105,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 <div>
                   <div className="font-display font-bold text-sm text-gold-light">♿ Reduced Motion</div>
                   <div className="text-xs text-parchment/60">
-                    Disables camera easing/tweening &amp; excessive bounces
+                    Reduce animations
                   </div>
                 </div>
                 <input
@@ -127,7 +127,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 <div className="flex items-center gap-2.5">
                   <span className="text-xl">📖</span>
                   <div>
-                    <div className="font-display font-bold text-sm text-gold">Nottingham Codex &amp; Rulebook</div>
+                    <div className="font-display font-bold text-sm text-gold">Rulebook</div>
                     <div className="text-xs text-parchment/70">Complete beginner guide, turn phases, and rules</div>
                   </div>
                 </div>
