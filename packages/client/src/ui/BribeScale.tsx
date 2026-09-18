@@ -22,10 +22,10 @@ export function BribeScale({
   const reducedMotion = useGameStore((s) => s.reducedMotion);
 
   // Total weight: 1 gold = 1 unit, stand card = 3 units, bag claim = 3 units
-  const totalWeight = goldAmount + standCardCount * 3 + bagClaimCount * 3;
+  const totalWeight = isOfferPending ? goldAmount + standCardCount * 3 + bagClaimCount * 3 : 0;
 
   // Beam tilts left proportionally (negative rotate tilts left pan down)
-  const tiltAngle = Math.min(Math.max((totalWeight / 18) * 14, 0), 16);
+  const tiltAngle = isOfferPending ? Math.min(Math.max((totalWeight / 18) * 14, 0), 16) : 0;
 
   const prevWeight = useRef(totalWeight);
 

@@ -42,6 +42,22 @@ export function ExaminationDesk() {
         (o) => o.targetBagOwnerId === activeMerchant.id && o.status === 'OPEN'
       )
     : [];
+  const latestFeedOffer = openBribesForThisMerchant[openBribesForThisMerchant.length - 1];
+  const merchantScaleOffer =
+    activeMerchant &&
+    activeBribe &&
+    (activeBribe.fromPlayerId === activeMerchant.id || activeBribe.toPlayerId === activeMerchant.id) &&
+    activeBribe.status === 'PROPOSED'
+      ? activeBribe
+      : latestFeedOffer
+      ? {
+          gold: latestFeedOffer.goldOffered,
+          standCardIds: latestFeedOffer.standLegalGoodsOffered,
+          bagCardClaims: [] as string[],
+          nonBindingTerms: latestFeedOffer.futureFavorText,
+          status: 'PROPOSED',
+        }
+      : null;
 
   const handleAcceptOffer = (offer: any) => {
     network.send('negotiation_accept', {
@@ -406,13 +422,14 @@ export function ExaminationDesk() {
                   </div>
                 )}
 
-                {/* 2D Illustrated Balance Scale */}
+                {/* 2D Illustrated Balance Scale (Resets when merchant finishes or changes) */}
                 <BribeScale
-                  goldAmount={activeBribe?.gold || 0}
-                  standCardCount={activeBribe?.standCardIds.length || 0}
-                  bagClaimCount={activeBribe?.bagCardClaims.length || 0}
-                  terms={activeBribe?.nonBindingTerms}
-                  isOfferPending={activeBribe?.status === 'PROPOSED'}
+                  key={`scale-${activeMerchant.id}`}
+                  goldAmount={merchantScaleOffer?.gold || 0}
+                  standCardCount={merchantScaleOffer?.standCardIds.length || 0}
+                  bagClaimCount={merchantScaleOffer?.bagCardClaims.length || 0}
+                  terms={merchantScaleOffer?.nonBindingTerms}
+                  isOfferPending={merchantScaleOffer?.status === 'PROPOSED'}
                 />
               </div>
 

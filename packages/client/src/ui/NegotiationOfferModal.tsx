@@ -41,6 +41,9 @@ export function NegotiationOfferModal() {
   const players = Array.from(playersMap.values());
   const eligibleMerchants = players.filter((p) => !p.isSheriff && !p.sealedBag?.isRevealed);
   const isTargetingOwnBag = selectedTargetId === localPlayerId;
+  const isSheriff = Boolean(localPlayer.isSheriff);
+  const targetMerchant = playersMap.get(selectedTargetId);
+  const maxGold = isSheriff ? (targetMerchant ? targetMerchant.gold : 0) : localPlayer.gold;
 
   // Auto-switch intended outcome default when switching target
   const handleTargetChange = (newTargetId: string) => {
@@ -48,7 +51,7 @@ export function NegotiationOfferModal() {
     if (newTargetId === localPlayerId) {
       setIntendedOutcome('PASS');
     } else {
-      setIntendedOutcome('FORCE_INSPECT');
+      setIntendedOutcome(isSheriff ? 'PASS' : 'FORCE_INSPECT');
     }
   };
 
@@ -65,9 +68,9 @@ export function NegotiationOfferModal() {
     network.send('negotiation_propose', {
       targetBagOwnerId: selectedTargetId,
       intendedOutcome,
-      goldOffered: Math.min(localPlayer.gold, Math.max(0, gold)),
-      standLegalGoodsOffered: selectedStandCardIds,
-      standContrabandCountOffered: Math.max(0, standContrabandCount),
+      goldOffered: Math.min(maxGold, Math.max(0, gold)),
+      standLegalGoodsOffered: isSheriff ? [] : selectedStandCardIds,
+      standContrabandCountOffered: isSheriff ? 0 : Math.max(0, standContrabandCount),
       bagGoodsCountOffered: isTargetingOwnBag ? Math.max(0, bagGoodsCount) : 0,
       futureFavorText: futureFavorText.trim(),
     });
@@ -100,13 +103,15 @@ export function NegotiationOfferModal() {
           {/* Header */}
           <div className="flex items-center justify-between border-b border-tavern-border pb-3">
             <div className="flex items-center gap-2 font-display">
-              <span className="text-2xl">🤝</span>
+              <span className="text-2xl">{isSheriff ? '⚖️' : '🤝'}</span>
               <div>
                 <h3 className="text-gold font-black text-lg tracking-wide uppercase">
-                  Propose Terms
+                  {isSheriff ? 'Demand Tribute' : 'Propose Terms'}
                 </h3>
                 <p className="text-xs text-parchment/70">
-                  Negotiate regarding any sealed bag.
+                  {isSheriff
+                    ? 'Demand tribute from a merchant to allow their bag to pass.'
+                    : 'Negotiate regarding any sealed bag.'}
                 </p>
               </div>
             </div>
@@ -241,30 +246,30 @@ export function NegotiationOfferModal() {
               </div>
             </div>
 
-            {/* Gold Bribe */}
+            {/* Gold Bribe / Demand */}
             <div className="flex flex-col gap-1 bg-tavern-surface/70 p-3 rounded-2xl border border-tavern-border">
               <div className="flex items-center justify-between">
                 <span className="text-gold font-bold text-[11px] uppercase tracking-wider">
-                  🪙 Gold Offered:
+                  {isSheriff ? `🪙 Gold Demanded from ${targetMerchant?.name || 'Merchant'}:` : '🪙 Gold Offered:'}
                 </span>
                 <span className="text-gold font-bold text-sm">
-                  {gold}g <span className="text-parchment/40 text-xs font-normal">/ {localPlayer.gold}g</span>
+                  {gold}g <span className="text-parchment/40 text-xs font-normal">/ {maxGold}g</span>
                 </span>
               </div>
               <input
                 type="range"
                 min={0}
-                max={localPlayer.gold}
+                max={maxGold}
                 value={gold}
                 onChange={(e) => setGold(Number(e.target.value))}
                 className="w-full accent-gold cursor-pointer"
               />
               <div className="flex justify-between gap-1 mt-1">
-                {[0, 2, 5, 10, 15, localPlayer.gold].map((amt) => (
+                {[0, 2, 5, 10, 15, maxGold].map((amt) => (
                   <button
                     key={amt}
                     type="button"
-                    onClick={() => setGold(Math.min(amt, localPlayer.gold))}
+                    onClick={() => setGold(Math.min(amt, maxGold))}
                     className="px-2 py-0.5 rounded bg-tavern-bg text-[10px] text-gold/80 hover:text-gold border border-gold/30"
                   >
                     {amt}g
@@ -273,8 +278,8 @@ export function NegotiationOfferModal() {
               </div>
             </div>
 
-            {/* Stand Legal Goods Offered */}
-            {localPlayer.standLegal.length > 0 && (
+            {/* Stand Legal Goods Offered (Merchants only) */}
+            {!isSheriff && localPlayer.standLegal.length > 0 && (
               <div className="flex flex-col gap-1.5 bg-tavern-surface/70 p-3 rounded-2xl border border-tavern-border">
                 <span className="text-gold font-bold text-[11px] uppercase tracking-wider">
                   🛒 Stand Goods:
@@ -303,39 +308,41 @@ export function NegotiationOfferModal() {
               </div>
             )}
 
-            {/* Stand Contraband Count (Honor Among Thieves) */}
-            <div className="flex flex-col gap-1.5 bg-tavern-surface/70 p-3 rounded-2xl border border-tavern-border">
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-crimson-300 font-bold text-[11px] uppercase tracking-wider">
-                    ⚜️ Contraband:
-                  </span>
-                  <p className="text-[10px] text-parchment/60 font-normal">
-                    Only genuine contraband transfers at resolution.
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setStandContrabandCount((c) => Math.max(0, c - 1))}
-                    className="w-6 h-6 rounded bg-tavern-bg border border-tavern-border font-bold flex items-center justify-center hover:bg-tavern-card"
-                  >
-                    -
-                  </button>
-                  <span className="font-bold text-sm w-4 text-center">{standContrabandCount}</span>
-                  <button
-                    type="button"
-                    onClick={() => setStandContrabandCount((c) => c + 1)}
-                    className="w-6 h-6 rounded bg-tavern-bg border border-tavern-border font-bold flex items-center justify-center hover:bg-tavern-card"
-                  >
-                    +
-                  </button>
+            {/* Stand Contraband Count (Merchants only) */}
+            {!isSheriff && (
+              <div className="flex flex-col gap-1.5 bg-tavern-surface/70 p-3 rounded-2xl border border-tavern-border">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-crimson-300 font-bold text-[11px] uppercase tracking-wider">
+                      ⚜️ Contraband:
+                    </span>
+                    <p className="text-[10px] text-parchment/60 font-normal">
+                      Only genuine contraband transfers at resolution.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setStandContrabandCount((c) => Math.max(0, c - 1))}
+                      className="w-6 h-6 rounded bg-tavern-bg border border-tavern-border font-bold flex items-center justify-center hover:bg-tavern-card"
+                    >
+                      -
+                    </button>
+                    <span className="font-bold text-sm w-4 text-center">{standContrabandCount}</span>
+                    <button
+                      type="button"
+                      onClick={() => setStandContrabandCount((c) => c + 1)}
+                      className="w-6 h-6 rounded bg-tavern-bg border border-tavern-border font-bold flex items-center justify-center hover:bg-tavern-card"
+                    >
+                      +
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
-            {/* Bag Goods Offered (Only if targeting own bag) */}
-            {isTargetingOwnBag && localPlayer.sealedBag && (
+            {/* Bag Goods Offered (Only if merchant targeting own bag) */}
+            {!isSheriff && isTargetingOwnBag && localPlayer.sealedBag && (
               <div className="flex flex-col gap-1.5 bg-tavern-surface/70 p-3 rounded-2xl border border-tavern-border">
                 <div className="flex items-center justify-between">
                   <div>
@@ -380,7 +387,7 @@ export function NegotiationOfferModal() {
               <input
                 type="text"
                 maxLength={80}
-                placeholder="e.g., Let me pass and I will let you pass when I am Sheriff..."
+                placeholder={isSheriff ? "e.g., Pay this and your bag passes unopened..." : "e.g., Let me pass and I will let you pass when I am Sheriff..."}
                 value={futureFavorText}
                 onChange={(e) => setFutureFavorText(e.target.value)}
                 className="px-3 py-2 rounded-xl bg-tavern-surface border border-tavern-border focus:border-gold outline-none text-white text-xs placeholder:text-parchment/30"
@@ -400,7 +407,7 @@ export function NegotiationOfferModal() {
                 type="submit"
                 className="px-5 py-2 rounded-xl bg-gradient-to-r from-gold via-amber-400 to-gold text-tavern-bg font-black text-xs uppercase tracking-wider shadow-lg hover:brightness-110 active:scale-95 transition-all"
               >
-                Send Offer 🤝
+                {isSheriff ? `Demand ${gold}g Tribute ⚖️` : 'Send Offer 🤝'}
               </button>
             </div>
           </form>

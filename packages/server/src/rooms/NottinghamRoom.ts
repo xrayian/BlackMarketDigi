@@ -454,14 +454,10 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
       }
     });
 
-    // 5. Declaration
+    // 5. Declaration (All merchants can declare in parallel after snapping bags)
     this.onMessage('declaration', (client, message: DeclarationMessage) => {
       if (this.state.phase !== 'DECLARATION') {
         client.send('error', { message: 'Can only make declarations during DECLARATION phase' });
-        return;
-      }
-      if (client.sessionId !== this.state.activeMerchantId) {
-        client.send('error', { message: 'It is not your turn to declare' });
         return;
       }
 
@@ -470,6 +466,17 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
         client.send('error', { message: 'Merchant bag not found' });
         return;
       }
+
+      if (!player.sealedBag.isSnapped) {
+        client.send('error', { message: 'Must snap bag before declaring' });
+        return;
+      }
+
+      if (player.sealedBag.declaredGood) {
+        client.send('error', { message: 'Bag has already been declared' });
+        return;
+      }
+
       const bagCards = player.sealedBag.cards.map(stateToCard);
 
       const validation = validateDeclaration(bagCards, message.declaredCount, message.declaredGood);
@@ -481,11 +488,20 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
       player.sealedBag.declaredGood = message.declaredGood;
       player.sealedBag.declaredCount = message.declaredCount;
 
-      this.declarationIndex++;
-      if (this.declarationIndex >= this.declarationOrder.length) {
+      this.broadcast('merchant_declaration_announced', {
+        merchantId: client.sessionId,
+        merchantName: player.name,
+        declaredGood: message.declaredGood,
+        declaredCount: message.declaredCount,
+      });
+
+      // Check if all merchants (non-Sheriff, non-deputy players with bags) have declared
+      const merchants = Array.from(this.state.players.values()).filter(
+        (p) => p.id !== this.state.sheriffId && !this.state.deputyIds.includes(p.id)
+      );
+      const allDeclared = merchants.every((m) => Boolean(m.sealedBag?.declaredGood));
+      if (allDeclared) {
         this.startInspectionPhase();
-      } else {
-        this.state.activeMerchantId = this.declarationOrder[this.declarationIndex];
       }
     });
 
@@ -1299,7 +1315,7 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
       is6pDeputies ? Array.from(this.state.deputyIds) : undefined
     );
     this.declarationIndex = 0;
-    this.state.activeMerchantId = this.declarationOrder[0];
+    this.state.activeMerchantId = '';
   }
 
   private startInspectionPhase() {
@@ -1354,22 +1370,31 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
     const reconciliationRecords: BribeReconciliationRecord[] = [];
 
     for (const offer of acceptedOffers) {
-      const fromPlayer = this.state.players.get(offer.fromPlayerId);
-      if (!fromPlayer) continue;
+      const isOfferFromAuthority =
+        offer.fromPlayerId === this.state.sheriffId ||
+        this.state.deputyIds.includes(offer.fromPlayerId);
 
-      // 1. Reconcile Gold
-      const genuineGold = Math.min(Math.max(0, fromPlayer.gold), offer.goldOffered);
-      fromPlayer.gold -= genuineGold;
+      // The payer of a bribe is ALWAYS a merchant:
+      // - If Sheriff proposed/demanded: the merchant who agreed to pay (acceptedByPlayerId or targetBagOwnerId)
+      // - If Merchant proposed: the merchant who proposed (fromPlayerId)
+      const payer = isOfferFromAuthority
+        ? this.state.players.get(offer.acceptedByPlayerId || offer.targetBagOwnerId)
+        : this.state.players.get(offer.fromPlayerId);
+
+      if (!payer) continue;
 
       // In 6p Deputies mode with communal booty tile, joint deals go to booty tile
       const isJointDeputy =
         this.state.enableDeputies &&
         this.state.bootyTile &&
-        this.state.deputyIds.includes(offer.acceptedByPlayerId || '');
+        (this.state.deputyIds.includes(offer.acceptedByPlayerId || '') ||
+         this.state.deputyIds.includes(offer.fromPlayerId));
 
-      const recipient = offer.acceptedByPlayerId
-        ? this.state.players.get(offer.acceptedByPlayerId) || sheriff
-        : sheriff;
+      const recipient = sheriff;
+
+      // 1. Reconcile Gold: Payer (merchant) pays, Recipient (sheriff) receives!
+      const genuineGold = Math.min(Math.max(0, payer.gold), offer.goldOffered);
+      payer.gold -= genuineGold;
 
       if (isJointDeputy && this.state.bootyTile) {
         this.state.bootyTile.gold += genuineGold;
@@ -1380,23 +1405,23 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
       // 2. Reconcile Stand Legal Goods
       let honoredLegalCount = 0;
       for (const cardId of offer.standLegalGoodsOffered) {
-        const idx = fromPlayer.standLegal.findIndex((c) => c.id === cardId);
+        const idx = payer.standLegal.findIndex((c) => c.id === cardId);
         if (idx !== -1) {
-          const [cardState] = fromPlayer.standLegal.splice(idx, 1);
+          const [cardState] = payer.standLegal.splice(idx, 1);
           recipient.standLegal.push(cardState);
           honoredLegalCount++;
         }
       }
 
       // 3. Reconcile Stand Contraband (Honor Among Thieves: phantom contraband voided)
-      const availableContraband = fromPlayer.standContraband.length;
+      const availableContraband = payer.standContraband.length;
       const genuineContrabandCount = Math.min(availableContraband, offer.standContrabandCountOffered);
       const voidedContrabandCount = offer.standContrabandCountOffered - genuineContrabandCount;
 
       for (let i = 0; i < genuineContrabandCount; i++) {
-        const cs = fromPlayer.standContraband.pop();
+        const cs = payer.standContraband.pop();
         if (cs) {
-          fromPlayer.standContrabandCount = fromPlayer.standContraband.length;
+          payer.standContrabandCount = payer.standContraband.length;
           // Revealed contraband moves to recipient stand
           recipient.standLegal.push(cs);
         }
@@ -1406,7 +1431,7 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
       let genuineBagCount = 0;
       let voidedBagCount = offer.bagGoodsCountOffered;
 
-      if (offer.fromPlayerId === targetMerchantId && merchant.sealedBag) {
+      if (payer.id === targetMerchantId && merchant.sealedBag) {
         // Merchant whose bag is resolving promised cards from this bag
         if (outcome === 'PASS') {
           const availableInBag = merchant.sealedBag.cards.length;
@@ -1439,7 +1464,7 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
 
       const record: BribeReconciliationRecord = {
         offerId: offer.id,
-        fromPlayerId: fromPlayer.id,
+        fromPlayerId: payer.id,
         targetBagOwnerId: targetMerchantId,
         honoredGold: genuineGold,
         honoredLegalCardsCount: honoredLegalCount,
@@ -1476,20 +1501,22 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
 
     const result = resolvePassUnopened(bagCards, bribe, standCards);
 
-    // Apply bribe transfers
-    if (result.merchantPaidGold > 0) {
-      merchant.gold -= result.merchantPaidGold;
-      sheriff.gold += result.merchantPaidGold;
-    }
+    // Apply legacy bribe transfers only if not already handled by negotiation feed reconciliations
+    if (reconciliations.length === 0) {
+      if (result.merchantPaidGold > 0) {
+        merchant.gold -= result.merchantPaidGold;
+        sheriff.gold += result.merchantPaidGold;
+      }
 
-    for (const card of result.merchantTransferredStandCards) {
-      const idx = merchant.standLegal.findIndex((c) => c.id === card.id);
-      if (idx !== -1) merchant.standLegal.splice(idx, 1);
-      sheriff.standLegal.push(cardToState(card));
-    }
+      for (const card of result.merchantTransferredStandCards) {
+        const idx = merchant.standLegal.findIndex((c) => c.id === card.id);
+        if (idx !== -1) merchant.standLegal.splice(idx, 1);
+        sheriff.standLegal.push(cardToState(card));
+      }
 
-    for (const card of result.sheriffReceivedBagCards) {
-      sheriff.standLegal.push(cardToState(card));
+      for (const card of result.sheriffReceivedBagCards) {
+        sheriff.standLegal.push(cardToState(card));
+      }
     }
 
     // Move remaining legal cards to merchant stand
@@ -1523,17 +1550,17 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
     if (this.state.currentInspectionBagOwnerId === merchantId) {
       this.state.currentInspectionBagOwnerId = '';
     }
-    const offerIdx = this.state.bribeOffers.findIndex(
-      (b) => b.fromPlayerId === merchantId || b.toPlayerId === merchantId
-    );
-    if (offerIdx !== -1) {
-      this.state.bribeOffers.splice(offerIdx, 1);
+    for (let i = this.state.bribeOffers.length - 1; i >= 0; i--) {
+      const b = this.state.bribeOffers[i];
+      if (b.fromPlayerId === merchantId || b.toPlayerId === merchantId) {
+        this.state.bribeOffers.splice(i, 1);
+      }
     }
-    if (this.state.activeBribe?.fromPlayerId === merchantId || this.state.activeBribe?.toPlayerId === merchantId) {
-      this.state.activeBribe = undefined;
-    }
+    this.state.activeBribe = undefined;
 
-    const totalPaidGold = result.merchantPaidGold + reconciliations.reduce((s, r) => s + r.honoredGold, 0);
+    const totalPaidGold =
+      reconciliations.reduce((s, r) => s + r.honoredGold, 0) +
+      (reconciliations.length === 0 ? result.merchantPaidGold : 0);
 
     this.broadcast('inspection_result', {
       outcome: 'PASS',
@@ -1956,15 +1983,13 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
     if (this.state.currentInspectionBagOwnerId === merchantId) {
       this.state.currentInspectionBagOwnerId = '';
     }
-    const offerIdx = this.state.bribeOffers.findIndex(
-      (b) => b.fromPlayerId === merchantId || b.toPlayerId === merchantId
-    );
-    if (offerIdx !== -1) {
-      this.state.bribeOffers.splice(offerIdx, 1);
+    for (let i = this.state.bribeOffers.length - 1; i >= 0; i--) {
+      const b = this.state.bribeOffers[i];
+      if (b.fromPlayerId === merchantId || b.toPlayerId === merchantId) {
+        this.state.bribeOffers.splice(i, 1);
+      }
     }
-    if (this.state.activeBribe?.fromPlayerId === merchantId || this.state.activeBribe?.toPlayerId === merchantId) {
-      this.state.activeBribe = undefined;
-    }
+    this.state.activeBribe = undefined;
 
     this.broadcast('inspection_result', {
       outcome: result.isHonest ? 'HONEST' : 'DISHONEST',

@@ -549,11 +549,11 @@ describe('NegotiationFeedRework Integration Tests (Colyseus 0.18)', () => {
     expect(inspectionResult.outcome).toBe('PASS');
     expect(inspectionResult.targetPlayerId).toBe(room2.sessionId);
 
-    // The Sheriff paid 4 gold to Marian
+    // Marian paid 4 gold to the Sheriff upon accepting the Sheriff's demand
     const marian = serverRoom.state.players.get(room2.sessionId)!;
     const sheriff = serverRoom.state.players.get(room1.sessionId)!;
-    expect(sheriff.gold).toBe(46); // 50 - 4
-    expect(marian.gold).toBe(54); // 50 + 4
+    expect(marian.gold).toBe(46); // 50 - 4
+    expect(sheriff.gold).toBe(54); // 50 + 4
     expect(marian.standLegal.length).toBe(2);
 
     await room1.leave();
@@ -659,6 +659,55 @@ describe('NegotiationFeedRework Integration Tests (Colyseus 0.18)', () => {
     // Inspection was executed
     expect(inspectionResult).toBeDefined();
     expect(inspectionResult.targetPlayerId).toBe(room2.sessionId);
+
+    await room1.leave();
+    await room2.leave();
+    await room3.leave();
+    await room4.leave();
+  });
+
+  it('parallel declarations: all merchants can declare concurrently in arbitrary order and advance to inspection', async () => {
+    const { room1, room2, room3, room4, serverRoom } = await setup4PlayerInspectionRoom();
+
+    // Switch phase back to DECLARATION
+    serverRoom.state.phase = 'DECLARATION';
+    serverRoom.state.activeMerchantId = '';
+
+    // Clear previous declarations on the sealed bags
+    for (const rid of [room2.sessionId, room3.sessionId, room4.sessionId]) {
+      const p = serverRoom.state.players.get(rid)!;
+      p.sealedBag!.declaredGood = '';
+      p.sealedBag!.declaredCount = 0;
+    }
+
+    // Room 4 declares first (out of turn order)
+    room4.send('declaration', {
+      declaredGood: 'CHICKEN',
+      declaredCount: 2,
+    });
+    await delay(50);
+    expect(serverRoom.state.players.get(room4.sessionId)!.sealedBag!.declaredGood).toBe('CHICKEN');
+    expect(serverRoom.state.phase).toBe('DECLARATION');
+
+    // Room 2 declares second
+    room2.send('declaration', {
+      declaredGood: 'APPLE',
+      declaredCount: 2,
+    });
+    await delay(50);
+    expect(serverRoom.state.players.get(room2.sessionId)!.sealedBag!.declaredGood).toBe('APPLE');
+    expect(serverRoom.state.phase).toBe('DECLARATION');
+
+    // Room 3 declares last - triggers advance to INSPECTION
+    room3.send('declaration', {
+      declaredGood: 'CHEESE',
+      declaredCount: 2,
+    });
+    await delay(100);
+
+    expect(serverRoom.state.players.get(room3.sessionId)!.sealedBag!.declaredGood).toBe('CHEESE');
+    // All 3 merchants declared, so room transitions to INSPECTION!
+    expect(serverRoom.state.phase).toBe('INSPECTION');
 
     await room1.leave();
     await room2.leave();

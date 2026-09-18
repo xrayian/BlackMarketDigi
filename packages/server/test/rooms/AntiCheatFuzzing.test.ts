@@ -171,18 +171,20 @@ describe('AntiCheatFuzzing & Security Hardening (Colyseus 0.18)', () => {
     expect(serverRoom.state.phase).toBe('DECLARATION');
 
     // 6. Declaration tampering
-    const declaringPlayerId = serverRoom.state.activeMerchantId;
-    const declaringRoom = declaringPlayerId === room2.sessionId ? room2 : room3;
-    const nonDeclaringRoom = declaringPlayerId === room2.sessionId ? room3 : room2;
+    const declaringRoom = room2;
+    const nonDeclaringRoom = room3;
     const decErrors: string[] = [];
     declaringRoom.onMessage('error', (err: any) => decErrors.push(err.message));
 
-    // Non-active merchant attempting to declare
+    // Player attempting to declare with unsnapped bag
+    const nonDecPlayer = serverRoom.state.players.get(nonDeclaringRoom.sessionId)!;
+    nonDecPlayer.sealedBag!.isSnapped = false;
     const nonDecErrors: string[] = [];
     nonDeclaringRoom.onMessage('error', (err: any) => nonDecErrors.push(err.message));
-    nonDeclaringRoom.send('declaration', { declaredGood: 'APPLES', declaredCount: 1 });
+    nonDeclaringRoom.send('declaration', { declaredGood: 'APPLE', declaredCount: 1 });
     await delay(100);
-    expect(nonDecErrors.some((m) => m.includes('not your turn'))).toBe(true);
+    expect(nonDecErrors.some((m) => m.includes('Must snap bag before declaring'))).toBe(true);
+    nonDecPlayer.sealedBag!.isSnapped = true;
 
     // Declaring player: count mismatch (declared 4 but loaded 2 or 1)
     declaringRoom.send('declaration', { declaredGood: 'APPLE', declaredCount: 4 });
@@ -190,21 +192,15 @@ describe('AntiCheatFuzzing & Security Hardening (Colyseus 0.18)', () => {
     expect(decErrors.some((m) => m.includes('does not match exact bag card count'))).toBe(true);
 
     // Declaring contraband good
-    const validCount = serverRoom.state.players.get(declaringPlayerId)!.sealedBag!.cardCount;
+    const validCount = serverRoom.state.players.get(declaringRoom.sessionId)!.sealedBag!.cardCount;
     declaringRoom.send('declaration', { declaredGood: 'PEPPER' as any, declaredCount: validCount });
     await delay(100);
     expect(decErrors.some((m) => m.includes('not a valid legal good'))).toBe(true);
 
     // Submit valid declarations for both merchants to enter INSPECTION
-    if (declaringPlayerId === room2.sessionId) {
-      room2.send('declaration', { declaredGood: 'APPLE', declaredCount: 2 });
-      await delay(100);
-      room3.send('declaration', { declaredGood: 'CHEESE', declaredCount: 1 });
-    } else {
-      room3.send('declaration', { declaredGood: 'APPLE', declaredCount: 1 });
-      await delay(100);
-      room2.send('declaration', { declaredGood: 'CHEESE', declaredCount: 2 });
-    }
+    room2.send('declaration', { declaredGood: 'APPLE', declaredCount: 2 });
+    await delay(50);
+    room3.send('declaration', { declaredGood: 'CHEESE', declaredCount: 1 });
     await delay(200);
 
     expect(serverRoom.state.phase).toBe('INSPECTION');

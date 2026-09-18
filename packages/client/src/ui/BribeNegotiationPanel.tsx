@@ -33,8 +33,9 @@ export function BribeNegotiationPanel({ sheriff, merchant }: BribeNegotiationPan
     isLocalMerchant ? 'PASS' : 'INSPECT'
   );
 
-  // Use the local player's own actual resources (never the examined merchant's!)
-  const maxGold = localPlayer ? localPlayer.gold : 0;
+  // For Sheriff demanding tribute, max gold is the examined merchant's purse.
+  // For merchants offering bribes, max gold is their own purse.
+  const maxGold = isLocalSheriff ? (merchant ? merchant.gold : 0) : (localPlayer ? localPlayer.gold : 0);
   const availableStandCards: ClientCard[] = localPlayer ? localPlayer.standLegal : [];
 
   // Check if this merchant already has open offers displayed in the parent ExaminationDesk
@@ -57,6 +58,8 @@ export function BribeNegotiationPanel({ sheriff, merchant }: BribeNegotiationPan
       if (latestOffer.goldOffered > 0 && offerGold === 0) {
         setOfferGold(Math.min(maxGold, latestOffer.goldOffered));
       }
+    } else if (isLocalSheriff) {
+      setIntendedOutcome('PASS');
     } else if (!isLocalMerchant) {
       setIntendedOutcome('INSPECT');
     }
@@ -75,7 +78,7 @@ export function BribeNegotiationPanel({ sheriff, merchant }: BribeNegotiationPan
       targetBagOwnerId: merchant.id,
       intendedOutcome: isTargetOwnBag ? 'PASS' : intendedOutcome,
       goldOffered: Math.min(maxGold, Math.max(0, offerGold)),
-      standLegalGoodsOffered: selectedStandCardIds,
+      standLegalGoodsOffered: isLocalSheriff ? [] : selectedStandCardIds,
       bagGoodsCountOffered: isTargetOwnBag ? bagClaims.length : 0,
       futureFavorText: nonBindingTerms.trim(),
     });
@@ -155,7 +158,7 @@ export function BribeNegotiationPanel({ sheriff, merchant }: BribeNegotiationPan
           >
             <div className="flex justify-between items-center text-xs flex-wrap gap-1">
               <span className="font-display font-bold text-gold flex items-center gap-1.5">
-                <span>🪙 Active Bribe #{activeBribe.sequenceNumber}</span>
+                <span>{isOfferFromSheriff ? '⭐ Sheriff Demand' : '🪙 Active Bribe'} #{activeBribe.sequenceNumber}</span>
                 {bribeReactionCooldown && (
                   <span className="text-[10px] text-amber-300 bg-amber-900/60 px-2 py-0.5 rounded animate-pulse">
                     Offer Modified (1.5s lock)
@@ -163,8 +166,17 @@ export function BribeNegotiationPanel({ sheriff, merchant }: BribeNegotiationPan
                 )}
               </span>
               <span className="text-gold-muted text-[11px]">
-                Offered by <strong className="text-white font-bold">{fromName}</strong>
-                {toName && <span className="text-parchment/60 font-normal"> to {toName}</span>}
+                {isOfferFromSheriff ? (
+                  <>
+                    Demanded by <strong className="text-white font-bold">{fromName}</strong> from{' '}
+                    <strong className="text-white font-bold">{toName || merchant.name}</strong>
+                  </>
+                ) : (
+                  <>
+                    Offered by <strong className="text-white font-bold">{fromName}</strong>
+                    {toName && <span className="text-parchment/60 font-normal"> to {toName}</span>}
+                  </>
+                )}
               </span>
             </div>
 
@@ -186,7 +198,7 @@ export function BribeNegotiationPanel({ sheriff, merchant }: BribeNegotiationPan
               </div>
             )}
 
-            {/* Acceptance / Rejection Controls (Only visible to the recipient of the bribe) */}
+            {/* Acceptance / Rejection Controls */}
             {canRespond ? (
               <div className="flex items-center gap-2 mt-1">
                 <button
@@ -195,8 +207,8 @@ export function BribeNegotiationPanel({ sheriff, merchant }: BribeNegotiationPan
                   onClick={handleAcceptBribe}
                   className="flex-1 h-8 rounded-xl bg-emerald/30 border border-emerald/60 text-emerald-300 hover:bg-emerald/40 font-display text-xs font-bold uppercase transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer inline-flex items-center justify-center gap-1"
                 >
-                  <span>🛡️</span>
-                  <span>Accept Bribe</span>
+                  <span>{isOfferFromSheriff ? '🪙' : '🛡️'}</span>
+                  <span>{isOfferFromSheriff ? `Pay ${activeBribe.gold} Gold` : 'Accept Bribe'}</span>
                 </button>
                 <button
                   type="button"
@@ -204,19 +216,21 @@ export function BribeNegotiationPanel({ sheriff, merchant }: BribeNegotiationPan
                   className="flex-1 h-8 rounded-xl bg-crimson/30 border border-crimson/60 text-red-300 hover:bg-crimson/40 font-display text-xs font-bold uppercase transition-all cursor-pointer inline-flex items-center justify-center gap-1"
                 >
                   <span>✕</span>
-                  <span>Decline</span>
+                  <span>{isOfferFromSheriff ? 'Refuse Demand' : 'Decline'}</span>
                 </button>
               </div>
             ) : activeBribe.fromPlayerId === localPlayerId ? (
               <div className="text-center text-xs text-amber-300/80 italic py-1 font-body">
-                Proposal submitted. Awaiting response from {toName}...
+                {isOfferFromSheriff
+                  ? `Demand sent. Awaiting payment from ${toName || merchant.name}...`
+                  : `Proposal submitted. Awaiting response from ${toName}...`}
               </div>
             ) : null}
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Bribe Proposal / Counter-Offer Actions */}
+      {/* Bribe Proposal / Demand Actions */}
       {!isComposing ? (
         <div className="flex items-center justify-center gap-2 flex-wrap w-full">
           <button
@@ -224,23 +238,45 @@ export function BribeNegotiationPanel({ sheriff, merchant }: BribeNegotiationPan
             onClick={() => openOfferModal(merchant.id)}
             className="flex-1 h-9 px-3.5 rounded-xl bg-gold/20 hover:bg-gold/35 border border-gold/60 text-gold-light hover:text-white font-display text-xs tracking-wider uppercase font-bold transition-all shadow-md active:scale-95 inline-flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
           >
-            <span>🤝</span>
-            <span>{hasOpenOffersInFeed ? 'Counter Terms' : 'Full Proposal'}</span>
+            <span>{isLocalSheriff ? '⚖️' : '🤝'}</span>
+            <span>
+              {isLocalSheriff
+                ? hasOpenOffersInFeed
+                  ? 'Counter Demand'
+                  : 'Demand Terms'
+                : hasOpenOffersInFeed
+                ? 'Counter Terms'
+                : 'Full Proposal'}
+            </span>
           </button>
           <button
             type="button"
             onClick={handleStartComposing}
             className="h-9 px-3.5 rounded-xl bg-walnut-card hover:bg-gold/10 border border-gold/30 hover:border-gold text-gold-muted hover:text-white font-display text-xs tracking-wider uppercase transition-all shadow-md cursor-pointer inline-flex items-center justify-center gap-1.5 whitespace-nowrap"
           >
-            <span>⚡</span>
-            <span>{hasOpenOffersInFeed ? 'Quick Counter' : 'Quick Offer'}</span>
+            <span>{isLocalSheriff ? '⚖️' : '⚡'}</span>
+            <span>
+              {isLocalSheriff
+                ? hasOpenOffersInFeed
+                  ? 'Quick Counter'
+                  : 'Quick Demand'
+                : hasOpenOffersInFeed
+                ? 'Quick Counter'
+                : 'Quick Offer'}
+            </span>
           </button>
         </div>
       ) : (
         <div className="flex flex-col gap-3 pt-2 border-t border-tavern-border">
           <div className="flex justify-between items-center text-xs font-display">
             <span className="text-gold font-bold">
-              {hasOpenOffersInFeed ? 'Counter-Offer' : 'New Offer'}
+              {isLocalSheriff
+                ? hasOpenOffersInFeed
+                  ? 'Counter Demand'
+                  : `Demand Tribute from ${merchant.name}`
+                : hasOpenOffersInFeed
+                ? 'Counter-Offer'
+                : 'New Offer'}
             </span>
             <button
               type="button"
@@ -251,21 +287,9 @@ export function BribeNegotiationPanel({ sheriff, merchant }: BribeNegotiationPan
             </button>
           </div>
 
-          {/* Intended Consequence Toggle (if not targeting own bag) */}
+          {/* Intended Consequence Toggle */}
           {!isLocalMerchant && (
             <div className="grid grid-cols-2 gap-2 text-xs font-display">
-              <button
-                type="button"
-                onClick={() => setIntendedOutcome('INSPECT')}
-                className={`h-8 rounded-lg border font-bold uppercase transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                  intendedOutcome === 'INSPECT'
-                    ? 'bg-crimson/40 border-red-400 text-red-100 shadow-sm'
-                    : 'bg-tavern-card border-tavern-border text-parchment/60 hover:text-parchment'
-                }`}
-              >
-                <span>🔨</span>
-                <span>Check Pot</span>
-              </button>
               <button
                 type="button"
                 onClick={() => setIntendedOutcome('PASS')}
@@ -276,7 +300,19 @@ export function BribeNegotiationPanel({ sheriff, merchant }: BribeNegotiationPan
                 }`}
               >
                 <span>🛡️</span>
-                <span>Safe Passage</span>
+                <span>{isLocalSheriff ? 'Safe Passage if Paid' : 'Safe Passage'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIntendedOutcome('INSPECT')}
+                className={`h-8 rounded-lg border font-bold uppercase transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  intendedOutcome === 'INSPECT'
+                    ? 'bg-crimson/40 border-red-400 text-red-100 shadow-sm'
+                    : 'bg-tavern-card border-tavern-border text-parchment/60 hover:text-parchment'
+                }`}
+              >
+                <span>🔨</span>
+                <span>{isLocalSheriff ? 'Inspect Bag' : 'Check Pot'}</span>
               </button>
             </div>
           )}
@@ -284,7 +320,9 @@ export function BribeNegotiationPanel({ sheriff, merchant }: BribeNegotiationPan
           {/* Gold Slider & Input */}
           <div className="flex flex-col gap-1 text-xs">
             <div className="flex justify-between">
-              <span className="text-parchment/80">Your Gold Coins:</span>
+              <span className="text-parchment/80">
+                {isLocalSheriff ? `Gold Demanded from ${merchant.name}:` : 'Your Gold Coins:'}
+              </span>
               <span className="text-gold font-bold font-display">{offerGold} / {maxGold}</span>
             </div>
             <input
@@ -297,8 +335,8 @@ export function BribeNegotiationPanel({ sheriff, merchant }: BribeNegotiationPan
             />
           </div>
 
-          {/* Stand Goods Offer (if available) */}
-          {availableStandCards.length > 0 && (
+          {/* Stand Goods Offer (only for merchants offering goods) */}
+          {!isLocalSheriff && availableStandCards.length > 0 && (
             <div className="flex flex-col gap-1 text-xs">
               <span className="text-parchment/80">Your Stand Goods:</span>
               <div className="flex gap-2 overflow-x-auto py-1">
@@ -348,10 +386,12 @@ export function BribeNegotiationPanel({ sheriff, merchant }: BribeNegotiationPan
 
           {/* Non-Binding Terms */}
           <div className="flex flex-col gap-1 text-xs">
-            <span className="text-parchment/80">Non-Binding Promises:</span>
+            <span className="text-parchment/80">
+              {isLocalSheriff ? 'Sheriff Terms / Promise:' : 'Non-Binding Promises:'}
+            </span>
             <input
               type="text"
-              placeholder="e.g., 'Will let your bags pass next round'"
+              placeholder={isLocalSheriff ? "e.g., 'Pay 5g and you enter unhindered'" : "e.g., 'Will let your bags pass next round'"}
               value={nonBindingTerms}
               onChange={(e) => setNonBindingTerms(e.target.value)}
               maxLength={80}
@@ -365,8 +405,8 @@ export function BribeNegotiationPanel({ sheriff, merchant }: BribeNegotiationPan
             onClick={handleSendBribe}
             className="w-full h-9 rounded-xl btn-gold font-display text-xs tracking-wider uppercase font-bold inline-flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
           >
-            <span>🤝</span>
-            <span>Send Offer</span>
+            <span>{isLocalSheriff ? '⚖️' : '🤝'}</span>
+            <span>{isLocalSheriff ? `Demand ${offerGold}g Tribute` : 'Send Offer'}</span>
           </button>
         </div>
       )}

@@ -200,17 +200,14 @@ describe('NottinghamRoom (Colyseus 0.18)', () => {
       await delay(100);
     }
 
-    // Phase 3: DECLARATION
+    // Phase 3: DECLARATION (Merchants declare in parallel)
     expect(room1.state.phase).toBe('DECLARATION');
 
-    // Merchants declare in order
-    for (let i = 0; i < 3; i++) {
-      const activeId = serverRoom.state.activeMerchantId;
-      expect(activeId).toBeTruthy();
-      const activeRoom = roomsMap[activeId];
-      activeRoom.send('declaration', { declaredGood: 'APPLE', declaredCount: 2 });
+    for (const mRoom of merchants) {
+      mRoom.send('declaration', { declaredGood: 'APPLE', declaredCount: 2 });
       await delay(100);
     }
+    await delay(100);
 
     // Phase 4: INSPECTION
     expect(room1.state.phase).toBe('INSPECTION');

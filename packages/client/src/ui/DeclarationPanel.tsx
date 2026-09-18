@@ -9,7 +9,6 @@ import { GOOD_TOKENS } from '../theme/tokens';
 export function DeclarationPanel() {
   const phase = useGameStore((s) => s.phase);
   const localPlayerId = useGameStore((s) => s.localPlayerId);
-  const activeMerchantId = useGameStore((s) => s.activeMerchantId);
   const playersMap = useGameStore((s) => s.players);
   const playerCount = useGameStore((s) => s.maxPlayers);
 
@@ -20,7 +19,6 @@ export function DeclarationPanel() {
 
   const allPlayers = Array.from(playersMap.values());
   const localPlayer = allPlayers.find((p) => p.id === localPlayerId);
-  const activeMerchant = allPlayers.find((p) => p.id === activeMerchantId);
 
   if (!localPlayer) return null;
 
@@ -31,7 +29,10 @@ export function DeclarationPanel() {
     localPlayer.handCount ||
     0;
 
-  const isLocalActiveMerchant = localPlayer.id === activeMerchantId && !hasDeclared;
+  const totalPlayers = playersMap.size || playerCount || 4;
+  const isBagSnapped = Boolean(localPlayer.sealedBag?.isSnapped);
+  const availableGoods =
+    totalPlayers <= 3 ? LEGAL_GOODS.filter((g) => g !== 'BREAD') : LEGAL_GOODS;
 
   const handleDeclare = () => {
     if (!selectedGood || bagCardCount === 0 || isStamping) return;
@@ -49,6 +50,7 @@ export function DeclarationPanel() {
   };
 
   const merchants = allPlayers.filter((p) => !p.isSheriff);
+  const declaredMerchantsCount = merchants.filter((m) => Boolean(m.sealedBag?.declaredGood)).length;
 
   return (
     <div className="fixed inset-x-0 bottom-6 z-40 flex justify-center pointer-events-none px-4 select-none">
@@ -66,13 +68,11 @@ export function DeclarationPanel() {
               <div className="flex items-center gap-2">
                 <span className="text-xl">⭐</span>
                 <h2 className="text-lg font-display font-black text-gold tracking-wide">
-                  Declarations
+                  Declarations ({declaredMerchantsCount}/{merchants.length})
                 </h2>
               </div>
               <p className="text-xs text-parchment/70 font-body">
-                {activeMerchant
-                  ? `${activeMerchant.name} is declaring now.`
-                  : 'Awaiting next merchant declaration...'}
+                Merchants are declaring their wares before your inspection.
               </p>
 
               {/* Status List */}
@@ -81,7 +81,7 @@ export function DeclarationPanel() {
                   const goodToken = m.sealedBag?.declaredGood
                     ? GOOD_TOKENS[m.sealedBag.declaredGood as GoodType]
                     : null;
-                  const isCurrent = m.id === activeMerchantId;
+                  const isSnapped = Boolean(m.sealedBag?.isSnapped);
 
                   return (
                     <div
@@ -89,13 +89,13 @@ export function DeclarationPanel() {
                       className={`flex items-center justify-between px-3.5 py-2 rounded-xl border text-xs font-display transition-all ${
                         goodToken
                           ? 'bg-walnut-card/90 border-gold/40 text-gold-light'
-                          : isCurrent
+                          : isSnapped
                           ? 'bg-amber-950/70 border-gold text-gold animate-pulse'
                           : 'bg-walnut-surface/70 border-tavern-border text-parchment/50'
                       }`}
                     >
                       <div className="flex items-center gap-2">
-                        <span>{goodToken ? '📜' : isCurrent ? '⏳' : '•'}</span>
+                        <span>{goodToken ? '📜' : isSnapped ? '⏳' : '🔒'}</span>
                         <span className="font-bold text-parchment">{m.name}</span>
                       </div>
                       <div>
@@ -105,10 +105,10 @@ export function DeclarationPanel() {
                             <span>{goodToken.icon}</span>
                             <span className="font-bold">{goodToken.name}</span>
                           </span>
-                        ) : isCurrent ? (
-                          <span className="text-gold font-bold">Declaring now...</span>
+                        ) : isSnapped ? (
+                          <span className="text-gold font-bold">Declaring...</span>
                         ) : (
-                          <span>Waiting turn</span>
+                          <span className="text-parchment/50">Snapping bag...</span>
                         )}
                       </div>
                     </div>
@@ -116,8 +116,44 @@ export function DeclarationPanel() {
                 })}
               </div>
             </div>
-          ) : isLocalActiveMerchant && playerCount > 3 ? (
-            /* Active Merchant: Must Declare */
+          ) : hasDeclared ? (
+            /* Merchant View: Already Declared */
+            <div className="flex flex-col items-center gap-2 py-1 text-center">
+              <div className="flex items-center gap-2 text-emerald">
+                <span className="text-xl">✅</span>
+                <h2 className="text-base font-display font-black tracking-wide">
+                  Declared ✓
+                </h2>
+              </div>
+              <p className="text-xs text-parchment font-body">
+                Declared{' '}
+                <span className="font-bold text-gold">
+                  {localPlayer.sealedBag?.declaredCount}{' '}
+                  {localPlayer.sealedBag?.declaredGood
+                    ? GOOD_TOKENS[localPlayer.sealedBag.declaredGood as GoodType]?.name ||
+                      localPlayer.sealedBag.declaredGood
+                    : ''}
+                </span>
+              </p>
+              <span className="text-[11px] text-parchment/60 font-body animate-pulse">
+                {declaredMerchantsCount < merchants.length
+                  ? `Waiting for remaining merchants (${declaredMerchantsCount}/${merchants.length} declared)...`
+                  : 'All declarations received! Sheriff will inspect shortly...'}
+              </span>
+            </div>
+          ) : !isBagSnapped ? (
+            /* Merchant View: Bag not snapped yet */
+            <div className="flex flex-col items-center gap-2 py-2 text-center">
+              <span className="text-2xl">🔒</span>
+              <h2 className="text-sm font-display font-bold text-gold">
+                Snap Your Bag First
+              </h2>
+              <p className="text-xs text-parchment/70 font-body">
+                Please snap your merchant bag clasp to begin your declaration.
+              </p>
+            </div>
+          ) : (
+            /* Merchant View: Bag snapped, can declare in parallel */
             <div className="flex flex-col items-center gap-3 text-center">
               <div className="flex items-center gap-2">
                 <span className="text-xl">📜</span>
@@ -129,9 +165,9 @@ export function DeclarationPanel() {
                 You carry <span className="font-bold text-gold">{bagCardCount} goods</span> in your bag. Choose a legal good type.
               </p>
 
-              {/* 4 Legal Goods Picker in a Row */}
-              <div className="grid grid-cols-4 gap-2 w-full mt-1">
-                {LEGAL_GOODS.map((good) => {
+              {/* Legal Goods Picker (3-column if 3p, 4-column if 4p+) */}
+              <div className={`grid ${availableGoods.length === 3 ? 'grid-cols-3' : 'grid-cols-4'} gap-2 w-full mt-1`}>
+                {availableGoods.map((good) => {
                   const token = GOOD_TOKENS[good];
                   const isSelected = selectedGood === good;
 
@@ -208,42 +244,6 @@ export function DeclarationPanel() {
                   <span>{isStamping ? 'Sealing...' : 'Declare'}</span>
                 </motion.button>
               </div>
-            </div>
-          ) : hasDeclared ? (
-            /* Merchant View: Already Declared */
-            <div className="flex flex-col items-center gap-2 py-1 text-center">
-              <div className="flex items-center gap-2 text-emerald">
-                <span className="text-xl">✅</span>
-                <h2 className="text-base font-display font-black tracking-wide">
-                  Declared ✓
-                </h2>
-              </div>
-              <p className="text-xs text-parchment font-body">
-                Declared{' '}
-                <span className="font-bold text-gold">
-                  {localPlayer.sealedBag?.declaredCount}{' '}
-                  {localPlayer.sealedBag?.declaredGood
-                    ? GOOD_TOKENS[localPlayer.sealedBag.declaredGood as GoodType]?.name ||
-                      localPlayer.sealedBag.declaredGood
-                    : ''}
-                </span>
-              </p>
-              <span className="text-[11px] text-parchment/60 font-body animate-pulse">
-                {activeMerchant
-                  ? `${activeMerchant.name} is declaring...`
-                  : 'Sheriff will inspect the bags shortly!'}
-              </span>
-            </div>
-          ) : (
-            /* Waiting Merchant Turn */
-            <div className="flex flex-col items-center gap-2 py-2 text-center">
-              <span className="text-xl">⏳</span>
-              <h2 className="text-sm font-display font-bold text-gold">
-                Waiting for {activeMerchant?.name || 'next merchant'} to declare...
-              </h2>
-              <p className="text-xs text-parchment/60 font-body">
-                Your turn to declare is coming.
-              </p>
             </div>
           )}
         </motion.div>
