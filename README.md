@@ -20,7 +20,7 @@ A full-fidelity, web-based digital adaptation of the acclaimed bluffing, bribery
 The repository is configured as an npm workspaces monorepo:
 
 ```
-BlackMarketDigi/
+digital-sheriff-of-nottingham/
 ├── packages/
 │   ├── shared/                # Core domain types, card catalog, constants, message schemas
 │   │   ├── src/cards.ts       # 204 base cards + 12 royal goods definitions
@@ -129,8 +129,8 @@ The game is fully containerized and ready for cloud deployment on **Microsoft Az
 
 ### 1-Command VM Provisioning (Ubuntu 22.04 / 24.04 LTS)
 ```bash
-git clone https://github.com/xrayian/BlackMarketDigi.git
-cd BlackMarketDigi
+git clone https://github.com/xrayian/digital-sheriff-of-nottingham.git
+cd digital-sheriff-of-nottingham
 chmod +x deploy/*.sh
 sudo ./deploy/azure-setup.sh
 ```

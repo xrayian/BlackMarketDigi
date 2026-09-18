@@ -45,7 +45,7 @@
 
 | Rule Area | Status | Notes |
 |-----------|--------|-------|
-| Market Phase (2nd Edition) | ✅ | Discard up to 5 cards and draw back to 6; draw pile and discard pile tracking compliant |
+| Market Phase (2nd Edition) | ✅ | Discard up to 5 cards and draw back to 6; compliant 2nd Edition single discard pile with turn-by-turn ledger audit and discard pile inspection |
 | Bag Loading (1-5 cards) | ✅ | `MIN_BAG_CARDS` (1) and `MAX_BAG_CARDS` (5) enforced, allows any mix of legal and contraband |
 | Declaration (one legal good type) | ✅ | Must declare exactly one legal good; quantity must equal sealed bag card count |
 | Inspection Penalties (honest/dishonest) | ✅ | Honest = Sheriff pays full penalty to Merchant; Dishonest = Merchant pays penalty on confiscated contraband/undeclared goods |

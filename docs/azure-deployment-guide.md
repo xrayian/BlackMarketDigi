@@ -137,8 +137,8 @@ ssh -i /path/to/key.pem azureuser@<AZURE_PUBLIC_IP>
 
 ### 2. Clone the Repository
 ```bash
-git clone https://github.com/xrayian/BlackMarketDigi.git
-cd BlackMarketDigi
+git clone https://github.com/xrayian/digital-sheriff-of-nottingham.git
+cd digital-sheriff-of-nottingham
 ```
 
 ### 3. Run Turnkey Setup Script
@@ -175,7 +175,7 @@ sudo ./deploy/setup-ssl.sh <your-domain-or-azure-fqdn> <your-email>
 2. Obtains a free, trusted Let's Encrypt SSL certificate.
 3. Configures Nginx for modern TLS (TLSv1.2/1.3, HTTP -> HTTPS auto-redirect, WSS proxying).
 4. Mounts certificates safely into the client container via `docker-compose.override.yml`.
-5. Schedules an automatic renewal cron job at 03:00 AM daily.
+5. Schedules an automatic renewal cron job at 03:00 AM daily with `--pre-hook` and `--post-hook` to seamlessly handle port 80 during standalone ACME challenges.
 
 ---
 
@@ -184,7 +184,7 @@ sudo ./deploy/setup-ssl.sh <your-domain-or-azure-fqdn> <your-email>
 ### Applying Updates After Git Commits
 When you push code updates to GitHub, update the live Azure VM instantly with zero downtime:
 ```bash
-cd ~/BlackMarketDigi
+cd ~/digital-sheriff-of-nottingham
 ./deploy/update.sh
 ```
 This pulls latest commits, rebuilds changed layers, swaps containers without dropping existing connections, and prunes stale images.

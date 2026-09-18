@@ -49,8 +49,8 @@ For an automated, production-ready cloud deployment with high reliability, use A
 * **Full Step-by-Step Guide:** Refer to [`docs/azure-deployment-guide.md`](file:///C:/projects/BlackMarketDigi/docs/azure-deployment-guide.md) for Azure Portal GUI and Azure CLI deployment walkthroughs.
 * **Turnkey Setup:**
   ```bash
-  git clone https://github.com/xrayian/BlackMarketDigi.git
-  cd BlackMarketDigi
+  git clone https://github.com/xrayian/digital-sheriff-of-nottingham.git
+  cd digital-sheriff-of-nottingham
   chmod +x deploy/*.sh
   sudo ./deploy/azure-setup.sh
   ```
@@ -70,8 +70,8 @@ Ensure your cloud provider's firewall / security group allows the following inbo
 
 #### 2. Run the Turnkey Script
 ```bash
-git clone https://github.com/xrayian/BlackMarketDigi.git
-cd BlackMarketDigi
+git clone https://github.com/xrayian/digital-sheriff-of-nottingham.git
+cd digital-sheriff-of-nottingham
 chmod +x deploy/*.sh
 sudo ./deploy/azure-setup.sh
 ```
@@ -89,8 +89,8 @@ To host games for friends on your local Wi-Fi or home network:
 
 #### 2. Launching Locally
 ```bash
-git clone https://github.com/xrayian/BlackMarketDigi.git
-cd BlackMarketDigi
+git clone https://github.com/xrayian/digital-sheriff-of-nottingham.git
+cd digital-sheriff-of-nottingham
 docker compose up -d --build
 ```
 
