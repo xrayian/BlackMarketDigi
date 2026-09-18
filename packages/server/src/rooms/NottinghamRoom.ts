@@ -555,11 +555,12 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
 
       // Mirror into legacy activeBribe & bribeOffers for backward compatibility
       this.bribeSequenceNumber = this.state.negotiationSequence;
+      const isSheriff = client.sessionId === this.state.sheriffId;
       const legacyBribe = new BribeOfferState({
         id: offerState.id,
         sequenceNumber: offerState.sequence,
         fromPlayerId: client.sessionId,
-        toPlayerId: this.state.sheriffId,
+        toPlayerId: isSheriff ? message.targetBagOwnerId : this.state.sheriffId,
         gold: goldOffered,
         standCardIds: message.standLegalGoodsOffered || [],
         bagCardClaims: [],
@@ -588,19 +589,10 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
       }
     });
 
-    // 7. Accept Negotiation Offer (Deciding Authority with sequence concurrency lock)
+    // 7. Accept Negotiation Offer (Deciding Authority or Merchant responding to Sheriff offer, with sequence concurrency lock)
     this.onMessage('negotiation_accept', (client, message: AcceptNegotiationOfferMessage) => {
       if (this.state.phase !== 'INSPECTION') {
         client.send('error', { message: 'Can only accept offers during INSPECTION phase' });
-        return;
-      }
-
-      const isAuthority =
-        client.sessionId === this.state.sheriffId ||
-        this.state.deputyIds.includes(client.sessionId);
-
-      if (!isAuthority) {
-        client.send('error', { message: 'Only the Sheriff or Deputy can accept negotiation offers' });
         return;
       }
 
@@ -612,6 +604,25 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
 
       if (offer.fromPlayerId === client.sessionId) {
         client.send('error', { message: 'Cannot accept your own offer' });
+        return;
+      }
+
+      const isAuthority =
+        client.sessionId === this.state.sheriffId ||
+        this.state.deputyIds.includes(client.sessionId);
+
+      const isOfferFromAuthority =
+        offer.fromPlayerId === this.state.sheriffId ||
+        this.state.deputyIds.includes(offer.fromPlayerId);
+
+      // If the offer was proposed by the Sheriff or Deputy, any other player can accept it.
+      // If the offer was proposed by a merchant/rival, only the Sheriff or Deputy can accept it.
+      const canAccept = isOfferFromAuthority
+        ? client.sessionId !== offer.fromPlayerId
+        : isAuthority;
+
+      if (!canAccept) {
+        client.send('error', { message: 'Only the Sheriff or Deputy can accept negotiation offers' });
         return;
       }
 
@@ -696,18 +707,31 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
         return;
       }
 
+      const offer = this.state.negotiationFeed.find((o) => o.id === message.offerId);
+      if (!offer || offer.status !== 'OPEN') {
+        client.send('error', { message: 'Offer is not available' });
+        return;
+      }
+
+      if (offer.fromPlayerId === client.sessionId) {
+        client.send('error', { message: 'Cannot decline your own offer (use withdraw instead)' });
+        return;
+      }
+
       const isAuthority =
         client.sessionId === this.state.sheriffId ||
         this.state.deputyIds.includes(client.sessionId);
 
-      if (!isAuthority) {
-        client.send('error', { message: 'Only the Sheriff or Deputy can decline negotiation offers' });
-        return;
-      }
+      const isOfferFromAuthority =
+        offer.fromPlayerId === this.state.sheriffId ||
+        this.state.deputyIds.includes(offer.fromPlayerId);
 
-      const offer = this.state.negotiationFeed.find((o) => o.id === message.offerId);
-      if (!offer || offer.status !== 'OPEN') {
-        client.send('error', { message: 'Offer is not available' });
+      const canDecline = isOfferFromAuthority
+        ? client.sessionId !== offer.fromPlayerId
+        : isAuthority;
+
+      if (!canDecline) {
+        client.send('error', { message: 'Only the Sheriff or Deputy can decline negotiation offers' });
         return;
       }
 

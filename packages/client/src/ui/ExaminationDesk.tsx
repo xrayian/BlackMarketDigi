@@ -434,6 +434,14 @@ export function ExaminationDesk() {
                       const fromName = playersMap.get(offer.fromPlayerId)?.name || 'Merchant';
                       const isRivalInspect =
                         offer.intendedOutcome === 'FORCE_INSPECT' || offer.intendedOutcome === 'INSPECT';
+                      const isOfferFromAuthority =
+                        offer.fromPlayerId === sheriffPlayer.id ||
+                        (enableDeputies && deputyIds.includes(offer.fromPlayerId));
+                      const isOfferer = offer.fromPlayerId === localPlayerId;
+                      const canRespond = isOfferFromAuthority
+                        ? !isOfferer
+                        : isAuthority && !isOfferer;
+
                       return (
                         <div
                           key={offer.id}
@@ -445,7 +453,15 @@ export function ExaminationDesk() {
                         >
                           <div className="flex flex-col gap-0.5">
                             <div className="font-bold flex items-center gap-1.5 flex-wrap">
-                              <span>{isRivalInspect ? '🔨 RIVAL BRIBE (CHECK POT):' : '🛡️ SAFE PASSAGE BRIBE:'}</span>
+                              <span>
+                                {isOfferFromAuthority
+                                  ? isRivalInspect
+                                    ? '🔨 SHERIFF PROPOSAL (CHECK POT):'
+                                    : '🛡️ SHERIFF PROPOSAL (SAFE PASSAGE):'
+                                  : isRivalInspect
+                                  ? '🔨 RIVAL BRIBE (CHECK POT):'
+                                  : '🛡️ SAFE PASSAGE BRIBE:'}
+                              </span>
                               <span className="text-white">{fromName}</span>
                               <span>offers</span>
                               <span className="text-gold font-bold">🪙 {offer.goldOffered}g</span>
@@ -454,14 +470,18 @@ export function ExaminationDesk() {
                               )}
                             </div>
                             <div className="text-[11px] text-parchment/80 font-body">
-                              {isRivalInspect
+                              {isOfferFromAuthority
+                                ? isRivalInspect
+                                  ? `Sheriff proposes to immediately INSPECT & CHECK ${activeMerchant.name}'s bag!`
+                                  : `Sheriff proposes to immediately PASS ${activeMerchant.name}'s goods unopened!`
+                                : isRivalInspect
                                 ? `Paying for the Sheriff to immediately INSPECT & CHECK ${activeMerchant.name}'s bag!`
                                 : `Paying for the Sheriff to immediately PASS ${activeMerchant.name}'s goods unopened!`}
                             </div>
                           </div>
 
                           <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
-                            {isAuthority && offer.fromPlayerId !== localPlayerId && (
+                            {canRespond && (
                               <>
                                 <button
                                   type="button"
@@ -483,7 +503,7 @@ export function ExaminationDesk() {
                                 </button>
                               </>
                             )}
-                            {offer.fromPlayerId === localPlayerId && (
+                            {isOfferer && (
                               <button
                                 type="button"
                                 onClick={() => handleWithdrawOffer(offer.id)}

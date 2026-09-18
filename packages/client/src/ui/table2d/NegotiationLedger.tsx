@@ -105,6 +105,11 @@ export function NegotiationLedger() {
               offer.status === 'WITHDRAWN' ||
               offer.status === 'VOIDED';
 
+            const isOfferFromAuthority =
+              offer.fromPlayerId === sheriffId ||
+              (enableDeputies && deputyIds.includes(offer.fromPlayerId));
+            const canRespond = isOfferFromAuthority ? !isOfferer : isAuthority && !isOfferer;
+
             // Construct summary
             const parts: string[] = [];
             if (offer.goldOffered > 0) parts.push(`${offer.goldOffered} Gold`);
@@ -137,14 +142,20 @@ export function NegotiationLedger() {
                   </div>
                 )}
 
-                {/* Top Row: From → Deciding Authority + Status */}
+                {/* Top Row: From → Target / Authority + Status */}
                 <div className="flex items-center justify-between gap-1 mb-1.5">
                   <div className="flex items-center gap-1.5 font-bold text-xs truncate">
                     <span className={isOfferer ? 'text-emerald-300' : 'text-gold'}>
                       {fromPlayer}
                     </span>
                     <span className="text-parchment/40">→</span>
-                    <span className="text-parchment/80">Sheriff</span>
+                    <span className="text-parchment/80">
+                      {offer.fromPlayerId === sheriffId
+                        ? targetPlayer
+                        : enableDeputies
+                        ? 'Deputies'
+                        : 'Sheriff'}
+                    </span>
                   </div>
 
                   {!isAccepted && (
@@ -195,7 +206,7 @@ export function NegotiationLedger() {
                 {/* Action Controls for Authority (Accept/Decline) & Offerer (Withdraw) */}
                 {isOpen && (
                   <div className="flex items-center justify-end gap-2 mt-2 pt-2 border-t border-tavern-border/50">
-                    {isAuthority && !isOfferer && (
+                    {canRespond && (
                       <>
                         <button
                           type="button"

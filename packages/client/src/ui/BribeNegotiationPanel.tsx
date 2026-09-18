@@ -108,10 +108,14 @@ export function BribeNegotiationPanel({ sheriff, merchant }: BribeNegotiationPan
     ? sheriff.name
     : merchant.name;
 
+  const isOfferer = activeBribe?.fromPlayerId === localPlayerId;
+  const isOfferFromSheriff = activeBribe?.fromPlayerId === sheriff.id;
   const canRespond =
     activeBribe &&
-    (activeBribe.toPlayerId === localPlayerId ||
-      (isLocalSheriff && (activeBribe.toPlayerId === sheriff.id || !activeBribe.toPlayerId)));
+    !isOfferer &&
+    (isOfferFromSheriff
+      ? !isLocalSheriff
+      : isLocalSheriff || activeBribe.toPlayerId === localPlayerId);
 
   return (
     <div className="flex flex-col gap-3 bg-tavern-surface/90 border border-tavern-border rounded-2xl p-3.5 backdrop-blur-md shadow-xl text-parchment max-w-lg w-full">

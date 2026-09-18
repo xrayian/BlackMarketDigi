@@ -493,4 +493,72 @@ describe('NegotiationFeedRework Integration Tests (Colyseus 0.18)', () => {
     await room3.leave();
     await room4.leave();
   });
+
+  it('when a bribe has been proposed by a sheriff, other players can accept that bribe', async () => {
+    const { room1, room2, room3, room4, serverRoom } = await setup4PlayerInspectionRoom();
+
+    // Sheriff selects Marian to examine at the desk
+    room1.send('select_inspect_merchant', { targetPlayerId: room2.sessionId });
+    await delay(100);
+    expect(serverRoom.state.activeMerchantId).toBe(room2.sessionId);
+
+    let inspectionResult: any = null;
+    room2.onMessage('inspection_result', (data) => {
+      inspectionResult = data;
+    });
+
+    let sheriffError = '';
+    room1.onMessage('error', (data) => {
+      sheriffError = data.message;
+    });
+
+    // Sheriff (room1) proposes a bribe / deal on Marian's bag (e.g. 4 gold to PASS)
+    room1.send('negotiation_propose', {
+      targetBagOwnerId: room2.sessionId,
+      intendedOutcome: 'PASS',
+      goldOffered: 4,
+      futureFavorText: 'I offer safe passage for this bag!',
+    });
+    await delay(100);
+
+    const offer = serverRoom.state.negotiationFeed.at(0)!;
+    expect(offer.status).toBe('OPEN');
+    expect(offer.fromPlayerId).toBe(room1.sessionId);
+
+    // Sheriff tries to accept their own offer -> rejected
+    room1.send('negotiation_accept', {
+      offerId: offer.id,
+      expectedSequence: serverRoom.state.negotiationSequence,
+    });
+    await delay(100);
+    expect(sheriffError).toMatch(/Cannot accept your own offer/);
+
+    // Marian (the merchant whose bag is examined) accepts the Sheriff's bribe offer
+    room2.send('negotiation_accept', {
+      offerId: offer.id,
+      expectedSequence: serverRoom.state.negotiationSequence,
+    });
+    await delay(150);
+
+    // Offer status is ACCEPTED by Marian
+    expect(offer.status).toBe('ACCEPTED');
+    expect(offer.acceptedByPlayerId).toBe(room2.sessionId);
+
+    // Immediate execution triggers for active merchant
+    expect(inspectionResult).toBeDefined();
+    expect(inspectionResult.outcome).toBe('PASS');
+    expect(inspectionResult.targetPlayerId).toBe(room2.sessionId);
+
+    // The Sheriff paid 4 gold to Marian
+    const marian = serverRoom.state.players.get(room2.sessionId)!;
+    const sheriff = serverRoom.state.players.get(room1.sessionId)!;
+    expect(sheriff.gold).toBe(46); // 50 - 4
+    expect(marian.gold).toBe(54); // 50 + 4
+    expect(marian.standLegal.length).toBe(2);
+
+    await room1.leave();
+    await room2.leave();
+    await room3.leave();
+    await room4.leave();
+  });
 });
