@@ -561,4 +561,108 @@ describe('NegotiationFeedRework Integration Tests (Colyseus 0.18)', () => {
     await room3.leave();
     await room4.leave();
   });
+
+  it('quick counter / rival offer with intendedOutcome: INSPECT correctly broadcasts INSPECT in toast and triggers inspection upon acceptance', async () => {
+    const { room1, room2, room3, room4, serverRoom } = await setup4PlayerInspectionRoom();
+
+    let toastReceived: any = null;
+    room2.onMessage('negotiation_cross_bag_toast', (data) => {
+      toastReceived = data;
+    });
+
+    let inspectionResult: any = null;
+    room1.onMessage('inspection_result', (data) => {
+      inspectionResult = data;
+    });
+
+    // Sheriff selects Marian to examine at the desk
+    room1.send('select_inspect_merchant', { targetPlayerId: room2.sessionId });
+    await delay(100);
+    expect(serverRoom.state.activeMerchantId).toBe(room2.sessionId);
+
+    // Player C (room3) counters with an offer to INSPECT Marian's (room2) bag
+    room3.send('negotiation_propose', {
+      targetBagOwnerId: room2.sessionId,
+      intendedOutcome: 'INSPECT',
+      goldOffered: 7,
+      futureFavorText: 'Check her pot!',
+    });
+    await delay(100);
+
+    // Verify the broadcast toast carried intendedOutcome: 'INSPECT'
+    expect(toastReceived).toBeDefined();
+    expect(toastReceived.goldOffered).toBe(7);
+    expect(toastReceived.intendedOutcome).toBe('INSPECT');
+    expect(toastReceived.targetBagOwnerId).toBe(room2.sessionId);
+
+    // Verify offer state in feed
+    expect(serverRoom.state.negotiationFeed.length).toBe(1);
+    const offer = serverRoom.state.negotiationFeed.at(0)!;
+    expect(offer.intendedOutcome).toBe('INSPECT');
+    expect(offer.goldOffered).toBe(7);
+
+    // Sheriff accepts the counter offer
+    room1.send('negotiation_accept', {
+      offerId: offer.id,
+      expectedSequence: serverRoom.state.negotiationSequence,
+    });
+    await delay(150);
+
+    // Deal struck resulted in inspection execution on Marian's bag
+    expect(inspectionResult).toBeDefined();
+    expect(inspectionResult.targetPlayerId).toBe(room2.sessionId);
+    // Marian had legal goods, so outcome was HONEST
+    expect(inspectionResult.outcome).toBe('HONEST');
+
+    await room1.leave();
+    await room2.leave();
+    await room3.leave();
+    await room4.leave();
+  });
+
+  it('bribe_propose with intendedOutcome: INSPECT sets INSPECT outcome and executes inspect on bribe_respond', async () => {
+    const { room1, room2, room3, room4, serverRoom } = await setup4PlayerInspectionRoom();
+
+    let toastReceived: any = null;
+    room2.onMessage('negotiation_cross_bag_toast', (data) => {
+      toastReceived = data;
+    });
+
+    let inspectionResult: any = null;
+    room1.onMessage('inspection_result', (data) => {
+      inspectionResult = data;
+    });
+
+    // Room 3 sends bribe_propose with intendedOutcome INSPECT
+    room3.send('bribe_propose', {
+      targetBagOwnerId: room2.sessionId,
+      intendedOutcome: 'INSPECT',
+      gold: 6,
+      standCardIds: [],
+      bagCardClaims: [],
+      nonBindingTerms: 'Inspect Marian!',
+    });
+    await delay(100);
+
+    // Cross bag toast should have been broadcast
+    expect(toastReceived).toBeDefined();
+    expect(toastReceived.goldOffered).toBe(6);
+    expect(toastReceived.intendedOutcome).toBe('INSPECT');
+
+    // Sheriff accepts via bribe_respond
+    room1.send('bribe_respond', {
+      accept: true,
+      sequenceNumber: serverRoom.state.activeBribe!.sequenceNumber,
+    });
+    await delay(150);
+
+    // Inspection was executed
+    expect(inspectionResult).toBeDefined();
+    expect(inspectionResult.targetPlayerId).toBe(room2.sessionId);
+
+    await room1.leave();
+    await room2.leave();
+    await room3.leave();
+    await room4.leave();
+  });
 });

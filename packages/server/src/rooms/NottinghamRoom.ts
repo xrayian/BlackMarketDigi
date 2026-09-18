@@ -802,9 +802,13 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
       }
 
       // Route into negotiation_propose
+      const intendedOutcome =
+        message.intendedOutcome ||
+        (targetBagOwnerId === client.sessionId ? 'PASS' : 'INSPECT');
+
       const fakeMsg: ProposeNegotiationOfferMessage = {
         targetBagOwnerId,
-        intendedOutcome: 'PASS',
+        intendedOutcome,
         goldOffered: message.gold || 0,
         standLegalGoodsOffered: message.standCardIds || [],
         futureFavorText: message.nonBindingTerms || '',
@@ -852,7 +856,7 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
         id: `offer_${this.state.negotiationSequence}`,
         fromPlayerId: client.sessionId,
         targetBagOwnerId,
-        intendedOutcome: 'PASS',
+        intendedOutcome,
         goldOffered: fakeMsg.goldOffered,
         standLegalGoodsOffered: fakeMsg.standLegalGoodsOffered || [],
         standContrabandCountOffered: 0,
@@ -888,6 +892,19 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
         this.state.bribeOffers[existingIdx] = bribeState;
       } else {
         this.state.bribeOffers.push(bribeState);
+      }
+
+      // Non-blocking toast notification for cross-bag offers
+      if (targetBagOwnerId !== client.sessionId) {
+        const targetPlayer = this.state.players.get(targetBagOwnerId);
+        this.broadcast('negotiation_cross_bag_toast', {
+          fromPlayerId: client.sessionId,
+          fromPlayerName: player.name,
+          targetBagOwnerId,
+          targetPlayerName: targetPlayer?.name || 'Merchant',
+          goldOffered: fakeMsg.goldOffered,
+          intendedOutcome,
+        });
       }
     });
 
@@ -942,7 +959,7 @@ export class NottinghamRoom extends Room<{ state: GameState }> {
         return;
       }
 
-      if (feedOffer?.intendedOutcome === 'FORCE_INSPECT') {
+      if (feedOffer?.intendedOutcome === 'FORCE_INSPECT' || feedOffer?.intendedOutcome === 'INSPECT') {
         this.executeInspect(merchantId);
       } else {
         this.executePassUnopened(merchantId, {

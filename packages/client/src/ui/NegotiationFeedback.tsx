@@ -12,6 +12,10 @@ export function NegotiationFeedback() {
 
   const transition = reducedMotion ? MOTION_PRESETS.instant : MOTION_PRESETS.snap;
 
+  const isInspectToast =
+    crossBagToast?.intendedOutcome === 'INSPECT' ||
+    crossBagToast?.intendedOutcome === 'FORCE_INSPECT';
+
   return (
     <>
       {/* 1. Cross-Bag Negotiation Toast (Non-blocking table toast) */}
@@ -22,16 +26,18 @@ export function NegotiationFeedback() {
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: -20, opacity: 0, scale: 0.95 }}
             transition={transition}
-            className="fixed top-16 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-tavern-surface/95 border-2 border-gold/70 text-parchment shadow-2xl backdrop-blur-md max-w-md w-[90vw]"
+            className={`fixed top-16 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-tavern-surface/95 border-2 ${
+              isInspectToast ? 'border-red-500/80 shadow-[0_0_20px_rgba(239,68,68,0.25)]' : 'border-gold/70 shadow-2xl'
+            } text-parchment backdrop-blur-md max-w-md w-[90vw]`}
           >
-            <span className="text-xl">↗️</span>
+            <span className="text-xl">{isInspectToast ? '🔨' : '🛡️'}</span>
             <div className="flex-1 text-xs font-display leading-tight">
               <span className="font-bold text-gold">{crossBagToast.fromPlayerName}</span>{' '}
               offered{' '}
               <span className="font-bold text-white">{crossBagToast.goldOffered} Gold</span>{' '}
               to{' '}
-              <span className="font-bold text-crimson-300">
-                {crossBagToast.intendedOutcome === 'FORCE_INSPECT' ? 'inspect' : 'pass'}{' '}
+              <span className={`font-bold ${isInspectToast ? 'text-crimson-300' : 'text-emerald-300'}`}>
+                {isInspectToast ? 'inspect' : 'pass'}{' '}
                 {crossBagToast.targetPlayerName}'s bag
               </span>
               !
@@ -39,7 +45,7 @@ export function NegotiationFeedback() {
             <button
               type="button"
               onClick={() => setCrossBagToast(null)}
-              className="text-parchment/60 hover:text-white font-bold text-sm px-1"
+              className="text-parchment/60 hover:text-white font-bold text-sm px-1 cursor-pointer"
             >
               ✕
             </button>
@@ -74,11 +80,11 @@ export function NegotiationFeedback() {
                 bag!
               </div>
               <div className={`text-xs font-display font-black uppercase tracking-wider mt-2 px-3.5 py-1 rounded-full border shadow-md ${
-                dealStruckBanner.forcedOutcome === 'FORCE_INSPECT'
+                dealStruckBanner.forcedOutcome === 'FORCE_INSPECT' || dealStruckBanner.forcedOutcome === 'INSPECT'
                   ? 'bg-crimson/60 text-red-100 border-red-400'
                   : 'bg-emerald/60 text-emerald-100 border-emerald-400'
               }`}>
-                {dealStruckBanner.forcedOutcome === 'FORCE_INSPECT'
+                {dealStruckBanner.forcedOutcome === 'FORCE_INSPECT' || dealStruckBanner.forcedOutcome === 'INSPECT'
                   ? `🔨 DEAL ACCEPTED: CHECKING ${playersMap.get(dealStruckBanner.targetBagOwnerId)?.name || 'MERCHANT'}`
                   : `🛡️ DEAL ACCEPTED: PASSING ${playersMap.get(dealStruckBanner.targetBagOwnerId)?.name || 'MERCHANT'}`}
               </div>

@@ -76,12 +76,24 @@ export function ActionLedger() {
     if (activeBribe && activeBribe.gold > 0) {
       const fromP = playersMap.get(activeBribe.fromPlayerId)?.name || 'Merchant';
       const toP = playersMap.get(activeBribe.toPlayerId)?.name || 'Sheriff';
+      const matchingFeedOffer = negotiationFeed.find((o) => o.id === activeBribe.id);
+      const isInspect =
+        matchingFeedOffer?.intendedOutcome === 'INSPECT' ||
+        matchingFeedOffer?.intendedOutcome === 'FORCE_INSPECT';
+      const targetName = matchingFeedOffer
+        ? playersMap.get(matchingFeedOffer.targetBagOwnerId)?.name
+        : null;
+      const purposeDesc = targetName
+        ? isInspect
+          ? ` to inspect ${targetName}'s bag`
+          : ` to pass ${targetName}'s bag`
+        : '';
       entries.push({
         id: `bribe-${activeBribe.id}-${activeBribe.sequenceNumber}`,
         type: 'EVENT',
         time: 'Negotiation',
-        text: `${fromP} offered ${activeBribe.gold} Gold to ${toP}.`,
-        icon: '⚖️',
+        text: `${fromP} offered ${activeBribe.gold} Gold to ${toP}${purposeDesc}.`,
+        icon: isInspect ? '🔨' : '⚖️',
         highlight: true,
       });
     }

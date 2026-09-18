@@ -231,7 +231,7 @@ export function ExaminationDesk() {
                         onClick={() => handleSelectMerchant(m.id)}
                         className={`h-7 px-2.5 rounded-lg text-xs font-display inline-flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap border ${
                           isSelected
-                            ? 'bg-gold text-walnut-bg border-gold font-bold shadow-md'
+                            ? 'bg-gold/30 text-walnut-bg border-gold font-bold shadow-md'
                             : 'bg-walnut-card text-parchment hover:bg-gold/10 border-tavern-border'
                         }`}
                       >
@@ -521,7 +521,7 @@ export function ExaminationDesk() {
               )}
 
               {/* Bribe Negotiation Proposal Builder */}
-              <BribeNegotiationPanel sheriff={sheriffPlayer} merchant={activeMerchant} />
+              <BribeNegotiationPanel key={activeMerchant.id} sheriff={sheriffPlayer} merchant={activeMerchant} />
 
               {/* Action Controls: Unsnap Clasp or Deputy Decisions */}
               <div className="w-full flex flex-col items-center pt-2">

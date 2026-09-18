@@ -42,6 +42,27 @@ export function BribeNegotiationPanel({ sheriff, merchant }: BribeNegotiationPan
     (o) => o.targetBagOwnerId === merchant.id && o.status === 'OPEN'
   );
 
+  const handleStartComposing = () => {
+    const openOffersForMerchant = negotiationFeed.filter(
+      (o) => o.targetBagOwnerId === merchant.id && o.status === 'OPEN'
+    );
+    const latestOffer = openOffersForMerchant[openOffersForMerchant.length - 1];
+    if (latestOffer) {
+      if (!isLocalMerchant) {
+        const isLatestInspect =
+          latestOffer.intendedOutcome === 'INSPECT' ||
+          latestOffer.intendedOutcome === 'FORCE_INSPECT';
+        setIntendedOutcome(isLatestInspect ? 'INSPECT' : 'PASS');
+      }
+      if (latestOffer.goldOffered > 0 && offerGold === 0) {
+        setOfferGold(Math.min(maxGold, latestOffer.goldOffered));
+      }
+    } else if (!isLocalMerchant) {
+      setIntendedOutcome('INSPECT');
+    }
+    setIsComposing(true);
+  };
+
   const handleToggleStandCard = (cardId: string) => {
     setSelectedStandCardIds((prev) =>
       prev.includes(cardId) ? prev.filter((id) => id !== cardId) : [...prev, cardId]
@@ -208,7 +229,7 @@ export function BribeNegotiationPanel({ sheriff, merchant }: BribeNegotiationPan
           </button>
           <button
             type="button"
-            onClick={() => setIsComposing(true)}
+            onClick={handleStartComposing}
             className="h-9 px-3.5 rounded-xl bg-walnut-card hover:bg-gold/10 border border-gold/30 hover:border-gold text-gold-muted hover:text-white font-display text-xs tracking-wider uppercase transition-all shadow-md cursor-pointer inline-flex items-center justify-center gap-1.5 whitespace-nowrap"
           >
             <span>⚡</span>
