@@ -133,9 +133,9 @@ export function MerchantBagDropZone({
                 );
               })}
             </div>
-            <span className="text-xs font-display font-bold text-gold">
+            {/* <span className="text-xs font-display font-bold text-gold">
               {loadedCards.length}/5
-            </span>
+            </span> */}
           </div>
 
           {/* Wax Seal Overlay when Snapped */}
