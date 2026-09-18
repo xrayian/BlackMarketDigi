@@ -11,6 +11,7 @@ export function DeclarationPanel() {
   const localPlayerId = useGameStore((s) => s.localPlayerId);
   const activeMerchantId = useGameStore((s) => s.activeMerchantId);
   const playersMap = useGameStore((s) => s.players);
+  const playerCount = useGameStore((s) => s.maxPlayers);
 
   const [selectedGood, setSelectedGood] = useState<GoodType | null>(null);
   const [isStamping, setIsStamping] = useState(false);
@@ -115,7 +116,7 @@ export function DeclarationPanel() {
                 })}
               </div>
             </div>
-          ) : isLocalActiveMerchant ? (
+          ) : isLocalActiveMerchant && playerCount > 3 ? (
             /* Active Merchant: Must Declare */
             <div className="flex flex-col items-center gap-3 text-center">
               <div className="flex items-center gap-2">

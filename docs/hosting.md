@@ -1,190 +1,185 @@
 # 🌐 Hosting & Deployment Guide
 
-This document provides a comprehensive guide for hosting and deploying **Sheriff of Nottingham: Digital Edition** across various production environments—including cloud Virtual Machines (Azure, AWS, GCP, DigitalOcean, Hetzner), self-hosted home servers, and local development networks.
+Welcome to the hosting guide for **Sheriff of Nottingham: Digital Edition**! Whether you want to play a quick game night with family on your living room Wi-Fi, host a private server on a cheap cloud VPS for your Discord group, or deploy on Microsoft Azure with free HTTPS/SSL certificates, this guide will get you running in minutes.
 
 ---
 
-## 🏛️ System Architecture
+## 🎯 Which Option is Right for You?
 
-Sheriff of Nottingham is packaged as a two-tier containerized stack orchestrated via Docker Compose:
+| Option | Best For... | Cost | Setup Time | Difficulty |
+| :--- | :--- | :--- | :--- | :--- |
+| **[Option 1: Home Wi-Fi / Local LAN](#option-1-home-wi-fi--local-lan-easiest--zero-cost)** | Playing with family or friends in the same room | **Free ($0)** | 2 minutes | 🟢 Beginner |
+| **[Option 2: Microsoft Azure Cloud](#option-2-microsoft-azure-cloud-vm-recommended)** | 24/7 dedicated server with automated setup script | **Free Tier** or ~$4/mo | 5 minutes | 🟡 Easy (Automated) |
+| **[Option 3: Any Linux Cloud VPS](#option-3-generic-linux-vps-digitalocean-aws-hetzner-etc)** | DigitalOcean, AWS EC2, Hetzner, Linode, GCP | $4–$6/month | 5 minutes | 🟡 Easy (Automated) |
 
+---
+
+## Option 1: Home Wi-Fi / Local LAN (Easiest & Zero Cost)
+
+Host a private game for friends and family connected to the same home Wi-Fi network. No cloud account or domain name required!
+
+### 1. Requirements
+* Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) on your Windows or Mac computer (or Docker on Linux).
+
+### 2. Launch the Game
+Open PowerShell, Terminal, or Command Prompt:
+
+```bash
+# Clone the game repository
+git clone https://github.com/xrayian/digital-sheriff-of-nottingham.git
+cd digital-sheriff-of-nottingham
+
+# Start the game containers
+docker compose up -d --build
 ```
-                          Internet / Clients
-                                  │
-                                  ▼
-                   ┌──────────────────────────────┐
-                   │   Firewall / Port Forwarding  │
-                   │    (Ports: 80, 443, 2567)     │
-                   └──────────────┬───────────────┘
-                                  │
-                   ┌──────────────▼──────────────┐
-                   │     Nginx Web Proxy (80)     │  <-- `client` container
-                   │    (SSL Termination: 443)    │
-                   └───────┬──────────────┬──────┘
-                           │              │
-        Static SPA Assets  │              │  WebSocket & Matchmaker
-    (/, /assets/, /cards/) │              │  (/matchmake/*, /:pid/:rid)
-                           │              │
-                           ▼              ▼
-                     [Static HTML]   ┌───────────────────────────┐
-                     [JS/CSS/SVG]    │  Colyseus Game Engine     │  <-- `server` container
-                                     │  (Node 22, Port: 2567)    │
-                                     └───────────────────────────┘
+
+### 3. Join from Other Devices
+* **On your host computer:** Open `http://localhost` in your browser.
+* **For other players on the same Wi-Fi:** 
+  1. Find your computer's local network IP address:
+     * **Windows:** Open PowerShell and run `ipconfig` (look for `IPv4 Address`, e.g., `192.168.1.150`).
+     * **Mac / Linux:** Open Terminal and run `ip a` or check your Wi-Fi network settings.
+  2. Tell other players to visit: `http://192.168.1.150` (replace with your actual IP).
+  3. Create a room, share the 4-letter room code, and enjoy!
+
+---
+
+## Option 2: Microsoft Azure Cloud VM (Recommended)
+
+Want a permanent public link so friends across the world can join anytime from their laptops or phones? An automated script handles everything from Docker installation to memory tuning.
+
+### Recommended VM Sizing
+* **Standard_B2ats_v2** (2 vCPUs, 1 GiB RAM, ~$5/mo)
+* **Standard_B1s** (1 vCPU, 1 GiB RAM, free-tier eligible)
+* **Standard_B2s** (2 vCPUs, 4 GiB RAM, ~$15/mo)
+
+> 💡 *Our automated setup script automatically creates a 4GB swapfile and optimizes Node memory limits, guaranteeing smooth builds even on budget 1GB RAM instances.*
+
+### 1-Command Turnkey Setup
+Once you have created an Ubuntu VM and connected via SSH:
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/xrayian/digital-sheriff-of-nottingham.git
+cd digital-sheriff-of-nottingham
+
+# 2. Run the automated setup script
+sudo ./deploy/azure-setup.sh
 ```
 
-### Key Architectural Benefits
-1. **Single-Port Operation (Ports 80 / 443):** Nginx serves the React SPA static files and reverse-proxies Colyseus WebSocket streams and matchmaker HTTP requests. Players behind restrictive corporate, school, or mobile carrier firewalls can play with zero port friction.
-2. **Zero-Configuration Dynamic Host Autodetection:** The client detects `window.location.host` and protocol (`ws://` vs `wss://`) dynamically at runtime in [`packages/client/src/net/colyseus.ts`](file:///C:/projects/BlackMarketDigi/packages/client/src/net/colyseus.ts). You do not need to bake IP addresses or hostnames into the frontend build.
-3. **Low Resource Footprint:** The combined Node.js server and Alpine Nginx proxy consume ~180MB RAM at idle and can easily host dozens of concurrent games on a $4–$10/month VM.
+**What the script does automatically:**
+1. Updates system security packages.
+2. Allocates and activates a 4GB swapfile so the VM never runs out of memory.
+3. Installs Docker Engine & Compose plugin.
+4. Opens required firewall ports (22, 80, 443).
+5. Sequentially builds and launches both the game server and client web app.
+6. Outputs your public game URL (e.g. `http://20.120.45.67`)!
+
+📖 **Want a complete walkthrough with screenshots of the Azure Portal?** See the **[Step-by-Step Azure Deployment Guide](azure-deployment-guide.md)**.
 
 ---
 
-## 🚀 Deployment Options
+## Option 3: Generic Linux VPS (DigitalOcean, AWS, Hetzner, etc.)
 
-### Option 1: Microsoft Azure Cloud VM (Recommended)
-For an automated, production-ready cloud deployment with high reliability, use Azure Cloud:
+You can run this game on any Ubuntu or Debian Linux VPS provider:
 
-* **Recommended VM Size:** `Standard_B2ats_v2` (2 vCPUs, 1 GiB RAM), `Standard_B1s` (1 vCPU, 1 GiB RAM - free-tier eligible), or `Standard_B2s` (2 vCPUs, 4 GiB RAM, ~$15/mo). The setup script automatically configures swap space to support low-RAM VMs.
-* **OS:** Ubuntu 22.04 LTS or 24.04 LTS x64.
-* **Full Step-by-Step Guide:** Refer to [`docs/azure-deployment-guide.md`](file:///C:/projects/BlackMarketDigi/docs/azure-deployment-guide.md) for Azure Portal GUI and Azure CLI deployment walkthroughs.
-* **Turnkey Setup:**
-  ```bash
-  git clone https://github.com/xrayian/digital-sheriff-of-nottingham.git
-  cd digital-sheriff-of-nottingham
-  chmod +x deploy/*.sh
-  sudo ./deploy/azure-setup.sh
-  ```
-
----
-
-### Option 2: Generic Linux VPS (DigitalOcean, Hetzner, AWS EC2, Linode, GCP)
-
-Any 64-bit Linux server running Ubuntu or Debian can be provisioned in minutes:
-
-#### 1. Inbound Firewall Requirements
-Ensure your cloud provider's firewall / security group allows the following inbound ports:
-* **22/TCP:** SSH administrative access
-* **80/TCP:** HTTP (web client and matchmaking)
+### 1. Firewall Requirements
+Ensure your VPS provider's firewall or security group allows these inbound ports:
+* **22/TCP:** SSH (remote management)
+* **80/TCP:** HTTP (web game client and matchmaking)
 * **443/TCP:** HTTPS & WSS (secure web client and WebSockets)
-* **2567/TCP:** (Optional) Direct Colyseus game server port
 
-#### 2. Run the Turnkey Script
+### 2. Run the Setup Script
 ```bash
 git clone https://github.com/xrayian/digital-sheriff-of-nottingham.git
 cd digital-sheriff-of-nottingham
 chmod +x deploy/*.sh
 sudo ./deploy/azure-setup.sh
 ```
-*Note: Although named `azure-setup.sh`, the provisioning script is completely cloud-agnostic and runs identically on any modern Ubuntu/Debian host.*
+*(Note: Despite the name, `azure-setup.sh` is 100% cloud-agnostic and works identically on any Ubuntu or Debian cloud server.)*
 
 ---
 
-### Option 3: Local Network / Home Lab / LAN Hosting
+## 🔒 Free HTTPS / SSL Setup (game.yourdomain.com)
 
-To host games for friends on your local Wi-Fi or home network:
-
-#### 1. Requirements
-* Docker Desktop (Windows / macOS) or Docker Engine (Linux).
-* Ensure port `80` (or your mapped port) is allowed through your local OS firewall.
-
-#### 2. Launching Locally
-```bash
-git clone https://github.com/xrayian/digital-sheriff-of-nottingham.git
-cd digital-sheriff-of-nottingham
-docker compose up -d --build
-```
-
-#### 3. Connecting Other Devices
-* Find your computer's local IP address (e.g. `192.168.1.150`):
-  * **Windows:** Run `ipconfig` in PowerShell
-  * **macOS / Linux:** Run `hostname -I` or `ip a`
-* Share the URL with friends on the same Wi-Fi network:
-  `http://192.168.1.150`
-* Clients will automatically discover the WebSocket host via the browser URL and connect without any configuration.
-
----
-
-## 🔒 Domain Name & Free SSL/TLS Configuration (HTTPS & WSS)
-
-When deploying to a public domain, enabling SSL/TLS is essential. Modern browsers will block insecure `ws://` connections if the web page is loaded over `https://` (Mixed Content Policy).
+If you own a custom domain or subdomain, you can enable free Let's Encrypt SSL with HTTPS and Secure WebSockets (`wss://`) in 1 command:
 
 ### 1. Point Your Domain DNS
-Create an **A Record** pointing your domain or subdomain to your server's public IP:
-```
-Type: A
-Name: game (or @ for apex domain)
-Value: <YOUR_SERVER_PUBLIC_IP>
-TTL: 300 (or Automatic)
-```
+In your domain registrar (GoDaddy, Namecheap, Cloudflare, etc.), add an **A Record**:
+* **Type:** A
+* **Name:** `game` (or `@` for root domain)
+* **Value:** Your cloud server's Public IP address
+* **TTL:** Automatic or 300 seconds
 
-### 2. Run Automated SSL Setup
-Run the included Certbot SSL configuration script:
+### 2. Run the SSL Setup Script
 ```bash
 sudo ./deploy/setup-ssl.sh game.yourdomain.com your-email@example.com
 ```
 
-### What this script configures:
-1. Provisions a genuine Let's Encrypt certificate via Certbot.
-2. Generates an SSL-optimized Nginx config (`nginx/ssl.conf`) with HTTP-to-HTTPS 301 redirects, TLSv1.2/1.3 ciphers, and WSS WebSocket proxies.
-3. Mounts the certificate automatically into the client container via `docker-compose.override.yml`.
-4. Adds a daily automated renewal cron job at 3:00 AM with zero manual maintenance needed.
+**What this configures:**
+* Requests a free, trusted certificate from Let's Encrypt via Certbot.
+* Automatically creates Nginx SSL templates with HTTP-to-HTTPS redirects.
+* Schedules a daily automatic renewal cron job at 3:00 AM with zero manual maintenance needed.
 
 ---
 
-## ⚙️ Environment Variables & Tuning
+## 🔄 Updating Your Live Server
 
-| Variable | Service | Default | Description |
-| :--- | :--- | :--- | :--- |
-| `NODE_ENV` | `server` | `production` | Enables production optimizations and security checks. |
-| `SERVER_PORT` | `server` | `2567` | Internal port the Colyseus game server listens on. |
-| `VITE_WS_URL` | `client` | *(empty)* | Optional override for the WebSocket server URL (e.g. `wss://game.domain.com`). If unset, client autodetects the current host at runtime. |
+When new updates, balance tweaks, or features are pushed to GitHub, update your live cloud server with zero downtime:
 
----
-
-## 🔄 Operations & Maintenance
-
-### 1. Zero-Downtime Updates
-To pull new updates from GitHub and redeploy:
 ```bash
+cd ~/digital-sheriff-of-nottingham
 ./deploy/update.sh
 ```
-This script pulls `main`, rebuilds only changed Docker image layers, performs a smooth container recreation, and cleans up dangling Docker images.
+This pulls the latest commits, rebuilds changed image layers sequentially, reloads containers smoothly without interrupting ongoing matches, and cleans up old Docker images.
 
-### 2. Viewing Live Application Logs
+---
+
+## 🛠️ Viewing Live Server Logs
+
+If you want to see what's happening on your server (player joins, room creation, or inspection results):
+
 ```bash
-# Monitor Colyseus authoritative game server logs (game loops, matchmaker, anti-cheat errors)
+# View live Colyseus game server logs
 docker compose logs -f server
 
-# Monitor Nginx access and error logs
+# View live Nginx web server access logs
 docker compose logs -f client
 ```
 
-### 3. Service Control
-```bash
-# Stop all services
-docker compose down
-
-# Restart services
-docker compose restart
-
-# View running container health
-docker compose ps
-
-# View live CPU & memory statistics
-docker stats
-```
-
 ---
 
-## ❓ Frequently Asked Questions & Troubleshooting
+## 🏛️ Under the Hood: Technical Architecture
 
-### 1. "Can't connect to room / WebSocket error in browser console"
-* **Check Mixed Content:** If the web app URL starts with `https://`, your WebSocket URL must be `wss://`. Ensure you ran `./deploy/setup-ssl.sh`.
-* **Check Proxy Timeout:** In `nginx/default.conf`, verify `proxy_read_timeout` is set to `86400s`. This prevents Nginx from terminating idle WebSocket connections.
-* **Check Container Status:** Run `docker compose ps` to ensure both `sheriff_server` and `sheriff_client` are in status `Up (healthy)`.
+For developers and system administrators curious about how the stack is structured:
 
-### 2. "Website loads, but room creation hangs indefinitely"
-* Verify that Nginx is routing HTTP POST requests on `/matchmake/*` to `http://server:2567`. Check `docker compose logs server` to see if matchmaker requests are reaching the Node.js process.
+```
+                          Player Browsers
+                                 │
+                                 ▼
+                  ┌──────────────────────────────┐
+                  │    Host Firewall / Router    │
+                  │    (Ports: 80, 443, 2567)    │
+                  └──────────────┬───────────────┘
+                                 │
+                  ┌──────────────▼──────────────┐
+                  │   client (Nginx:Alpine)     │  <-- Port 80 / 443
+                  │   • Serves React 18 SPA     │
+                  │   • Reverse Proxies WS/WSS  │
+                  └───────┬──────────────┬──────┘
+                          │              │
+       Static Web Assets  │              │  WebSocket Streams & Matchmaking
+       (/, /assets/*)     │              │  (/matchmake/*, /colyseus)
+                          │              │
+                          ▼              ▼
+                    [Browser SPA]  ┌───────────────────────────┐
+                                   │   server (Node 22)        │  <-- Port 2567
+                                   │   • Colyseus 0.18 Rooms   │
+                                   │   • Rules & Anti-Cheat    │
+                                   └───────────────────────────┘
+```
 
-### 3. "Port 80 is already in use by another service"
-* If you have Apache or another web server installed on the host, either disable it (`sudo systemctl stop apache2`) or edit `docker-compose.yml` to map to an alternate port (e.g. `"8080:80"`).
+### Key Technical Advantages
+* **Single-Port Simplicity:** Nginx handles static file delivery AND reverse-proxies real-time WebSocket traffic over ports 80/443. Players behind strict corporate, school, or mobile carrier firewalls connect without any blocked port errors.
+* **Dynamic Connection Discovery:** The client automatically detects `window.location.host` and protocol (`ws://` vs `wss://`) at runtime in [`colyseus.ts`](../packages/client/src/net/colyseus.ts), requiring zero environment configuration when switching between local and production URLs.
+* **Minimal Memory Footprint:** The combined Node.js server and Alpine Nginx proxy use ~180MB RAM at idle, easily hosting dozens of concurrent games on budget VMs.

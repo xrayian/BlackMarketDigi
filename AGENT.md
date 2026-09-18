@@ -7,7 +7,7 @@
 - **Audio Engine:** Custom procedural Web Audio API synthesizer (`soundManager.ts`) with zero external sound files
 - **Shared:** TypeScript types, game constants, card catalog, message interfaces
 - **Deployment:** Docker Compose, Node 22 Alpine, Nginx reverse proxy with dynamic WS/WSS autodetection, Let's Encrypt SSL
-- See `init.md` §1 for full rationale on each architectural choice
+- See `docs/development/init.md` §1 for full rationale on each architectural choice
 
 ## How to Run
 ```bash
